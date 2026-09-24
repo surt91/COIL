@@ -49,6 +49,8 @@ export interface EnemyDef {
   /** Passes over the snake body. */
   flies?: boolean;
   boss?: boolean;
+  /** An enemy snake: hp is its length, its body follows its head. */
+  snake?: boolean;
   /** Only coils of at most this area hold (and crush) it. */
   heldMaxArea?: number;
   signature?: ItemId;

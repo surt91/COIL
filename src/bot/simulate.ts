@@ -12,7 +12,7 @@ import type { Policy } from './policies';
 
 export const STARTER: ItemId[] = ['lunge', 'fang', 'scale', 'reverse', 'venom', 'rattle'];
 
-export type Outcome = 'won' | 'dead' | 'stalled' | 'error';
+export type Outcome = 'won' | 'dead' | 'stalled' | 'softlock' | 'error';
 
 export interface Issue {
   kind: 'exception' | 'invariant' | 'noop' | 'softlock';
@@ -123,7 +123,8 @@ export function runFight(
     let a: Action;
     try {
       if (legalMoves(f).length === 0) {
-        issue('softlock', f, 'no legal moves at all');
+        issue('softlock', f, `no legal moves at all (head at ${f.snake.body[0].x},${f.snake.body[0].y})`);
+        r.outcome = 'softlock';
         break;
       }
       a = perTurn >= maxPerTurn ? { t: 'move', dir: legalMoves(f)[0] } : policy(f, rng);
@@ -157,7 +158,7 @@ export function runFight(
     }
     f = g;
   }
-  if (r.outcome !== 'error') r.outcome = f.status === 'won' ? 'won' : f.status === 'dead' ? 'dead' : 'stalled';
+  if (r.outcome !== 'error' && r.outcome !== 'softlock') r.outcome = f.status === 'won' ? 'won' : f.status === 'dead' ? 'dead' : 'stalled';
   r.turns = f.turn;
   r.segsEnd = f.snake.segs.length;
   r.fleshOut = f.snake.segs.filter((s) => !s.item || s.temp).length;

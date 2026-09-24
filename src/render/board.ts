@@ -180,6 +180,13 @@ export class BoardRenderer {
       case 'strike':
         this.flashes.push({ tiles: e.tiles, color: PAL.danger, life: 0, max: 350 });
         break;
+      case 'steal':
+        this.float(e.at, `${ITEMS.get(e.item)?.name ?? ''} stolen!`, PAL.food);
+        break;
+      case 'burrow':
+      case 'emerge':
+        this.burst(e.at, '#6d5a4f', 14, 2.5);
+        break;
       case 'msg':
         this.float(f.snake.body[0], e.text, '#fff');
         break;
@@ -423,6 +430,20 @@ export class BoardRenderer {
       const d = ENEMIES.get(e.kind);
       const q = this.enemyPos(e, p);
       const X = this.cx(q.x), Y = this.cy(q.y);
+      if (e.under) {
+        ctx.fillStyle = '#3a2e26';
+        ctx.beginPath();
+        ctx.ellipse(X, Y + T * 0.1, T * 0.32, T * 0.18, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#5a4637';
+        for (let i = 0; i < 5; i++) {
+          ctx.beginPath();
+          ctx.arc(X - T * 0.2 + i * T * 0.1, Y + T * 0.02 + Math.sin(now / 200 + i) * T * 0.03, T * 0.05, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        continue;
+      }
+      if (e.body && e.body.length) this.drawEnemySnake(e, q, d?.color ?? '#e056fd', now);
       if (e.held) {
         ctx.strokeStyle = PAL.coil;
         ctx.lineWidth = 3;
@@ -435,12 +456,24 @@ export class BoardRenderer {
       ctx.rotate(Math.atan2(head.y - e.pos.y, head.x - e.pos.x));
       drawCreature(ctx, e.kind, T, d?.color ?? '#fff', now / 1000 + e.id, (e.mem.curled ?? 0) > 0);
       ctx.restore();
-      // HP pips
-      for (let i = 0; i < e.maxHp; i++) {
-        ctx.fillStyle = i < e.hp ? '#f1faee' : 'rgba(255,255,255,0.18)';
-        ctx.beginPath();
-        ctx.arc(X - ((e.maxHp - 1) / 2) * T * 0.14 + i * T * 0.14, Y - T * 0.42, T * 0.045, 0, Math.PI * 2);
-        ctx.fill();
+      // HP pips (a number for big ones)
+      if (e.maxHp <= 6) {
+        for (let i = 0; i < e.maxHp; i++) {
+          ctx.fillStyle = i < e.hp ? '#f1faee' : 'rgba(255,255,255,0.18)';
+          ctx.beginPath();
+          ctx.arc(X - ((e.maxHp - 1) / 2) * T * 0.14 + i * T * 0.14, Y - T * 0.42, T * 0.045, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else {
+        const wBar = T * 0.8;
+        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+        ctx.fillRect(X - wBar / 2, Y - T * 0.48, wBar, T * 0.07);
+        ctx.fillStyle = d?.boss ? PAL.danger : '#f1faee';
+        ctx.fillRect(X - wBar / 2, Y - T * 0.48, (wBar * Math.max(0, e.hp)) / e.maxHp, T * 0.07);
+        ctx.fillStyle = '#fff';
+        ctx.font = `bold ${Math.round(T * 0.22)}px system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText(String(e.hp), X, Y - T * 0.54);
       }
       if (e.poison > 0) {
         ctx.fillStyle = '#80ed99';
@@ -471,10 +504,76 @@ export class BoardRenderer {
     }
   }
 
+  private drawEnemySnake(e: Enemy, head: { x: number; y: number }, color: string, now: number) {
+    const ctx = this.ctx, T = this.T;
+    const prev = this.prev?.enemies.find((x) => x.id === e.id)?.body;
+    const pts = [head, ...e.body!.map((b, i) => {
+      const a = prev?.[i];
+      if (!a || Math.abs(a.x - b.x) + Math.abs(a.y - b.y) > 1) return b;
+      const t = this.instant ? 1 : ease(Math.min(1, (now - this.animStart) / this.animDur));
+      return { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) };
+    })];
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for (const [w, c] of [[T * 0.56, PAL.outline], [T * 0.5, color]] as const) {
+      for (let i = pts.length - 1; i > 0; i--) {
+        ctx.strokeStyle = c;
+        ctx.lineWidth = w * lerp(1, 0.6, i / pts.length);
+        ctx.beginPath();
+        ctx.moveTo(this.cx(pts[i].x), this.cy(pts[i].y));
+        ctx.lineTo(this.cx(pts[i - 1].x), this.cy(pts[i - 1].y));
+        ctx.stroke();
+      }
+    }
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    for (let i = 1; i < pts.length; i++) {
+      ctx.beginPath();
+      ctx.arc(this.cx(pts[i].x), this.cy(pts[i].y), T * 0.09, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
   private drawLocks(f: Fight, pts: { x: number; y: number }[], now: number) {
     const ctx = this.ctx, T = this.T;
     for (const e of f.enemies) {
-      const it = e.intent;
+      const it0 = e.intent;
+      if (it0.t === 'steal') {
+        const idx = f.snake.segs.findIndex((s) => s.uid === it0.seg) + 1;
+        if (idx > 0 && idx < pts.length) {
+          ctx.strokeStyle = PAL.food;
+          ctx.lineWidth = 2;
+          ctx.setLineDash([3, 4]);
+          ctx.beginPath();
+          ctx.moveTo(this.cx(e.pos.x), this.cy(e.pos.y));
+          ctx.lineTo(this.cx(pts[idx].x), this.cy(pts[idx].y));
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.beginPath();
+          ctx.arc(this.cx(pts[idx].x), this.cy(pts[idx].y), T * 0.38, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        continue;
+      }
+      if (it0.t === 'emerge') {
+        this.hatch([it0.at], PAL.danger, 0.7, now);
+        ctx.strokeStyle = PAL.danger;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.ox + it0.at.x * T + 2, this.oy + it0.at.y * T + 2, T - 4, T - 4);
+        continue;
+      }
+      if (it0.t === 'summon') {
+        ctx.strokeStyle = 'rgba(239, 71, 111, 0.6)';
+        ctx.setLineDash([2, 3]);
+        ctx.lineWidth = 2;
+        for (const t of it0.tiles) {
+          ctx.beginPath();
+          ctx.arc(this.cx(t.x), this.cy(t.y), T * 0.3, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.setLineDash([]);
+        continue;
+      }
+      const it = it0;
       if (it.t !== 'lock') continue;
       const idx = it.seg === 0 ? 0 : f.snake.segs.findIndex((s) => s.uid === it.seg) + 1;
       if (idx < 0 || (it.seg !== 0 && idx === 0) || idx >= pts.length) continue;

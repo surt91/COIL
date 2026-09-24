@@ -224,6 +224,173 @@ export function drawCreature(ctx: G, kind: string, T: number, color: string, t: 
       }
       break;
     }
+    case 'mole': {
+      ctx.fillStyle = '#e8b4a0';
+      for (const s of [-1, 1]) {
+        ctx.beginPath();
+        ctx.ellipse(T * 0.18, s * T * 0.2, T * 0.1, T * 0.06, s * 0.6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.ellipse(-T * 0.02, 0, T * 0.3, T * 0.24, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#f4a6a6';
+      ctx.beginPath();
+      ctx.arc(T * 0.3, 0, T * 0.06, 0, Math.PI * 2);
+      ctx.fill();
+      eyes(ctx, T * 0.18, T * 0.08, T * 0.015);
+      break;
+    }
+    case 'magpie': {
+      const flap = Math.sin(t * 14) * 0.25;
+      ctx.fillStyle = '#1b1b2f';
+      for (const s of [-1, 1]) {
+        ctx.beginPath();
+        ctx.ellipse(-T * 0.02, s * T * 0.2, T * 0.26, T * 0.08, s * (0.5 + flap), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.ellipse(-T * 0.02, 0, T * 0.2, T * 0.12, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#1b1b2f';
+      ctx.beginPath();
+      ctx.moveTo(-T * 0.18, 0);
+      ctx.lineTo(-T * 0.45, -T * 0.06);
+      ctx.lineTo(-T * 0.45, T * 0.06);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(T * 0.2, 0, T * 0.1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#f4d35e';
+      poly3(ctx, [T * 0.38, 0], [T * 0.27, -T * 0.04], [T * 0.27, T * 0.04]);
+      ctx.fill();
+      break;
+    }
+    case 'ant': {
+      ctx.strokeStyle = '#5a1a14';
+      ctx.lineWidth = T * 0.03;
+      legs(ctx, 3, T * 0.24, T * 0.1, t * 1.5, T * 0.03);
+      ctx.fillStyle = color;
+      for (const [x, r] of [[-T * 0.18, T * 0.11], [0, T * 0.07], [T * 0.15, T * 0.08]] as const) {
+        ctx.beginPath();
+        ctx.arc(x, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
+    case 'tortoise': {
+      ctx.fillStyle = '#9aa77a';
+      ctx.beginPath();
+      ctx.arc(T * 0.33, 0, T * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+      for (const [x, y] of [[0.18, 0.22], [0.18, -0.22], [-0.2, 0.22], [-0.2, -0.22]]) {
+        ctx.beginPath();
+        ctx.arc(T * x, T * y, T * 0.06, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(0, 0, T * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(40, 50, 25, 0.6)';
+      ctx.lineWidth = T * 0.025;
+      for (let i = 0; i < 6; i++) {
+        const a = (i * Math.PI) / 3;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * T * 0.12, Math.sin(a) * T * 0.12);
+        ctx.lineTo(Math.cos(a) * T * 0.3, Math.sin(a) * T * 0.3);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.arc(0, 0, T * 0.12, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+    }
+    case 'wasp': {
+      const flap = Math.sin(t * 30) * 0.3;
+      ctx.fillStyle = 'rgba(220, 240, 255, 0.55)';
+      for (const s of [-1, 1]) {
+        ctx.beginPath();
+        ctx.ellipse(0, s * T * 0.16, T * 0.16, T * 0.07, s * (0.6 + flap), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.ellipse(-T * 0.1, 0, T * 0.16, T * 0.1, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#222';
+      for (const x of [-0.16, -0.06]) ctx.fillRect(T * x, -T * 0.1, T * 0.035, T * 0.2);
+      ctx.beginPath();
+      ctx.arc(T * 0.12, 0, T * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+      poly3(ctx, [-T * 0.34, 0], [-T * 0.24, -T * 0.03], [-T * 0.24, T * 0.03]);
+      ctx.fill();
+      break;
+    }
+    case 'queen': {
+      ctx.strokeStyle = '#5a1a14';
+      ctx.lineWidth = T * 0.05;
+      legs(ctx, 3, T * 0.42, T * 0.16, t, T * 0.03);
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.ellipse(-T * 0.2, 0, T * 0.24, T * 0.19, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(T * 0.06, 0, T * 0.1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(T * 0.26, 0, T * 0.13, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffd166';
+      poly3(ctx, [T * 0.2, -T * 0.14], [T * 0.26, -T * 0.26], [T * 0.32, -T * 0.14]);
+      ctx.fill();
+      eyes(ctx, T * 0.32, T * 0.06, T * 0.025);
+      break;
+    }
+    case 'glowworm': {
+      const glow = 0.5 + 0.5 * Math.sin(t * 3);
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, T * 0.5);
+      g.addColorStop(0, `rgba(184, 242, 230, ${0.35 * glow})`);
+      g.addColorStop(1, 'rgba(184, 242, 230, 0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(-T / 2, -T / 2, T, T);
+      ctx.fillStyle = color;
+      for (let i = 0; i < 4; i++) {
+        ctx.beginPath();
+        ctx.arc(-T * 0.2 + i * T * 0.13, Math.sin(t * 4 + i) * T * 0.04, T * (0.07 + i * 0.01), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
+    case 'rival':
+    case 'ouroboros': {
+      ctx.fillStyle = '#07100f';
+      ctx.beginPath();
+      ctx.ellipse(T * 0.04, 0, T * 0.38, T * 0.32, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.ellipse(T * 0.04, 0, T * 0.35, T * 0.29, 0, 0, Math.PI * 2);
+      ctx.fill();
+      for (const s of [-1, 1]) {
+        ctx.fillStyle = kind === 'ouroboros' ? '#e63946' : '#fff3b0';
+        ctx.beginPath();
+        ctx.ellipse(T * 0.16, s * T * 0.13, T * 0.08, T * 0.07, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#0d1321';
+        ctx.beginPath();
+        ctx.ellipse(T * 0.18, s * T * 0.13, T * 0.02, T * 0.06, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (kind === 'ouroboros') {
+        ctx.fillStyle = '#ffd166';
+        for (let i = -1; i <= 1; i++) poly3(ctx, [-T * 0.12, i * T * 0.12 - T * 0.04], [-T * 0.3, i * T * 0.14], [-T * 0.12, i * T * 0.12 + T * 0.04]), ctx.fill();
+      }
+      break;
+    }
     default: {
       ctx.fillStyle = color;
       ctx.beginPath();

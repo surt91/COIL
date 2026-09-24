@@ -39,6 +39,9 @@ export function checkInvariants(f: Fight): string[] {
     if (epos.has(key(e.pos))) out.push(`two enemies on (${e.pos.x},${e.pos.y})`);
     epos.add(key(e.pos));
   }
+  for (const p of f.food) if (seen.has(key(p))) out.push(`food under body at (${p.x},${p.y})`);
+  for (const p of f.webs) if (seen.has(key(p))) out.push(`web under body at (${p.x},${p.y})`);
+  for (const hk of f.husks) if (seen.has(key(hk.pos))) out.push(`husk under body at (${hk.pos.x},${hk.pos.y})`);
   if (f.status === 'play' && f.food.length < f.opts.minFood) out.push(`food ${f.food.length} < minFood`);
   return out;
 }

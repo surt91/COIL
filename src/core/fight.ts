@@ -106,15 +106,26 @@ export function createFight(spec: RoomSpec): Fight {
   for (const [kind, p] of enemies) ops.spawnEnemy(f, kind, p);
   for (const kind of spec.place ?? []) {
     const s0 = f.snake.body[0];
-    for (let tries = 0; tries < 400; tries++) {
+    let placed = false;
+    for (let tries = 0; tries < 400 && !placed; tries++) {
       const p = randomEmpty(f.rng, f);
       if (!p) break;
       const far = manhattan(p, s0) >= Math.max(5, 8 - tries / 50);
       const spaced = f.enemies.every((e) => manhattan(e.pos, p) >= 2);
       if (far && spaced && !f.spawns.some((q) => eq(q, p))) {
         ops.spawnEnemy(f, kind, p);
-        break;
+        placed = true;
       }
+    }
+    if (!placed) {
+      // Fallback: the free tile farthest from the start.
+      let best: Pos | null = null;
+      for (let y = 0; y < f.h; y++)
+        for (let x = 0; x < f.w; x++) {
+          const p = { x, y };
+          if (ops.isEmpty(f, p) && (!best || manhattan(p, s0) > manhattan(best, s0))) best = p;
+        }
+      if (best) ops.spawnEnemy(f, kind, best);
     }
   }
   for (const e of f.enemies) e.intent = think(f, e);
@@ -145,7 +156,9 @@ export function moveOutcome(f: Fight, dir: Dir): MoveOutcome {
   if (e) return { k: 'bite', enemy: e.id };
   const bi = ops.bodyIndexAt(f, t);
   if (bi > 0) {
-    const tailTip = bi === s.body.length - 1 && ops.pending(f) === 0;
+    // The tail tip moves away — unless we grow this move (a husk or food under it).
+    const grows = ops.huskAt(f, t) >= 0 || ops.foodAt(f, t) >= 0;
+    const tailTip = bi === s.body.length - 1 && ops.pending(f) === 0 && !grows;
     if (!tailTip) return { k: 'body', bi };
   }
   if (ops.huskAt(f, t) >= 0) return { k: 'husk' };
@@ -218,6 +231,17 @@ export function doMove(f: Fight, dir: Dir, extraBite = 0): boolean {
 
 function bite(f: Fight, e: Enemy, dir: Dir, extraBite: number): boolean {
   const d = enemyDef(e.kind);
+  const target = stepPos(f.snake.body[0], dir);
+  const k = e.body ? e.body.findIndex((b) => eq(b, target)) : -1;
+  if (k >= 0) {
+    // Biting an enemy snake's body severs it there.
+    f.buffs.bite = 0;
+    const killed = ops.cutEnemy(f, e, k, 'bite');
+    ops.emit(f, { t: 'bite', enemy: e.id, at: target, dmg: 0, killed });
+    f.snake.dir = dir;
+    ops.removeDead(f);
+    return false;
+  }
   let dmg = 1 + f.buffs.bite + ops.bodyBonus(f, 'biteBonus') + extraBite;
   f.buffs.bite = 0;
   if (d.onBitten?.(f, e)) dmg = 0;
@@ -241,7 +265,7 @@ function bite(f: Fight, e: Enemy, dir: Dir, extraBite: number): boolean {
   }
   // Survived: knocked back one tile and interrupted.
   const back = stepPos(e.pos, dir);
-  if (ops.freeForEnemy(f, back, d.flies)) {
+  if (!e.body && ops.freeForEnemy(f, back, d.flies)) {
     ops.emit(f, { t: 'knockback', enemy: e.id, from: { ...e.pos }, to: back });
     e.pos = back;
   }
@@ -334,6 +358,7 @@ function constrictPhase(f: Fight) {
   const where = new Map<number, (typeof coils)[number]>();
   for (const c of coils) for (const t of c.tiles) where.set(key(t), c);
   for (const e of f.enemies) {
+    if (e.under) continue;
     let c = where.get(key(e.pos));
     const maxArea = enemyDef(e.kind).heldMaxArea;
     if (c && maxArea !== undefined && c.area > maxArea) c = undefined;
@@ -388,15 +413,18 @@ function resolveIntent(f: Fight, e: Enemy): boolean {
       return false;
     case 'move': {
       if (e.held) return false;
+      const trail: Pos[] = [];
       for (let i = 0; i < it.steps; i++) {
         let dir: Dir | null = it.dir;
         if (i > 0 && it.chase) dir = ops.pathStep(f, e.pos, f.snake.body, d.flies);
         if (dir === null) break;
         const to = stepPos(e.pos, dir);
         if (!ops.freeForEnemy(f, to, d.flies)) break;
-        ops.emit(f, { t: 'enemyMove', enemy: e.id, from: { ...e.pos }, to });
-        e.pos = to;
+        trail.push({ ...e.pos });
+        ops.moveEnemy(f, e, to);
       }
+      // Flyers pass over the body but never land on it.
+      while (d.flies && ops.bodyIndexAt(f, e.pos) >= 0 && trail.length) e.pos = trail.pop()!;
       return false;
     }
     case 'strike': {
@@ -438,10 +466,54 @@ function resolveIntent(f: Fight, e: Enemy): boolean {
       return false;
     }
     case 'burrow':
-    case 'emerge':
-    case 'steal':
+      if (e.held) return false;
+      e.under = true;
+      ops.emit(f, { t: 'burrow', enemy: e.id, at: { ...e.pos } });
       return false;
+    case 'emerge': {
+      e.under = false;
+      ops.emit(f, { t: 'strike', enemy: e.id, tiles: [it.at] });
+      const bi = ops.bodyIndexAt(f, it.at);
+      if (bi >= 0) ops.hitSnake(f, bi, it.dmg, e);
+      const other = ops.enemyAt(f, it.at);
+      if (other && other !== e) ops.damageEnemy(f, other, it.dmg, d.name);
+      const spot = [it.at, ...neighborsRing(it.at)].find((p) => ops.freeForEnemy(f, p));
+      if (spot) e.pos = { ...spot };
+      else e.under = true; // nowhere to surface: stay buried and try again
+      ops.emit(f, { t: 'emerge', enemy: e.id, at: { ...e.pos } });
+      return false;
+    }
+    case 'steal': {
+      const k = f.snake.segs.findIndex((s) => s.uid === it.seg);
+      const p = ops.segPos(f, it.seg);
+      const seg = f.snake.segs[k];
+      if (!p || !seg?.item || chebyshev(p, e.pos) > it.reach) {
+        ops.emit(f, { t: 'fizzle', enemy: e.id });
+        return false;
+      }
+      e.carry = seg.item;
+      ops.emit(f, { t: 'steal', enemy: e.id, at: p, item: seg.item });
+      seg.item = null;
+      return false;
+    }
+    case 'summon': {
+      for (const t of it.tiles) {
+        if (!ops.isEmpty(f, t)) continue;
+        const n = ops.spawnEnemy(f, it.kind, t);
+        n.intent = think(f, n);
+        ops.emit(f, { t: 'spawn', enemy: n.id, at: { ...t } });
+      }
+      return false;
+    }
   }
+}
+
+function neighborsRing(p: Pos): Pos[] {
+  const out: Pos[] = [];
+  for (let r = 1; r <= 2; r++)
+    for (let dy = -r; dy <= r; dy++)
+      for (let dx = -r; dx <= r; dx++) if (Math.max(Math.abs(dx), Math.abs(dy)) === r) out.push({ x: p.x + dx, y: p.y + dy });
+  return out;
 }
 
 function upkeep(f: Fight) {

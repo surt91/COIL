@@ -59,6 +59,8 @@ export const MAP_ROWS = 8; // rows 0..6 regular, row 7 boss
 export const MAP_COLS = 5;
 export const STARTER: ItemId[] = ['lunge', 'fang', 'scale', 'scale', 'reverse', 'rattle'];
 export const START_FLESH = 5;
+/** Flesh regrown when descending to the next act. */
+export const ACT_HEAL = 4;
 export const ACT_NAMES = ['The Garden', 'The Roots', 'The Deep'];
 
 const clone = <T>(x: T): T => structuredClone(x);
@@ -142,7 +144,7 @@ function fightOpts(pool: Pool, row: number): Partial<FightOpts> {
 }
 
 export function startFight(run: RunState, nodeId: number, pool: Pool): RunState {
-  const encs = ENCOUNTERS.filter((e) => e.act === Math.min(run.act, 0) && e.pool === pool);
+  const encs = ENCOUNTERS.filter((e) => e.act === run.act && e.pool === pool);
   const enc = pick(run.rng, encs);
   const layouts = LAYOUTS.filter((l) => (enc.layouts ? enc.layouts.includes(l.id) : !l.boss));
   const layout = pick(run.rng, layouts);
@@ -207,7 +209,20 @@ export function finishFight(prev: RunState, fight: Fight): RunState {
   run.stats.rooms++;
   run.flesh = fight.snake.segs.filter((s) => !s.item || s.temp).length;
   if (node.kind === 'boss') {
-    run.screen = { t: 'victory' };
+    if (run.act >= ACT_NAMES.length - 1) {
+      run.screen = { t: 'victory' };
+      return run;
+    }
+    run.screen = {
+      t: 'reward',
+      options: rollItems(run.rng, 3, 'boss'),
+      skipFlesh: 6,
+      title: `${ACT_NAMES[run.act]} conquered — descend`,
+    };
+    run.act++;
+    run.map = generateMap(run.rng);
+    run.at = null;
+    run.flesh += ACT_HEAL;
     return run;
   }
   const elite = node.kind === 'elite';
@@ -245,13 +260,14 @@ function countKills(f: Fight) {
 
 // ---------------------------------------------------------------- rewards
 
-type RollKind = 'fight' | 'elite' | 'nest' | 'shop';
+type RollKind = 'fight' | 'elite' | 'nest' | 'shop' | 'boss';
 
 export function rollItems(r: Rng, n: number, kind: RollKind): ItemId[] {
   const weights: Record<string, number> =
     kind === 'fight' ? { starter: 3, common: 10, uncommon: 4, rare: 1 }
     : kind === 'elite' ? { common: 3, uncommon: 8, rare: 4 }
     : kind === 'nest' ? { common: 4, uncommon: 6, rare: 3 }
+    : kind === 'boss' ? { uncommon: 2, rare: 8 }
     : { starter: 2, common: 8, uncommon: 5, rare: 2 };
   const pool = [...ITEMS.values()].filter((d) => d.rarity !== 'signature' && weights[d.rarity]);
   const out: ItemId[] = [];

@@ -34,7 +34,8 @@ export type Intent =
   | { t: 'web'; tiles: Pos[] }
   | { t: 'burrow' }
   | { t: 'emerge'; at: Pos; dmg: number }
-  | { t: 'steal'; seg: number };
+  | { t: 'steal'; seg: number; reach: number }
+  | { t: 'summon'; kind: EnemyKind; tiles: Pos[] };
 
 export interface Enemy {
   id: number;
@@ -47,6 +48,12 @@ export interface Enemy {
   held: boolean;
   /** Free-form per-enemy memory (cooldowns, phases). */
   mem: Record<string, number>;
+  /** Underground (moles): untargetable, invisible to coils. */
+  under?: boolean;
+  /** Item stolen from the snake (magpies); returned on death. */
+  carry?: ItemId;
+  /** Enemy snakes: body tiles behind the head (e.pos). hp = 1 + body.length. */
+  body?: Pos[];
 }
 
 export interface Husk {
@@ -126,4 +133,7 @@ export type GameEvent =
   | { t: 'cleared' }
   | { t: 'exit' }
   | { t: 'death'; cause: string }
+  | { t: 'steal'; enemy: number; at: Pos; item: ItemId }
+  | { t: 'burrow'; enemy: number; at: Pos }
+  | { t: 'emerge'; enemy: number; at: Pos }
   | { t: 'msg'; text: string };

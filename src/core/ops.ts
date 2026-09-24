@@ -21,7 +21,8 @@ export function isSolid(f: Fight, p: Pos): boolean {
   return t === Tile.Wall || (t === Tile.Exit && !f.cleared);
 }
 
-export const enemyAt = (f: Fight, p: Pos): Enemy | undefined => f.enemies.find((e) => e.hp > 0 && eq(e.pos, p));
+export const enemyAt = (f: Fight, p: Pos): Enemy | undefined =>
+  f.enemies.find((e) => e.hp > 0 && !e.under && (eq(e.pos, p) || (e.body?.some((b) => eq(b, p)) ?? false)));
 export const foodAt = (f: Fight, p: Pos): number => f.food.findIndex((q) => eq(q, p));
 export const huskAt = (f: Fight, p: Pos): number => f.husks.findIndex((q) => eq(q.pos, p));
 export const webAt = (f: Fight, p: Pos): number => f.webs.findIndex((q) => eq(q, p));
@@ -187,8 +188,21 @@ export function damageEnemy(f: Fight, e: Enemy, dmg: number, cause: string): boo
   if (e.hp <= 0 || dmg <= 0) return false;
   e.hp -= dmg;
   emit(f, { t: 'enemyHurt', enemy: e.id, at: { ...e.pos }, dmg, cause });
+  if (e.body) {
+    // Lose length from the tail: first what is still in the burrow, then the body.
+    let excess = e.body.length + (e.mem.pending ?? 0) - Math.max(0, e.hp - 1);
+    const dp = Math.min(e.mem.pending ?? 0, Math.max(0, excess));
+    e.mem.pending = (e.mem.pending ?? 0) - dp;
+    excess -= dp;
+    while (excess-- > 0 && e.body.length) e.body.pop();
+  }
   if (e.hp <= 0) {
     emit(f, { t: 'enemyDie', enemy: e.id, at: { ...e.pos }, kind: e.kind });
+    if (e.carry) {
+      addSeg(f, e.carry, 'neck');
+      emit(f, { t: 'msg', text: `${item(e.carry).name} recovered` });
+      e.carry = undefined;
+    }
     return true;
   }
   return false;
@@ -201,8 +215,41 @@ export function removeDead(f: Fight) {
 export function spawnEnemy(f: Fight, kind: string, at: Pos): Enemy {
   const d = enemyDef(kind);
   const e: Enemy = { id: newUid(f), kind, pos: { ...at }, hp: d.hp, maxHp: d.hp, intent: { t: 'wait' }, poison: 0, held: false, mem: {} };
+  if (d.snake) {
+    // All body segments start stacked "in the burrow" at the head and uncoil as it moves.
+    e.body = [];
+    e.mem.pending = d.hp - 1;
+  }
   f.enemies.push(e);
   return e;
+}
+
+/** Move an enemy one tile; snakes drag their body along. */
+export function moveEnemy(f: Fight, e: Enemy, to: Pos) {
+  const from = { ...e.pos };
+  if (e.body) {
+    e.body.unshift(from);
+    const fi = foodAt(f, to);
+    if (fi >= 0) {
+      f.food.splice(fi, 1);
+      e.hp++;
+      e.maxHp = Math.max(e.maxHp, e.hp);
+      emit(f, { t: 'eat', at: to, what: 'food' });
+    } else if ((e.mem.pending ?? 0) > 0) e.mem.pending--;
+    while (e.body.length > Math.max(0, e.hp - 1 - (e.mem.pending ?? 0))) e.body.pop();
+  }
+  e.pos = { ...to };
+  emit(f, { t: 'enemyMove', enemy: e.id, from, to });
+}
+
+/** Bite into an enemy snake's body at index k: everything from k back falls off as husks. */
+export function cutEnemy(f: Fight, e: Enemy, k: number, cause: string): boolean {
+  if (!e.body || k < 0 || k >= e.body.length) return false;
+  const cut = e.body.splice(k);
+  for (const pos of cut) f.husks.push({ pos, item: null, ttl: 4 });
+  const n = cut.length + (e.mem.pending ?? 0);
+  e.mem.pending = 0;
+  return damageEnemy(f, e, n, cause);
 }
 
 /**
