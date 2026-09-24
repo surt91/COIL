@@ -21,9 +21,10 @@ export interface FightViewProps {
   /** Called after every committed action (saving, stats, audio). */
   onStep?(f: Fight, undo?: boolean): void;
   side?: preact.ComponentChildren;
+  act?: number;
 }
 
-export function FightView({ initial, title, onEnd, onStep, side }: FightViewProps) {
+export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0 }: FightViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const renderer = useRef<BoardRenderer | null>(null);
@@ -40,6 +41,7 @@ export function FightView({ initial, title, onEnd, onStep, side }: FightViewProp
   // Renderer lifecycle + animation loop.
   useEffect(() => {
     const r = new BoardRenderer(canvasRef.current!);
+    r.act = actNo;
     renderer.current = r;
     (window as any).__coil = { get fight() { return fightRef.current; }, dispatch, renderer: r };
     r.instant = new URLSearchParams(location.search).has('instant');
@@ -323,7 +325,7 @@ function MoveHint({ f, dir }: { f: Fight; dir: Dir | null }) {
   const o = moveOutcome(f, dir);
   const text: Record<string, string> = {
     illegal: 'Blocked', step: 'Move', food: 'Eat', husk: 'Eat husk', web: 'Web: stuck',
-    exit: 'Leave the room', bite: 'Bite', body: 'Bite yourself (trapped)',
+    exit: 'Leave the room', bite: 'Bite', body: 'Bite yourself (trapped)', neck: 'Bite your own neck (stuck!)',
   };
   return <div class="movehint">{text[o.k]}</div>;
 }

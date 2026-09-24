@@ -27,6 +27,7 @@ export function App() {
     if (params.has('fight')) {
       // Debug: ?fight=<layout>&enemies=beetle,frog&seed=N
       const r = createRun(Number(params.get('seed') ?? 1));
+      r.act = Number(params.get('act') ?? 0);
       const layout = LAYOUTS.find((l) => l.id === params.get('fight')) ?? LAYOUTS[0];
       r.at = r.map.find((n) => n.row === 0)!.id;
       r.screen = {
@@ -70,6 +71,7 @@ export function App() {
           initial={sc.fight}
           title={`${layout?.name ?? ''}${node.kind === 'elite' ? ' · elite' : node.kind === 'boss' ? ' · BOSS' : ''}`}
           side={<GenomePanel run={run} />}
+          act={run.act}
           onStep={(f, undo) => {
             let r = runRef.current!;
             if (!undo) r = recordEvents(r, f.events);

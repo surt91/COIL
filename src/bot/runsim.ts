@@ -1,0 +1,105 @@
+/** Full-run simulation: map choices, rewards, shops, events — with a fight policy. */
+import '../content';
+import { EVENTS } from '../content/events';
+import { step } from '../core/fight';
+import { ITEMS } from '../core/registry';
+import { Rng, makeRng, pick } from '../core/rng';
+import { NodeKind, RunState, bask, buy, createRun, enterNode, eventChoice, finishFight, reachable, recordEvents, takeReward, toMap } from '../core/run';
+import type { Fight, ItemId } from '../core/types';
+import type { Policy } from './policies';
+
+export interface RunResult {
+  seed: number;
+  won: boolean;
+  act: number;
+  row: number;
+  cause: string;
+  where: string;
+  fleshAtAct: number[];
+  genomeSize: number;
+  kills: number;
+  coilKills: number;
+  fights: number;
+  stalled: boolean;
+}
+
+/** Rough item tier list for the reward picker. */
+const TIER: Record<string, number> = {
+  python: 9, venom: 8, lunge: 7, fang: 6, muscle: 6, egg: 6, heart: 6, acid: 6, strike: 6, hood: 5, spine: 5,
+  scale: 5, swallow: 5, ouroboros: 5, sprint: 4, reserve: 4, gorge: 3, rattle: 4, reverse: 3, tailwhip: 3,
+  kinetic: 2, molt: 3, shed: 1,
+};
+const tier = (id: ItemId) => TIER[id] ?? 3;
+
+function chooseNode(run: RunState, r: Rng): number {
+  const opts = reachable(run).map((id) => run.map[id]);
+  const want = (k: NodeKind) => {
+    if (k === 'bask') return run.flesh < 6 ? 10 : 2;
+    if (k === 'pool') return run.flesh >= 8 ? 6 : 1;
+    if (k === 'elite') return run.flesh >= 10 ? 5 : 0.5;
+    if (k === 'nest') return 5;
+    if (k === 'event') return 3;
+    return 4;
+  };
+  const best = Math.max(...opts.map((n) => want(n.kind)));
+  return pick(r, opts.filter((n) => want(n.kind) === best)).id;
+}
+
+export function simulateRun(seed: number, policy: Policy, turnCap = 300): RunResult {
+  const r = makeRng(seed ^ 0x5bd1e995);
+  let run = createRun(seed);
+  const fleshAtAct = [run.flesh];
+  let fights = 0, stalled = false;
+  for (let guard = 0; guard < 500; guard++) {
+    const sc = run.screen;
+    if (sc.t === 'victory' || sc.t === 'dead') break;
+    if (sc.t === 'map') {
+      if (fleshAtAct.length <= run.act) fleshAtAct.push(run.flesh);
+      run = enterNode(run, chooseNode(run, r));
+    } else if (sc.t === 'fight') {
+      let f: Fight = sc.fight;
+      fights++;
+      for (let i = 0; i < turnCap * 3 && f.status === 'play' && f.turn < turnCap; i++) {
+        f = step(f, policy(f, r));
+        run = recordEvents(run, f.events);
+      }
+      if (f.status === 'play') {
+        stalled = true;
+        f = { ...f, status: 'dead', events: [{ t: 'death', cause: 'stalled' }] };
+      }
+      run = finishFight(run, f);
+    } else if (sc.t === 'reward') {
+      const best = sc.options.map((id, i) => [tier(id), i] as const).sort((a, b) => b[0] - a[0])[0];
+      run = takeReward(run, best && best[0] >= 4 && run.genome.length < 14 ? best[1] : null);
+    } else if (sc.t === 'pool') {
+      const i = sc.stock.findIndex((s) => !s.sold && run.flesh - s.price >= 6 && tier(s.item) >= 5);
+      run = i >= 0 ? buy(run, i) : toMap(run);
+      if (i < 0) continue;
+      run = toMap(run);
+    } else if (sc.t === 'bask') {
+      run = toMap(bask(run));
+    } else if (sc.t === 'event') {
+      const ev = EVENTS.find((e) => e.id === sc.id)!;
+      const idx = ev.choices.findIndex((c) => !c.canChoose || c.canChoose(run));
+      run = toMap(eventChoice(run, idx));
+    }
+  }
+  const sc = run.screen;
+  const node = run.at !== null ? run.map[run.at] : null;
+  return {
+    seed,
+    won: sc.t === 'victory',
+    act: run.act,
+    row: node?.row ?? 0,
+    cause: sc.t === 'dead' ? sc.cause : sc.t === 'victory' ? '' : 'timeout',
+    where: sc.t === 'dead' ? sc.where : '',
+    fleshAtAct,
+    genomeSize: run.genome.length,
+    kills: run.stats.kills,
+    coilKills: run.stats.coilKills,
+    fights,
+    stalled,
+  };
+}
+
+export const itemName = (id: ItemId) => ITEMS.get(id)?.name ?? id;

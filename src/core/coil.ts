@@ -1,5 +1,6 @@
 import { Pos, adjacent } from './geom';
 import type { Fight } from './types';
+import { bodyBonus } from './ops';
 import { Tile } from './types';
 
 export const MAX_COIL_AREA = 12;
@@ -66,11 +67,12 @@ export function computeCoils(f: Fight, bodyOverride?: Pos[]): Coil[] {
   const base = components(w, h, terrain);
   const cur = components(w, h, (i) => terrain(i) || blocked[i] === 1);
 
+  const maxArea = MAX_COIL_AREA + bodyBonus(f, 'coilAreaBonus');
   const coils: Coil[] = [];
   const tilesOf: Pos[][] = cur.sizes.map(() => []);
   for (let i = 0; i < w * h; i++) {
     const c = cur.comp[i];
-    if (c >= 0 && cur.sizes[c] <= MAX_COIL_AREA) tilesOf[c].push({ x: i % w, y: Math.floor(i / w) });
+    if (c >= 0 && cur.sizes[c] <= maxArea) tilesOf[c].push({ x: i % w, y: Math.floor(i / w) });
   }
   tilesOf.forEach((tiles) => {
     if (tiles.length === 0) return;

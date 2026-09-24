@@ -52,6 +52,8 @@ export interface Enemy {
   under?: boolean;
   /** Item stolen from the snake (magpies); returned on death. */
   carry?: ItemId;
+  /** Escalation spawns and summons: not required to clear the room. */
+  minion?: boolean;
   /** Enemy snakes: body tiles behind the head (e.pos). hp = 1 + body.length. */
   body?: Pos[];
 }
@@ -88,7 +90,7 @@ export interface Fight {
   status: FightStatus;
   tuckUsed: boolean;
   /** Per-turn buffs from played items. */
-  buffs: { bite: number; absorb: number };
+  buffs: { bite: number; absorb: number; crush?: number };
   nextId: number;
   rng: Rng;
   /** Tiles the escalation spawner uses. */

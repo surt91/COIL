@@ -23,7 +23,8 @@ function firstInLine(f: Fight, d: Dir, n: number): Enemy | null {
 
 const firstStepOk = (f: Fight, d?: Dir) => {
   if (d === undefined || !legalMoves(f).includes(d)) return false;
-  return moveOutcome(f, d).k !== 'body';
+  const k = moveOutcome(f, d).k;
+  return k !== 'body' && k !== 'neck';
 };
 
 function absorbOnHit(f: Fight, k: number) {
@@ -68,7 +69,7 @@ defineItem({
     move: true,
     canPlay: (f, a) => firstStepOk(f, a.dir),
     play(f, a) {
-      if (doMove(f, a.dir!) && f.status === 'play' && legalMoves(f).includes(a.dir!) && moveOutcome(f, a.dir!).k !== 'body')
+      if (doMove(f, a.dir!) && f.status === 'play' && firstStepOk(f, a.dir))
         doMove(f, a.dir!, 1);
     },
   },
@@ -138,15 +139,15 @@ defineItem({
   color: '#ff6b9a',
   rarity: 'uncommon',
   passiveText: 'Every 6 turns, grow 1 flesh.',
-  activeText: 'Grow 3 flesh.',
+  activeText: 'Grow 2 flesh.',
   bodyPhase(f) {
     if (f.turn % 6 === 5) ops.addSeg(f, null, 'tail');
   },
   active: {
     target: 'none',
     play(f) {
-      for (let i = 0; i < 3; i++) ops.addSeg(f, null, 'tail');
-      ops.emit(f, { t: 'grow', n: 3 });
+      for (let i = 0; i < 2; i++) ops.addSeg(f, null, 'tail');
+      ops.emit(f, { t: 'grow', n: 2 });
     },
   },
 });
@@ -279,14 +280,20 @@ defineItem({
   glyph: 'ouroboros',
   color: '#ffbe0b',
   rarity: 'rare',
-  activeText: 'If your tail tip touches your head: every coiled enemy takes 3 extra crush.',
+  passiveText: 'While your tail tip touches your head, your coils crush for +2.',
+  activeText: 'Every coiled or wrapped enemy takes 4.',
   active: {
     target: 'none',
-    canPlay(f) {
-      const s = f.snake;
-      return s.body.length > 3 && manhattan(s.body[0], s.body[s.body.length - 1]) === 1;
+    canPlay: (f) => f.enemies.some((e) => e.held || f.snake.body.filter((b) => chebyshev(b, e.pos) === 1).length >= 4),
+    play(f) {
+      for (const e of f.enemies)
+        if (e.held || f.snake.body.filter((b) => chebyshev(b, e.pos) === 1).length >= 4) ops.damageEnemy(f, e, 4, 'crush');
     },
-    play: (f) => crushNow(f, 3),
+  },
+  bodyPhase(f) {
+    const s = f.snake;
+    // Implemented as a temporary crush buff for this turn's constrict phase.
+    if (s.body.length > 3 && manhattan(s.body[0], s.body[s.body.length - 1]) === 1) f.buffs.crush = (f.buffs.crush ?? 0) + 2;
   },
 });
 
@@ -391,4 +398,164 @@ defineItem({
       }
     },
   },
+});
+
+// ---------------------------------------------------------------- more commons / uncommons / rares
+
+defineItem({
+  id: 'strike',
+  name: 'Coiled Strike',
+  glyph: 'fang',
+  color: '#ff8fab',
+  rarity: 'common',
+  activeText: 'Bite an adjacent enemy in any direction for 2 — without moving.',
+  active: {
+    target: 'dir',
+    canPlay: (f, a) => a.dir !== undefined && !!ops.enemyAt(f, step(ops.head(f), a.dir)),
+    play(f, a) {
+      const e = ops.enemyAt(f, step(ops.head(f), a.dir!))!;
+      ops.damageEnemy(f, e, 2 + f.buffs.bite, 'bite');
+      f.buffs.bite = 0;
+      ops.emit(f, { t: 'bite', enemy: e.id, at: { ...e.pos }, dmg: 2, killed: e.hp <= 0 });
+      if (e.hp > 0) e.intent = { t: 'wait' };
+    },
+  },
+});
+
+defineItem({
+  id: 'sprint',
+  name: 'Sprint',
+  glyph: 'lunge',
+  color: '#90dbf4',
+  rarity: 'common',
+  activeText: 'Move: slither up to 3 tiles straight ahead.',
+  active: {
+    target: 'dir',
+    move: true,
+    canPlay: (f, a) => firstStepOk(f, a.dir),
+    play(f, a) {
+      for (let i = 0; i < 3 && f.status === 'play'; i++) {
+        if (!firstStepOk(f, a.dir)) return;
+        if (!doMove(f, a.dir!)) return;
+      }
+    },
+  },
+});
+
+defineItem({
+  id: 'reserve',
+  name: 'Fat Reserve',
+  glyph: 'heart',
+  color: '#ffc8dd',
+  rarity: 'common',
+  activeText: 'Grow 2 flesh and reset your hunger.',
+  active: {
+    target: 'none',
+    play(f) {
+      ops.addSeg(f, null, 'tail');
+      ops.addSeg(f, null, 'tail');
+      f.hunger = 0;
+      ops.emit(f, { t: 'grow', n: 2 });
+    },
+  },
+});
+
+defineItem({
+  id: 'acid',
+  name: 'Digestive Acid',
+  glyph: 'venom',
+  color: '#caffbf',
+  rarity: 'uncommon',
+  activeText: 'Every enemy in your coils takes 2 and gets 2 poison.',
+  active: {
+    target: 'none',
+    canPlay: (f) => computeCoils(f).some((c) => c.tiles.some((t) => f.enemies.some((e) => eq(e.pos, t)))),
+    play(f) {
+      for (const c of computeCoils(f))
+        for (const e of f.enemies)
+          if (c.tiles.some((t) => eq(t, e.pos))) {
+            ops.damageEnemy(f, e, 2, 'acid');
+            e.poison += 2;
+          }
+    },
+  },
+});
+
+defineItem({
+  id: 'hood',
+  name: 'Cobra Hood',
+  glyph: 'rattle',
+  color: '#ffafcc',
+  rarity: 'uncommon',
+  activeText: 'Flare: enemies within 2 tiles of your head are pushed back a tile and lose their intent.',
+  active: {
+    target: 'none',
+    play(f) {
+      const h = ops.head(f);
+      for (const e of f.enemies) {
+        if (e.under || chebyshev(e.pos, h) > 2) continue;
+        e.intent = { t: 'wait' };
+        if (e.body) continue;
+        const d = dirTo(h, e.pos);
+        const to = step(e.pos, d);
+        if (ops.freeForEnemy(f, to)) {
+          ops.emit(f, { t: 'knockback', enemy: e.id, from: { ...e.pos }, to });
+          e.pos = to;
+        }
+      }
+      ops.emit(f, { t: 'msg', text: 'Hsss!' });
+    },
+  },
+});
+
+defineItem({
+  id: 'egg',
+  name: 'Egg',
+  glyph: 'carapace',
+  color: '#fefae0',
+  rarity: 'uncommon',
+  passiveText: 'When this segment is destroyed, it hatches: grow 3 flesh.',
+  activeText: 'Grow 1 flesh.',
+  onHit(f) {
+    for (let i = 0; i < 3; i++) ops.addSeg(f, null, 'tail');
+    ops.emit(f, { t: 'grow', n: 3 });
+    return false;
+  },
+  active: { target: 'none', play: (f) => ops.addSeg(f, null, 'tail') },
+});
+
+defineItem({
+  id: 'gorge',
+  name: 'Gorge',
+  glyph: 'swallow',
+  color: '#ffd166',
+  rarity: 'common',
+  activeText: 'Suck in all food within 3 tiles of your head: +1 flesh each.',
+  active: {
+    target: 'none',
+    canPlay: (f) => f.food.some((p) => manhattan(p, ops.head(f)) <= 3),
+    play(f) {
+      const h = ops.head(f);
+      const near = f.food.filter((p) => manhattan(p, h) <= 3);
+      f.food = f.food.filter((p) => manhattan(p, h) > 3);
+      for (const p of near) {
+        ops.addSeg(f, null, 'tail');
+        ops.emit(f, { t: 'eat', at: p, what: 'food' });
+      }
+      f.hunger = 0;
+    },
+  },
+});
+
+defineItem({
+  id: 'python',
+  name: 'Python Coils',
+  glyph: 'muscle',
+  color: '#b5838d',
+  rarity: 'rare',
+  passiveText: 'Coils up to 20 tiles count, and they crush for +1.',
+  activeText: 'Every coiled enemy takes 2.',
+  coilAreaBonus: 8,
+  crushBonus: 1,
+  active: { target: 'none', play: (f) => crushNow(f, 1) },
 });

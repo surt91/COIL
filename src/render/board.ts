@@ -25,6 +25,13 @@ export const PAL = {
   text: '#e8f1f2',
 };
 
+/** Per-act terrain themes. */
+export const THEMES = [
+  { bg: '#0d1321', wall: '#1c2a3a', wallTop: '#2a3d52', wallMoss: 'rgba(90, 160, 110, 0.35)', floorDot: 'rgba(120, 180, 140, 0.16)', vignette: 0.25 },
+  { bg: '#15100c', wall: '#35271b', wallTop: '#4a3725', wallMoss: 'rgba(200, 140, 60, 0.30)', floorDot: 'rgba(210, 160, 100, 0.14)', vignette: 0.35 },
+  { bg: '#060913', wall: '#121a30', wallTop: '#1b2744', wallMoss: 'rgba(120, 200, 230, 0.25)', floorDot: 'rgba(140, 180, 255, 0.12)', vignette: 0.6 },
+];
+
 interface Particle { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number }
 interface Float { x: number; y: number; text: string; color: string; life: number; max: number; big?: boolean }
 interface Flash { tiles: Pos[]; color: string; life: number; max: number }
@@ -58,6 +65,7 @@ export class BoardRenderer {
   previewDir: Dir | null = null;
   targetDirs: Dir[] | null = null;
   instant = false;
+  act = 0;
   /** ncurses-style ASCII skin. */
   terminal = false;
 
@@ -198,6 +206,8 @@ export class BoardRenderer {
   frame(now: number, dt: number) {
     const ctx = this.ctx, f = this.shown;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    const th = THEMES[this.act] ?? THEMES[0];
+    Object.assign(PAL, { bg: th.bg, wall: th.wall, wallTop: th.wallTop, wallMoss: th.wallMoss, floorDot: th.floorDot });
     ctx.fillStyle = PAL.bg;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     if (!f) return;
@@ -220,6 +230,14 @@ export class BoardRenderer {
     this.drawTargeting(f, now);
     this.drawFx(dt);
     ctx.restore();
+    // Vignette (stronger in the Deep), with the snake's head as a faint light source.
+    const W = this.canvas.width / this.dpr, H = this.canvas.height / this.dpr;
+    const h = f.snake.body[0];
+    const g = ctx.createRadialGradient(this.cx(h.x), this.cy(h.y), this.T * 2, W / 2, H / 2, Math.max(W, H) * 0.75);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(1, `rgba(0,0,0,${th.vignette})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
   }
 
   private drawTerminal(f: Fight, now: number) {

@@ -20,6 +20,8 @@ export interface ItemDef {
   biteBonus?: number;
   /** Flat bonus to crush damage while this item is on the body. */
   crushBonus?: number;
+  /** Larger coils count while this item is on the body. */
+  coilAreaBonus?: number;
   /** A hit landed on this segment. Return true to absorb it. */
   onHit?(f: Fight, segIndex: number, source: Enemy | null): boolean;
   /** Runs every body phase for each segment carrying this item. */

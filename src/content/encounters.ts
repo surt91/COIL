@@ -16,14 +16,14 @@ export const ENCOUNTERS: Encounter[] = [
   { id: 'frog', act: 0, pool: 'easy', enemies: ['frog'] },
   { id: 'hedgehog', act: 0, pool: 'easy', enemies: ['hedgehog'] },
 
-  { id: 'beetles-frog', act: 0, pool: 'normal', enemies: ['beetle', 'beetle', 'frog'] },
+  { id: 'beetles-frog', act: 0, pool: 'normal', enemies: ['beetle', 'beetle', 'beetle', 'frog'] },
   { id: 'hedgehog-beetle', act: 0, pool: 'normal', enemies: ['hedgehog', 'beetle', 'beetle'] },
-  { id: 'mantis', act: 0, pool: 'normal', enemies: ['mantis', 'beetle'] },
-  { id: 'spiders', act: 0, pool: 'normal', enemies: ['spider', 'spider', 'beetle'] },
-  { id: 'frog-pond', act: 0, pool: 'normal', enemies: ['frog', 'frog', 'hedgehog'] },
+  { id: 'mantis', act: 0, pool: 'normal', enemies: ['mantis', 'beetle', 'beetle'] },
+  { id: 'spiders', act: 0, pool: 'normal', enemies: ['spider', 'spider', 'beetle', 'beetle'] },
+  { id: 'frog-pond', act: 0, pool: 'normal', enemies: ['frog', 'frog', 'hedgehog', 'beetle'] },
 
-  { id: 'mantis-court', act: 0, pool: 'elite', enemies: ['mantis', 'mantis', 'beetle'] },
-  { id: 'spiny-web', act: 0, pool: 'elite', enemies: ['hedgehog', 'hedgehog', 'spider'] },
+  { id: 'mantis-court', act: 0, pool: 'elite', enemies: ['mantis', 'mantis', 'beetle', 'beetle'] },
+  { id: 'spiny-web', act: 0, pool: 'elite', enemies: ['hedgehog', 'hedgehog', 'spider', 'frog'] },
   { id: 'swarm', act: 0, pool: 'elite', enemies: ['beetle', 'beetle', 'beetle', 'beetle', 'frog'] },
 
   { id: 'mongoose', act: 0, pool: 'boss', enemies: ['mongoose'], layouts: ['mongoose-den'] },
@@ -50,12 +50,12 @@ export const ENCOUNTERS: Encounter[] = [
   { id: 'wasps', act: 2, pool: 'easy', enemies: ['wasp', 'wasp', 'beetle'] },
   { id: 'deep-rival', act: 2, pool: 'easy', enemies: ['rival'] },
 
-  { id: 'hive', act: 2, pool: 'normal', enemies: ['wasp', 'wasp', 'wasp', 'tortoise'] },
-  { id: 'deep-mix', act: 2, pool: 'normal', enemies: ['glowworm', 'mole', 'mantis', 'magpie'] },
-  { id: 'deep-web', act: 2, pool: 'normal', enemies: ['spider', 'spider', 'glowworm', 'hedgehog'] },
+  { id: 'hive', act: 2, pool: 'normal', enemies: ['wasp', 'wasp', 'wasp', 'tortoise', 'ant', 'ant'] },
+  { id: 'deep-mix', act: 2, pool: 'normal', enemies: ['glowworm', 'mole', 'mantis', 'magpie', 'beetle'] },
+  { id: 'deep-web', act: 2, pool: 'normal', enemies: ['spider', 'spider', 'glowworm', 'hedgehog', 'mole'] },
   { id: 'rivals', act: 2, pool: 'normal', enemies: ['rival', 'wasp', 'ant', 'ant'] },
 
-  { id: 'twin-rivals', act: 2, pool: 'elite', enemies: ['rival', 'rival'] },
+  { id: 'twin-rivals', act: 2, pool: 'elite', enemies: ['rival', 'rival', 'wasp'] },
   { id: 'swarm-deep', act: 2, pool: 'elite', enemies: ['ant', 'ant', 'ant', 'ant', 'ant', 'ant', 'wasp', 'wasp'] },
   { id: 'mantis-deep', act: 2, pool: 'elite', enemies: ['mantis', 'mantis', 'mole', 'glowworm'] },
 

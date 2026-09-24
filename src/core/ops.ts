@@ -81,7 +81,7 @@ export function hand(f: Fight): number[] {
   return out;
 }
 
-export function bodyBonus(f: Fight, field: 'biteBonus' | 'crushBonus'): number {
+export function bodyBonus(f: Fight, field: 'biteBonus' | 'crushBonus' | 'coilAreaBonus'): number {
   let n = 0;
   for (const { id } of itemsOnBody(f)) n += ITEMS.get(id)?.[field] ?? 0;
   return n;

@@ -10,8 +10,11 @@ import { Rng, int, makeRng, pick, shuffle } from './rng';
 import type { Action, Enemy, Fight, FightOpts, ItemId } from './types';
 import { Tile } from './types';
 
+/** An enemy touching this many snake tiles (8-neighbourhood) is squeezed. */
+export const WRAP_MIN = 4;
+
 export const DEFAULT_OPTS: FightOpts = {
-  hungerEvery: 10,
+  hungerEvery: 12,
   escalateFrom: 25,
   escalateEvery: 6,
   minFood: 1,
@@ -75,7 +78,10 @@ export function createFight(spec: RoomSpec): Fight {
         start = p;
       } else if (c === 'f') f.food.push(p);
       else if (c === 'w') f.webs.push(p);
-      else if (c === 'x') f.spawns.push(p);
+      else if (c === 'x') {
+        f.spawns.push(p);
+        f.tiles[i] = Tile.Burrow;
+      }
       else if (byChar.has(c)) enemies.push([byChar.get(c)!, p]);
       else if (c !== '.') throw new Error(`unknown room char '${c}'`);
     }
@@ -143,17 +149,20 @@ export type MoveOutcome =
   | { k: 'web' }
   | { k: 'exit' }
   | { k: 'bite'; enemy: number }
-  | { k: 'body'; bi: number };
+  | { k: 'body'; bi: number }
+  | { k: 'neck' };
 
 export function moveOutcome(f: Fight, dir: Dir): MoveOutcome {
   const s = f.snake;
   const t = stepPos(s.body[0], dir);
   if (!ops.inBounds(f, t)) return { k: 'illegal' };
-  if (s.body.length > 1 && eq(t, s.body[1])) return { k: 'illegal' };
+  if (s.body.length > 1 && eq(t, s.body[1])) return { k: 'neck' };
   if (ops.tileAt(f, t) === Tile.Exit) return f.cleared ? { k: 'exit' } : { k: 'illegal' };
   if (ops.isSolid(f, t)) return { k: 'illegal' };
   const e = ops.enemyAt(f, t);
   if (e) return { k: 'bite', enemy: e.id };
+  // Burrows (the entrance and spawn holes) are dead ends: the head can't go back in.
+  if (ops.tileAt(f, t) === Tile.Burrow && ops.bodyIndexAt(f, t) < 0) return { k: 'illegal' };
   const bi = ops.bodyIndexAt(f, t);
   if (bi > 0) {
     // The tail tip moves away — unless we grow this move (a husk or food under it).
@@ -170,14 +179,17 @@ export function moveOutcome(f: Fight, dir: Dir): MoveOutcome {
 /** Legal move directions. When trapped, biting your own body becomes legal. */
 export function legalMoves(f: Fight): Dir[] {
   const outs = DIRS.map((d) => [d, moveOutcome(f, d)] as const);
-  const normal = outs.filter(([, o]) => o.k !== 'illegal' && o.k !== 'body').map(([d]) => d);
+  const normal = outs.filter(([, o]) => o.k !== 'illegal' && o.k !== 'body' && o.k !== 'neck').map(([d]) => d);
   if (normal.length > 0) return normal;
-  return outs.filter(([, o]) => o.k === 'body').map(([d]) => d);
+  const self = outs.filter(([, o]) => o.k === 'body').map(([d]) => d);
+  if (self.length > 0) return self;
+  // Truly stuck in a dead end: bite your own neck as a last resort.
+  return outs.filter(([, o]) => o.k === 'neck').map(([d]) => d);
 }
 
 export const isTrapped = (f: Fight) => {
   const l = legalMoves(f);
-  return l.length > 0 && l.every((d) => moveOutcome(f, d).k === 'body');
+  return l.length > 0 && l.every((d) => ['body', 'neck'].includes(moveOutcome(f, d).k));
 };
 
 /**
@@ -190,6 +202,9 @@ export function doMove(f: Fight, dir: Dir, extraBite = 0): boolean {
   switch (o.k) {
     case 'illegal':
       return false;
+    case 'neck':
+      ops.sever(f, 0);
+      return doMove(f, dir, extraBite);
     case 'step':
       ops.moveHeadTo(f, t, dir);
       return true;
@@ -258,6 +273,13 @@ function bite(f: Fight, e: Enemy, dir: Dir, extraBite: number): boolean {
     ops.removeDead(f);
     if (d.signature) ops.addSeg(f, d.signature, 'neck', true);
     else ops.addSeg(f, null, 'tail');
+    const fi = ops.foodAt(f, at);
+    if (fi >= 0) {
+      f.food.splice(fi, 1);
+      ops.addSeg(f, null, 'tail');
+    }
+    const wi = ops.webAt(f, at);
+    if (wi >= 0) f.webs.splice(wi, 1);
     ops.moveHeadTo(f, at, dir);
     f.hunger = 0;
     ops.emit(f, { t: 'eat', at, what: 'enemy' });
@@ -354,7 +376,7 @@ function bodyPhase(f: Fight) {
 
 function constrictPhase(f: Fight) {
   const coils = computeCoils(f);
-  const bonus = ops.bodyBonus(f, 'crushBonus');
+  const bonus = ops.bodyBonus(f, 'crushBonus') + (f.buffs.crush ?? 0);
   const where = new Map<number, (typeof coils)[number]>();
   for (const c of coils) for (const t of c.tiles) where.set(key(t), c);
   for (const e of f.enemies) {
@@ -369,13 +391,19 @@ function constrictPhase(f: Fight) {
       if (dmg > 0) ops.damageEnemy(f, e, dmg, 'crush');
     }
   }
+  // Wrap: an enemy touching 4+ of your tiles (diagonals count) is squeezed even without a closed coil.
+  for (const e of f.enemies) {
+    if (e.held || e.under || e.hp <= 0 || e.body) continue;
+    const touching = f.snake.body.filter((b) => chebyshev(b, e.pos) === 1).length;
+    if (touching >= WRAP_MIN) ops.damageEnemy(f, e, 1 + bonus, 'crush');
+  }
   const active = coils.filter((c) => c.tiles.some((t) => f.enemies.some((e) => eq(e.pos, t))));
   for (const c of active) ops.emit(f, { t: 'coil', tiles: c.tiles });
   ops.removeDead(f);
 }
 
 export function checkCleared(f: Fight) {
-  if (!f.cleared && f.enemies.length === 0) {
+  if (!f.cleared && f.enemies.every((e) => e.minion)) {
     f.cleared = true;
     ops.emit(f, { t: 'cleared' });
   }
@@ -500,6 +528,7 @@ function resolveIntent(f: Fight, e: Enemy): boolean {
       for (const t of it.tiles) {
         if (!ops.isEmpty(f, t)) continue;
         const n = ops.spawnEnemy(f, it.kind, t);
+        n.minion = true;
         n.intent = think(f, n);
         ops.emit(f, { t: 'spawn', enemy: n.id, at: { ...t } });
       }
@@ -533,9 +562,10 @@ function upkeep(f: Fight) {
   f.turn++;
   const { escalateFrom: from, escalateEvery: every } = f.opts;
   if (!f.cleared && f.spawns.length && f.turn >= from && (f.turn - from) % every === 0) {
-    const free = f.spawns.filter((p) => ops.isEmpty(f, p));
+    const free = f.spawns.filter((p) => ops.isEmpty(f, p) || (ops.tileAt(f, p) === Tile.Burrow && !ops.enemyAt(f, p) && ops.bodyIndexAt(f, p) < 0));
     if (free.length) {
       const e = ops.spawnEnemy(f, 'beetle', pick(f.rng, free));
+      e.minion = true;
       e.intent = think(f, e);
       ops.emit(f, { t: 'spawn', enemy: e.id, at: { ...e.pos } });
     }

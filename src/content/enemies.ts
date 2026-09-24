@@ -168,7 +168,8 @@ defineEnemy({
       const tiles = [step(h, d, 2), step(h, d, 3)].filter((t) => ops.inBounds(f, t) && !ops.isSolid(f, t));
       if (tiles.length) return { t: 'web', tiles };
     }
-    if (dist < 3) return retreat(f, e, h);
+    e.mem.slow = ((e.mem.slow ?? 0) + 1) % 2;
+    if (dist < 3) return e.mem.slow ? retreat(f, e, h) : { t: 'wait' };
     if (dist > 5) return approach(f, e, [h]);
     return { t: 'wait' };
   },
@@ -178,7 +179,7 @@ defineEnemy({
   kind: 'mongoose',
   name: 'Mongoose',
   char: 'M',
-  hp: 14,
+  hp: 16,
   glyph: 'mongoose',
   color: '#c9a66b',
   text: 'Boss. Fast — moves two tiles a turn, three when wounded. Bites hard. Pounces along a line when lined up with your head. Only a tight coil (≤3 tiles) can hold it.',

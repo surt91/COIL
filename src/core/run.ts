@@ -6,7 +6,7 @@ import { ENCOUNTERS, Pool } from '../content/encounters';
 import { EVENTS } from '../content/events';
 import { LAYOUTS } from '../content/layouts';
 import { createFight } from './fight';
-import { ITEMS } from './registry';
+import { ITEMS, enemyDef } from './registry';
 import { Rng, chance, int, makeRng, pick, shuffle, weighted } from './rng';
 import type { Fight, FightOpts, ItemId } from './types';
 
@@ -58,9 +58,12 @@ export interface RunState {
 export const MAP_ROWS = 8; // rows 0..6 regular, row 7 boss
 export const MAP_COLS = 5;
 export const STARTER: ItemId[] = ['lunge', 'fang', 'scale', 'scale', 'reverse', 'rattle'];
-export const START_FLESH = 5;
+export const START_FLESH = 4;
 /** Flesh regrown when descending to the next act. */
 export const ACT_HEAL = 4;
+/** Flesh beyond this is digested at room end: you can only carry so much. */
+export const FLESH_CAP = [8, 10, 12];
+export const fleshCap = (act: number) => FLESH_CAP[Math.min(act, FLESH_CAP.length - 1)];
 export const ACT_NAMES = ['The Garden', 'The Roots', 'The Deep'];
 
 const clone = <T>(x: T): T => structuredClone(x);
@@ -138,7 +141,7 @@ export function reachable(run: RunState): number[] {
 // ---------------------------------------------------------------- nodes
 
 function fightOpts(pool: Pool, row: number): Partial<FightOpts> {
-  if (pool === 'boss') return { escalateFrom: 12, escalateEvery: 7 };
+  if (pool === 'boss') return { escalateFrom: 20, escalateEvery: 8 };
   if (pool === 'elite') return { escalateFrom: 30, escalateEvery: 6 };
   return { escalateFrom: 30 - row, escalateEvery: 6 };
 }
@@ -157,6 +160,13 @@ export function startFight(run: RunState, nodeId: number, pool: Pool): RunState 
     place: enc.enemies,
     opts: fightOpts(pool, node.row),
   });
+  // Later acts: tougher versions of the regulars.
+  for (const e of fight.enemies) {
+    if (e.hp >= 2 && !enemyDef(e.kind).boss) {
+      e.hp += run.act;
+      e.maxHp += run.act;
+    }
+  }
   run.screen = { t: 'fight', node: nodeId, encounter: enc.id, layout: layout.id, fight };
   return run;
 }
@@ -207,7 +217,7 @@ export function finishFight(prev: RunState, fight: Fight): RunState {
     return run;
   }
   run.stats.rooms++;
-  run.flesh = fight.snake.segs.filter((s) => !s.item || s.temp).length;
+  run.flesh = Math.min(fleshCap(run.act), fight.snake.segs.filter((s) => !s.item || s.temp).length);
   if (node.kind === 'boss') {
     if (run.act >= ACT_NAMES.length - 1) {
       run.screen = { t: 'victory' };
@@ -222,7 +232,7 @@ export function finishFight(prev: RunState, fight: Fight): RunState {
     run.act++;
     run.map = generateMap(run.rng);
     run.at = null;
-    run.flesh += ACT_HEAL;
+    run.flesh = Math.min(fleshCap(run.act), run.flesh + ACT_HEAL);
     return run;
   }
   const elite = node.kind === 'elite';
@@ -288,7 +298,7 @@ export function takeReward(prev: RunState, idx: number | null): RunState {
   if (prev.screen.t !== 'reward') return prev;
   const run = clone(prev);
   const sc = run.screen as Extract<Screen, { t: 'reward' }>;
-  if (idx === null) run.flesh += sc.skipFlesh;
+  if (idx === null) run.flesh = Math.max(run.flesh, Math.min(fleshCap(run.act), run.flesh + sc.skipFlesh));
   else run.genome.push(sc.options[idx]);
   run.screen = { t: 'map' };
   return run;
@@ -326,7 +336,7 @@ export const BASK_FLESH = 5;
 export function bask(prev: RunState): RunState {
   if (prev.screen.t !== 'bask' || prev.screen.done) return prev;
   const run = clone(prev);
-  run.flesh += BASK_FLESH;
+  run.flesh = Math.max(run.flesh, Math.min(fleshCap(run.act), run.flesh + BASK_FLESH));
   (run.screen as Extract<Screen, { t: 'bask' }>).done = true;
   return run;
 }
