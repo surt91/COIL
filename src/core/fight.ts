@@ -7,14 +7,14 @@ import { DIRS, Dir, Pos, chebyshev, eq, key, manhattan, step as stepPos } from '
 import * as ops from './ops';
 import { ENEMIES, enemyDef, item } from './registry';
 import { Rng, int, makeRng, pick, shuffle } from './rng';
-import type { Action, Enemy, Fight, FightOpts, ItemId } from './types';
+import type { Action, Enemy, Fight, FightOpts, Intent, ItemId } from './types';
 import { Tile } from './types';
 
 /** An enemy touching this many snake tiles (8-neighbourhood) is squeezed. */
 export const WRAP_MIN = 4;
 
 export const DEFAULT_OPTS: FightOpts = {
-  hungerEvery: 12,
+  hungerEvery: 14,
   escalateFrom: 25,
   escalateEvery: 6,
   minFood: 1,
@@ -98,6 +98,7 @@ export function createFight(spec: RoomSpec): Fight {
   } else {
     if (!start) throw new Error('room without start');
     const s: Pos = start;
+    f.entry = { ...s };
     f.snake.body = [{ ...s }];
     // Face away from walls: pick the direction with the longest free run.
     let best: Dir = 0, bestRun = -1;
@@ -260,6 +261,7 @@ function bite(f: Fight, e: Enemy, dir: Dir, extraBite: number): boolean {
   let dmg = 1 + f.buffs.bite + ops.bodyBonus(f, 'biteBonus') + extraBite;
   f.buffs.bite = 0;
   if (d.onBitten?.(f, e)) dmg = 0;
+  if (d.biteCap !== undefined) dmg = Math.min(dmg, d.biteCap);
   const at = { ...e.pos };
   const killed = dmg > 0 && ops.damageEnemy(f, e, dmg, 'bite');
   ops.emit(f, { t: 'bite', enemy: e.id, at, dmg, killed });
@@ -285,14 +287,17 @@ function bite(f: Fight, e: Enemy, dir: Dir, extraBite: number): boolean {
     ops.emit(f, { t: 'eat', at, what: 'enemy' });
     return true;
   }
-  // Survived: knocked back one tile and interrupted.
+  // Survived: knocked back one tile, which interrupts it. Pinned enemies (nowhere
+  // to be knocked to), snakes and bosses keep their intent.
   const back = stepPos(e.pos, dir);
-  if (!e.body && ops.freeForEnemy(f, back, d.flies)) {
+  if (!e.body && !d.boss && ops.freeForEnemy(f, back, d.flies)) {
     ops.emit(f, { t: 'knockback', enemy: e.id, from: { ...e.pos }, to: back });
     e.pos = back;
+    e.intent = { t: 'wait' };
+    e.mem.interrupted = 1;
+  } else {
+    ops.emit(f, { t: 'msg', text: d.boss ? 'unstoppable' : 'pinned — not interrupted' });
   }
-  e.intent = { t: 'wait' };
-  e.mem.interrupted = 1;
   d.afterBitten?.(f, e);
   return false;
 }
@@ -430,13 +435,24 @@ function enemyPhase(f: Fight) {
     if (keep.has(e.id)) continue;
     e.intent = think(f, e);
     delete e.mem.interrupted;
+    if (e.mem.escaped) ops.emit(f, { t: 'msg', text: `${enemyDef(e.kind).name} escaped!` });
   }
+  ops.removeDead(f);
+  checkCleared(f);
 }
 
-export function think(f: Fight, e: Enemy) {
+export function think(f: Fight, e: Enemy): Intent {
   const it = enemyDef(e.kind).think(f, e);
-  if (e.held && it.t === 'move') return { t: 'wait' } as const;
+  if (e.held && it.t === 'move') return { t: 'wait' };
+  if ((it.t === 'lock' || it.t === 'steal') && protectedSeg(f, it.seg)) return { t: 'wait' };
   return it;
+}
+
+/** While the snake is still emerging, segments at the burrow mouth can't be targeted. */
+export function protectedSeg(f: Fight, uid: number): boolean {
+  if (!f.entry || ops.pending(f) === 0 || uid === 0) return false;
+  const p = ops.segPos(f, uid);
+  return !!p && chebyshev(p, f.entry) <= 1;
 }
 
 /** Resolve an intent. Returns true if the intent should be kept (windup). */
@@ -487,7 +503,7 @@ function resolveIntent(f: Fight, e: Enemy): boolean {
         return true;
       }
       const p = ops.segPos(f, it.seg);
-      if (!p || chebyshev(p, e.pos) > it.reach) {
+      if (!p || chebyshev(p, e.pos) > it.reach || protectedSeg(f, it.seg)) {
         ops.emit(f, { t: 'fizzle', enemy: e.id });
         return false;
       }

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { computeCoils } from '../core/coil';
 import { canPlay, legalMoves, moveOutcome, step } from '../core/fight';
 import { DIRS, Dir, Pos, eq, step as stepPos } from '../core/geom';
 import * as ops from '../core/ops';
@@ -24,9 +25,11 @@ export interface FightViewProps {
   onStep?(f: Fight, undo?: boolean): void;
   side?: preact.ComponentChildren;
   act?: number;
+  /** Max flesh carried to the next room (shown in the HUD). */
+  fleshCap?: number;
 }
 
-export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0 }: FightViewProps) {
+export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0, fleshCap }: FightViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const renderer = useRef<BoardRenderer | null>(null);
@@ -171,24 +174,21 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0 
   const head = f.snake.body[0];
   let hoverDir: Dir | null = null;
   if (hover) for (const d of DIRS) if (eq(stepPos(head, d), hover)) hoverDir = d;
+  const preview = useMemo<Fight | null>(() => {
+    if (f.status !== 'play') return null;
+    if (hint && !hover) return hint.preview;
+    if (selected !== null) {
+      if (hoverDir !== null && canPlay(f, selected, hoverDir)) return step(f, { t: 'play', slot: selected, dir: hoverDir });
+    } else if (hoverDir !== null && legalMoves(f).includes(hoverDir)) return step(f, { t: 'move', dir: hoverDir });
+    return null;
+  }, [hover, selected, f, hint]);
   useEffect(() => {
     const r = renderer.current;
     if (!r) return;
     r.hover = hover;
-    r.preview = null;
-    r.targetDirs = null;
-    if (f.status !== 'play') return;
-    if (hint && !hover) {
-      r.preview = hint.preview;
-      return;
-    }
-    if (selected !== null) {
-      r.targetDirs = DIRS.filter((d) => canPlay(f, selected, d));
-      if (hoverDir !== null && canPlay(f, selected, hoverDir)) r.preview = step(f, { t: 'play', slot: selected, dir: hoverDir });
-    } else if (hoverDir !== null && legalMoves(f).includes(hoverDir)) {
-      r.preview = step(f, { t: 'move', dir: hoverDir });
-    }
-  }, [hover, selected, f, hint]);
+    r.preview = preview;
+    r.targetDirs = f.status === 'play' && selected !== null ? DIRS.filter((d) => canPlay(f, selected, d)) : null;
+  }, [hover, selected, f, preview]);
 
   const toCss = (e: MouseEvent) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -210,14 +210,21 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0 
   const flesh = f.snake.segs.filter((s) => !s.item).length;
   const items = f.snake.segs.length - flesh;
   const hungerLeft = f.opts.hungerEvery - f.hunger;
+  const fleshCapNote = fleshCap !== undefined ? `, keep ≤${fleshCap}` : '';
 
   return (
     <div class="fight">
       <header class="hud">
         <div class="hud-title">{title}</div>
-        <div class="hud-stat" title="Segments: items + flesh">
-          <b>{f.snake.segs.length}</b> segments <span class="dim">({items} items · {flesh} flesh{pend ? ` · ${pend} in burrow` : ''})</span>
+        <div class="hud-stat" title="Segments: items + flesh. Flesh (incl. temporary items) carries to the next room, up to your cap.">
+          <b>{f.snake.segs.length}</b> segments <span class="dim">({items} items · </span><b class="flesh">{flesh}</b><span class="dim"> flesh{fleshCapNote}{pend ? ` · ${pend} in burrow` : ''})</span>
         </div>
+        {(f.buffs.bite > 0 || f.buffs.absorb > 0) && (
+          <div class="hud-stat buffs">
+            {f.buffs.bite > 0 && <span class="buff">Next bite +{f.buffs.bite}</span>}
+            {f.buffs.absorb > 0 && <span class="buff">Absorb ×{f.buffs.absorb}</span>}
+          </div>
+        )}
         <div class={`hud-stat ${hungerLeft <= 3 ? 'warn' : ''}`} title="Every few turns without eating, you lose your tail.">
           Hunger <b>{hungerLeft}</b>
         </div>
@@ -231,15 +238,15 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0 
             <div>{f.status === 'won' ? 'Onward…' : 'Your coil unwinds'}</div>
           </div>
         )}
+      </div>
+      <aside class="inspector">
         {tip && (
           <div class="tip" onClick={() => { markSeen(tip.id); setTip(nextTip(fightRef.current)); }}>
             <span class="tip-label">Tip</span> {tip.text} <span class="dim">(click to dismiss)</span>
           </div>
         )}
-      </div>
-      <aside class="inspector">
         <Inspector f={f} hover={hover} />
-        <MoveHint f={f} dir={hoverDir} />
+        <MoveHint f={f} dir={hoverDir} preview={preview} />
         {hint && <div class="autopilot">Autopilot suggests: <b>{describeAction(f, hint.action)}</b> <span class="dim">(P to let it play, Esc to dismiss)</span></div>}
         {side}
       </aside>
@@ -264,6 +271,8 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0 
               {d.activeText && <div class="card-text">{d.activeText}</div>}
               {d.passiveText && <div class="card-passive">Passive: {d.passiveText}</div>}
               {d.active?.move && <div class="card-tag">MOVE</div>}
+              {!playable && d.active && <div class="card-why">{d.active.requires ?? (d.active.target === 'dir' ? 'No valid direction right now.' : 'Can’t be played right now.')}</div>}
+              {!d.active && <div class="card-why">Passive only — tuck it (T) to cycle.</div>}
             </button>
           );
         })}
@@ -339,6 +348,9 @@ function Inspector({ f, hover }: { f: Fight; hover: Pos | null }) {
     const h = f.husks[hk];
     return <div class="inspect"><h3>Husk</h3><p>A severed piece of you{h.item ? ` carrying ${ITEMS.get(h.item)?.name}` : ''}. Blocks the way; counts as a coil wall. Eat it within {h.ttl} turns to take it back.</p></div>;
   }
+  const tile = ops.tileAt(f, hover);
+  if (tile === 2) return <div class="inspect"><h3>Exit</h3><p>{f.cleared ? 'Open! Move into it to leave the room.' : 'Closed until every enemy is dead (escalation spawns don’t count).'}</p></div>;
+  if (tile === 3) return <div class="inspect"><h3>Burrow</h3><p>{f.entry && eq(f.entry, hover) ? 'Where you came in. While you are still emerging, segments at its mouth are safe.' : 'Late in a fight, beetles crawl out of holes like this.'} Your head can’t go back in.</p></div>;
   if (ops.foodAt(f, hover) >= 0) return <div class="inspect"><h3>Food</h3><p>+1 flesh at the tail. Resets hunger.</p></div>;
   if (ops.webAt(f, hover) >= 0) return <div class="inspect"><h3>Web</h3><p>Moving into it costs your move. Counts as a coil wall.</p></div>;
   return <div class="inspect dim">Empty.<Legend /></div>;
@@ -350,20 +362,43 @@ function Legend() {
       <li><b>Move</b> arrows / WASD / click. You can never stand still.</li>
       <li><b>Hand</b> = the first three items behind your head. <kbd>1</kbd>–<kbd>3</kbd> to play; playing consumes the segment.</li>
       <li><b>Hits</b> destroy the segment they land on.</li>
-      <li><b>Coil</b>: enclose enemies with your body (walls help). Tighter = more crush.</li>
+      <li><b>Coil</b>: enclose enemies with your body (walls help). Tighter = more crush (1 tile: 3/turn, 2–3: 2, 4–8: 1, 9–12: held only). To keep a coil, chase your own tail.</li>
+      <li><b>Wrap</b>: the violet arcs count how many of your tiles touch an enemy. At 4 (diagonals count) it is squeezed for 1 each turn.</li>
       <li><kbd>H</kbd> asks the autopilot for a hint, <kbd>P</kbd> lets it play a turn. (Every snake needs an autopilot.)</li>
       <li><kbd>F2</kbd> toggles the terminal skin — a nod to where all this started: C and ncurses.</li>
-      <li><b>Red</b> = incoming damage. Dashed line = a bite locked on a segment; move that segment out of reach to dodge.</li>
+      <li><b>Red</b> = incoming damage. A red reticle = a bite locked on that segment: it lands only if the segment is still inside the faint red box after your move.</li>
     </ul>
   );
 }
 
-function MoveHint({ f, dir }: { f: Fight; dir: Dir | null }) {
+function MoveHint({ f, dir, preview }: { f: Fight; dir: Dir | null; preview: Fight | null }) {
   if (dir === null || f.status !== 'play') return null;
+  const legal = legalMoves(f).includes(dir);
   const o = moveOutcome(f, dir);
   const text: Record<string, string> = {
     illegal: 'Blocked', step: 'Move', food: 'Eat', husk: 'Eat husk', web: 'Web: stuck',
     exit: 'Leave the room', bite: 'Bite', body: 'Bite yourself (trapped)', neck: 'Bite your own neck (stuck!)',
   };
-  return <div class="movehint">{text[o.k]}</div>;
+  if (!legal) return <div class="movehint">Blocked</div>;
+  const lines: string[] = [];
+  if (preview) {
+    const keep = new Set(preview.snake.segs.map((x) => x.uid));
+    const lost = f.snake.segs.filter((x) => !keep.has(x.uid));
+    const lostItems = lost.filter((x) => x.item).map((x) => ITEMS.get(x.item!)?.name);
+    if (preview.status === 'dead') lines.push('☠ You would die.');
+    else if (lost.length) lines.push(`Lose ${lost.length} segment${lost.length > 1 ? 's' : ''}${lostItems.length ? `: ${lostItems.join(', ')}` : ''}`);
+    else lines.push('No damage taken.');
+    const fizzles = preview.events.filter((e) => e.t === 'fizzle').length;
+    if (fizzles) lines.push(`${fizzles} attack${fizzles > 1 ? 's' : ''} will miss`);
+    const kills = preview.events.filter((e) => e.t === 'enemyDie').length;
+    if (kills) lines.push(`${kills} kill${kills > 1 ? 's' : ''}`);
+    const coils = computeCoils(preview).filter((c) => c.tiles.some((t) => preview.enemies.some((e) => eq(e.pos, t))));
+    for (const c of coils) lines.push(`Coil: ${c.area} tile${c.area > 1 ? 's' : ''} → ${c.crush ? `${c.crush} crush/turn` : 'held only'}`);
+  }
+  return (
+    <div class="movehint">
+      <b>{text[o.k]}</b>
+      {lines.map((l) => <div class={l.startsWith('☠') || l.startsWith('Lose') ? 'bad' : ''}>{l}</div>)}
+    </div>
+  );
 }

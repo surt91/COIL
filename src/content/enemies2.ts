@@ -68,10 +68,19 @@ defineEnemy({
   hp: 2,
   glyph: 'magpie',
   color: '#dfe7ef',
-  text: 'Flies over your body and steals the item from an adjacent segment, then flees. Kill it to get the item back.',
+  text: 'Flies over your body and steals the item from an adjacent segment, then flees. Kill it within 3 turns to get the item back — or it escapes with it.',
   flies: true,
   think(f, e) {
-    if (e.carry) return retreat(f, e, ops.head(f), true);
+    if (e.carry) {
+      // Escapes with the loot after a few turns.
+      e.mem.fleeing = (e.mem.fleeing ?? 0) + 1;
+      if (e.mem.fleeing > 3) {
+        e.hp = 0;
+        e.mem.escaped = 1;
+        return { t: 'wait' };
+      }
+      return retreat(f, e, ops.head(f), true);
+    }
     const s = f.snake;
     for (let bi = 1; bi < s.body.length; bi++) {
       const seg = s.segs[bi - 1];
@@ -102,8 +111,8 @@ defineEnemy({
   hp: 5,
   glyph: 'tortoise',
   color: '#7a8b5c',
-  text: 'Its shell shrugs off bites entirely. Slow. Only constriction (or poison) can hurt it.',
-  onBitten: () => true,
+  text: 'Its shell turns every bite into a scratch: bites deal at most 1. Slow, but bites hard. Constriction and poison work fine.',
+  biteCap: 1,
   think(f, e) {
     e.mem.tick = (e.mem.tick ?? 0) + 1;
     const l = lockAdjacent(f, e, 2);
@@ -136,7 +145,7 @@ defineEnemy({
   kind: 'queen',
   name: 'Ant Queen',
   char: 'Q',
-  hp: 18,
+  hp: 16,
   glyph: 'queen',
   color: '#e74c3c',
   text: 'Boss. Huge and slow. Summons ants around herself every few turns and bites hard. Only a coil of 8 tiles or less can hold her.',
@@ -146,7 +155,8 @@ defineEnemy({
     e.mem.t = (e.mem.t ?? 0) + 1;
     const l = lockAdjacent(f, e, 2);
     if (l) return l;
-    if (e.mem.t % 4 === 1) {
+    const ants = f.enemies.filter((x) => x.kind === 'ant').length;
+    if (e.mem.t % 4 === 1 && ants < 5) {
       const tiles = DIRS.map((d) => step(e.pos, d)).filter((p) => ops.isEmpty(f, p)).slice(0, e.hp < 9 ? 3 : 2);
       if (tiles.length) return { t: 'summon', kind: 'ant', tiles };
     }

@@ -93,6 +93,8 @@ export interface Fight {
   buffs: { bite: number; absorb: number; crush?: number };
   nextId: number;
   rng: Rng;
+  /** The start burrow; its mouth is safe while the snake is still emerging. */
+  entry?: Pos;
   /** Tiles the escalation spawner uses. */
   spawns: Pos[];
   /** Events produced by the last action (consumed by the renderer). */

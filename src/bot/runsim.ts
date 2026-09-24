@@ -21,6 +21,7 @@ export interface RunResult {
   coilKills: number;
   fights: number;
   stalled: boolean;
+  stalledIn: string[];
 }
 
 /** Rough item tier list for the reward picker. */
@@ -50,6 +51,7 @@ export function simulateRun(seed: number, policy: Policy, turnCap = 300): RunRes
   let run = createRun(seed);
   const fleshAtAct = [run.flesh];
   let fights = 0, stalled = false;
+  const stalledIn: string[] = [];
   for (let guard = 0; guard < 500; guard++) {
     const sc = run.screen;
     if (sc.t === 'victory' || sc.t === 'dead') break;
@@ -65,6 +67,7 @@ export function simulateRun(seed: number, policy: Policy, turnCap = 300): RunRes
       }
       if (f.status === 'play') {
         stalled = true;
+        stalledIn.push(sc.encounter);
         f = { ...f, status: 'dead', events: [{ t: 'death', cause: 'stalled' }] };
       }
       run = finishFight(run, f);
@@ -99,6 +102,7 @@ export function simulateRun(seed: number, policy: Policy, turnCap = 300): RunRes
     coilKills: run.stats.coilKills,
     fights,
     stalled,
+    stalledIn,
   };
 }
 

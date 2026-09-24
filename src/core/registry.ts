@@ -30,6 +30,8 @@ export interface ItemDef {
     target: 'none' | 'dir';
     /** The active is the turn's move (ends the turn). */
     move?: boolean;
+    /** Shown when it can't be played. */
+    requires?: string;
     /** Additional flesh taken from the tail. */
     extraCost?: number;
     canPlay?(f: Fight, args: PlayArgs): boolean;
@@ -58,6 +60,8 @@ export interface EnemyDef {
   signature?: ItemId;
   /** Choose the next intent. Called at the end of each enemy phase. */
   think(f: Fight, e: Enemy): Intent;
+  /** Bites deal at most this much (shells). */
+  biteCap?: number;
   /** Return true to ignore the bite's damage. */
   onBitten?(f: Fight, e: Enemy): boolean;
   /** Called when a bite happens, after damage. */

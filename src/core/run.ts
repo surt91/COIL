@@ -44,7 +44,7 @@ export interface RunStats {
 /** Ascension-style difficulty levels, cumulative. */
 export const MOLTS = [
   'Base game',
-  'Hungrier: you starve every 10 turns instead of 12.',
+  'Hungrier: you starve every 11 turns instead of 14.',
   'Tougher Garden: Act 1 enemies have +1 HP.',
   'Lean: you can carry 2 less flesh between rooms.',
   'Crowded: normal fights and elites bring an extra beetle.',
@@ -68,7 +68,7 @@ export interface RunState {
   log: string[];
 }
 
-export const MAP_ROWS = 8; // rows 0..6 regular, row 7 boss
+export const MAP_ROWS = 10; // rows 0..8 regular, row 9 boss
 export const MAP_COLS = 5;
 export const STARTER: ItemId[] = ['lunge', 'fang', 'scale', 'scale', 'reverse', 'rattle'];
 export const START_FLESH = 4;
@@ -138,9 +138,9 @@ export function generateMap(r: Rng): MapNode[] {
     if (n.kind === 'boss') continue;
     if (n.row === 0) n.kind = 'fight';
     else if (n.row === MAP_ROWS - 2) n.kind = 'bask';
-    else if (n.row === 3 && chance(r, 0.5)) n.kind = 'nest';
+    else if (n.row === 4 && chance(r, 0.5)) n.kind = 'nest';
     else {
-      const opts: [NodeKind, number][] = [['fight', 45], ['event', 20], ['pool', 12], ['nest', 7]];
+      const opts: [NodeKind, number][] = [['fight', 52], ['event', 15], ['pool', 11], ['nest', 6]];
       if (n.row >= 2) opts.push(['elite', 14]);
       if (n.row >= 3) opts.push(['bask', 8]);
       n.kind = weighted(r, opts);
@@ -157,7 +157,7 @@ export function reachable(run: RunState): number[] {
 // ---------------------------------------------------------------- nodes
 
 function fightOpts(pool: Pool, row: number, molt: number): Partial<FightOpts> {
-  const hunger = molt >= 1 ? { hungerEvery: 10 } : {};
+  const hunger = molt >= 1 ? { hungerEvery: 11 } : {};
   if (pool === 'boss') return { escalateFrom: 20, escalateEvery: 8, ...hunger };
   if (pool === 'elite') return { escalateFrom: 30, escalateEvery: 6, ...hunger };
   return { escalateFrom: 30 - row, escalateEvery: 6, ...hunger };
@@ -175,7 +175,7 @@ export function startFight(run: RunState, nodeId: number, pool: Pool): RunState 
     flesh: run.flesh,
     seed: int(run.rng, 0, 2 ** 31),
     place: run.molt >= 4 && (pool === 'normal' || pool === 'elite') ? [...enc.enemies, 'beetle'] : enc.enemies,
-    opts: fightOpts(pool, node.row, run.molt),
+    opts: { ...fightOpts(pool, node.row, run.molt), minFood: run.act >= 1 ? 2 : 1 },
   });
   // Later acts: tougher versions of the regulars.
   for (const e of fight.enemies) {
