@@ -2,7 +2,7 @@
  * The fight reducer: (Fight, Action) -> Fight (+ events in fight.events).
  * Pure with respect to its input: `step` clones before mutating.
  */
-import { computeCoils } from './coil';
+import { computeCoils, enemyCoilsHead } from './coil';
 import { DIRS, Dir, Pos, chebyshev, eq, key, manhattan, step as stepPos } from './geom';
 import * as ops from './ops';
 import { ENEMIES, enemyDef, item } from './registry';
@@ -419,6 +419,13 @@ function enemyPhase(f: Fight) {
   }
   ops.removeDead(f);
   checkCleared(f);
+  // Enemy snakes can coil you too: each turn inside their circle costs your tail.
+  if (enemyCoilsHead(f)) {
+    ops.emit(f, { t: 'msg', text: 'Constricted!' });
+    ops.emit(f, { t: 'coil', tiles: [{ ...f.snake.body[0] }] });
+    if (!ops.removeTail(f, 'constricted')) ops.kill(f, 'constriction');
+    if (f.status !== 'play') return;
+  }
   for (const e of f.enemies) {
     if (keep.has(e.id)) continue;
     e.intent = think(f, e);

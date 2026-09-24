@@ -220,3 +220,10 @@ h1.lose { color: var(--red); }
 .fight-end.won { color: var(--gold); text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8); }
 @keyframes fadein { from { opacity: 0; } }
 .molts select { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+.codex-head { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
+.codex-head h2 { margin: 0 16px 0 0; }
+.codex .choices { justify-content: flex-start; }
+.bestiary { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 12px; }
+.beast { display: flex; gap: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.beast h3 { margin: 0; }
+.beast p { margin: 6px 0 0; font-size: 14px; line-height: 1.4; }

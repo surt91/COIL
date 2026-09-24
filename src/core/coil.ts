@@ -83,3 +83,25 @@ export function computeCoils(f: Fight, bodyOverride?: Pos[]): Coil[] {
   });
   return coils;
 }
+
+/**
+ * Is the player's head enclosed by enemy snake bodies (walls help)? Mirrors the
+ * player's own coil rule: a region of at most MAX_COIL_AREA tiles that is
+ * smaller than it would be without the enemy snakes.
+ */
+export function enemyCoilsHead(f: Fight): boolean {
+  const snakes = f.enemies.filter((e) => e.body && e.hp > 0);
+  if (!snakes.length) return false;
+  const { w, h } = f;
+  const terrain = (i: number) => f.tiles[i] === Tile.Wall || f.tiles[i] === Tile.Exit;
+  const blocked = new Uint8Array(w * h);
+  for (const e of snakes) for (const p of [e.pos, ...e.body!]) blocked[p.y * w + p.x] = 1;
+  const base = components(w, h, terrain);
+  const cur = components(w, h, (i) => terrain(i) || blocked[i] === 1);
+  const hd = f.snake.body[0];
+  const i = hd.y * w + hd.x;
+  const c = cur.comp[i];
+  if (c < 0) return false;
+  const size = cur.sizes[c];
+  return size <= MAX_COIL_AREA && size < base.sizes[base.comp[i]];
+}

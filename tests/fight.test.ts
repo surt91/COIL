@@ -172,6 +172,28 @@ describe('coils', () => {
   });
 });
 
+describe('enemy snakes', () => {
+  test('biting a rival snake body cuts it and drops husks', () => {
+    let f = fight(open(12, 8), [P(3, 4), P(2, 4), P(1, 4)], null, R);
+    f.enemies.push({ id: 99, kind: 'rival', pos: P(4, 2), body: [P(4, 3), P(4, 4), P(4, 5), P(5, 5)], hp: 5, maxHp: 5, intent: { t: 'wait' }, poison: 0, held: false, mem: {} });
+    f = step(f, { t: 'move', dir: R });
+    const r = f.enemies.find((e) => e.id === 99)!;
+    expect(r.hp).toBe(2);
+    expect(r.body!.length).toBeLessThanOrEqual(1);
+    expect(f.husks.length).toBe(3);
+  });
+
+  test('a rival snake ring around your head constricts you', () => {
+    // Head at (3,3), rival ring around it.
+    let f = fight(open(10, 8), [P(3, 3), P(3, 4), P(3, 5)], null, U);
+    const ring = [P(2, 1), P(3, 1), P(4, 1), P(4, 2), P(4, 3), P(4, 4), P(4, 5), P(4, 6), P(3, 6), P(2, 6), P(2, 5), P(2, 4), P(2, 3), P(2, 2)];
+    f.enemies.push({ id: 99, kind: 'rival', pos: P(1, 1), body: ring, hp: 16, maxHp: 16, intent: { t: 'wait' }, poison: 0, held: false, mem: {} });
+    f = step(f, { t: 'move', dir: U });
+    expect(f.events.some((e) => e.t === 'msg' && e.text === 'Constricted!')).toBe(true);
+    expect(f.snake.segs.length).toBe(1);
+  });
+});
+
 describe('body is the deck', () => {
   test('the hand is the first three item segments; playing consumes the segment', () => {
     let f = fight(open(12, 8), [P(6, 3), P(5, 3), P(4, 3), P(3, 3), P(2, 3), P(1, 3)], [null, 'fang', 'scale', 'rattle', 'spine']);

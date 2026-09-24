@@ -5,6 +5,7 @@ import { createFight } from '../core/fight';
 import { MOLTS, RunState, createRun, finishFight, recordEvents, updateFight } from '../core/run';
 import { seedFromString } from '../core/rng';
 import { loadProfile, loadRun, recordRun, saveRun, todayKey } from '../save/storage';
+import { Codex } from './Codex';
 import { FightView } from './FightView';
 import { BaskScreen, EndScreen, EventScreen, GenomePanel, MapScreen, PoolScreen, RewardScreen } from './RunScreens';
 
@@ -113,6 +114,7 @@ function Title({ onStart }: { onStart(r: RunState): void }) {
   const profile = loadProfile();
   const [seed, setSeed] = useState('');
   const [molt, setMolt] = useState(Math.min(profile.moltUnlocked, MOLTS.length - 1));
+  const [codex, setCodex] = useState(false);
   const start = () => {
     uiClick();
     const s = seed.trim();
@@ -124,6 +126,7 @@ function Title({ onStart }: { onStart(r: RunState): void }) {
     uiClick();
     onStart(createRun(seedFromString(`coil-daily-${today}`), 0, today));
   };
+  if (codex) return <Codex onClose={() => setCodex(false)} />;
   return (
     <div class="screen title-screen">
       <h1 class="logo">COIL</h1>
@@ -132,6 +135,7 @@ function Title({ onStart }: { onStart(r: RunState): void }) {
         {saved && <button class="btn primary" onClick={() => { uiClick(); onStart(saved); }}>Continue run</button>}
         <button class={`btn ${saved ? '' : 'primary'}`} onClick={start}>New run</button>
         <input class="seed" placeholder="seed (optional)" value={seed} onInput={(e) => setSeed((e.target as HTMLInputElement).value)} />
+        <button class="btn" onClick={() => { uiClick(); setCodex(true); }}>Codex</button>
         <button class="btn" onClick={startDaily} disabled={!!daily} title="Everyone gets the same seed today. One attempt.">
           {daily ? `Daily done: ${daily.won ? 'victory!' : `act ${daily.act + 1}, ${daily.rooms} rooms`}` : `Daily run ${today}`}
         </button>
