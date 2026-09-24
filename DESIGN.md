@@ -2,8 +2,9 @@
 
 > *Your body is your health bar, your wallet, your deck and your weapon.*
 
-Design v2 — revised after a three-way critique (systems designer, player-experience
-critic, engineer). See `notes/devlog.md` for what changed and why.
+Design v3 — v2 came from a three-way critique (systems designer, player-experience
+critic, engineer); v3 reflects bot-driven balancing and two browser playtests.
+See `notes/devlog.md` for what changed and why. Numbers here are current defaults.
 
 ## Pitch
 
@@ -34,17 +35,21 @@ Every decision — play a card, eat, fight, coil, buy — spends the same thing.
      (Lunge, Reverse) *are* the move.
      - Into an **enemy** → *bite* (1 dmg + bonuses). If it dies you move in and
        eat it (+1 segment). If it survives it is knocked back 1 tile and its
-       intent is cancelled — biting is how you interrupt.
+       intent is cancelled — biting is how you interrupt. **Pinned** enemies
+       (nowhere to be knocked to), enemy snakes and bosses are *not* interrupted.
      - Into **food** → grow +1 flesh at the tail.
      - Into a **husk** → eat it, its item (if any) is grafted behind the head.
      - Into a **web** → stuck; web is consumed, you don't move this turn.
      - Into a **wall**, your **own body** (except a tail tip that moves away) → illegal.
+     - Into a **burrow** (entrance or spawn hole) → illegal: they are dead ends.
      - No legal move at all → *Ouroboros*: bite an adjacent own segment; it and
-       everything behind it becomes husk.
+       everything behind it becomes husk (last resort: your own neck).
 2. **Body phase.** Passive items trigger (venom, heart, …). Poison ticks.
-3. **Constrict.** Compute coils (see below); coiled enemies take crush damage.
+3. **Constrict.** Compute coils (see below); coiled enemies take crush damage;
+   wrapped enemies are squeezed.
 4. **Enemy phase.** Enemies resolve their telegraphed intents in fixed order
-   (id), then pick new, visible intents.
+   (id), then pick new, visible intents. Enemy snakes that enclose your head
+   constrict you (−1 tail per turn).
 5. **Upkeep.** Hunger ticks; escalation spawns.
 
 ### Two kinds of enemy attacks
@@ -54,10 +59,14 @@ Every decision — play a card, eat, fight, coil, buy — spends the same thing.
   other enemies). The head can dodge them; the body mostly can't.
 - **Segment locks** (beetle bite, mantis sever) latch onto a specific segment;
   the marker travels with it. At resolution the attack lands only if the
-  segment still exists *and* is still within the attacker's reach (adjacent for
-  melee). Answers: bite the attacker (interrupt + knockback), move so the
+  segment still exists *and* is still within the attacker's reach — measured
+  in **Chebyshev** distance (diagonals count; 1 for melee, 2 for the mantis).
+  Orthogonal reach would make every lock either always miss or always hit,
+  because a segment moves one tile per turn. With Chebyshev reach, a lock lands
+  when the body curls around the attacker and misses when it slides away. Answers: bite the attacker (interrupt + knockback), move so the
   segment slides out of reach, *play the item on that segment* (the lock
-  fizzles), or let it hit flesh / a Scale.
+  fizzles), *tuck* it to the tail, or let it hit flesh / a Scale.
+- While the snake is still emerging, segments at the burrow mouth can't be targeted.
 
 ### Damage
 
@@ -77,13 +86,19 @@ Every decision — play a card, eat, fight, coil, buy — spends the same thing.
   and (c) has area ≤ 12. Diagonal gaps count as sealed (enemies move orthogonally).
 - Crush damage by tightness: area 1 → 3/turn, 2–3 → 2, 4–8 → 1, 9–12 → *held* only.
 - Coiled enemies are *held*: they cannot move, but they can still attack the ring.
-- Hovering a move previews the resulting coil.
+- Bosses are only held by tight coils (Mongoose ≤3 tiles, Queen ≤8, Ouroboros ≤6).
+- **Wrap:** an enemy touching 4+ snake tiles (8-neighbourhood) is squeezed for
+  1/turn even without a closed coil. This makes constriction incremental.
+- To keep a coil, the snake chases its own tail (the tail tip vacates each turn).
+- Hovering a move previews the resulting coil (area and crush).
 
 ### Pressure (anti-stall)
 
-- **Hunger:** every 10 turns without eating, lose the tail segment.
-- **Escalation:** from turn 25, a beetle crawls out of a burrow every 6 turns.
-- There is always ≥1 food on the board.
+- **Hunger:** every 12 turns without eating, lose the tail segment.
+- **Escalation:** from turn ~25, a beetle crawls out of a spawn hole every 6 turns.
+  Escalation spawns and summons are *minions*: not required to clear the room.
+- There is always ≥1 food on the board (2 from Act 2).
+- **Flesh cap:** you carry at most 8 / 10 / 12 flesh (per act) out of a room.
 
 ## Items (the deck)
 
@@ -119,27 +134,39 @@ Each item has an **active** (play from hand, consumes) and/or a **passive**
 
 ## Enemies — each asks one question
 
-| Enemy | Question | Behaviour |
-|---|---|---|
-| Beetle | Can you interrupt in time? | Walks toward you, locks an adjacent segment, bites next turn. |
-| Hedgehog | Can you coil? | Biting it costs you your neck segment and it curls (bite-immune 2 turns). |
-| Frog | Are you too straight? | Hops 2; tongue strikes a line of 3 tiles. |
-| Mantis | Where is your neck? | 2-turn sever lock on a segment with many items behind it. |
-| Spider | Can you plan 3 turns ahead? | Spins webs (which are also coil walls). |
-| Mole | Keep the tile clear? | Burrows; emerges on a telegraphed tile. |
-| Wasp | Protect the head. | Flies over the body, strikes the head. |
-| Magpie | Protect your items. | Steals the item from an adjacent segment. |
-| Ant swarm | Big coils. | Many 1-HP ants. |
-| Rival snake (elite) | Can it coil *you*? | Plays by your rules. |
-| Bosses | | Mongoose (acts twice), Hydra (many heads), Hawk (area dives), the Ouroboros. |
+| Act | Enemy | Question | Behaviour |
+|---|---|---|---|
+| 1 | Beetle | Can you interrupt in time? | Walks toward you, locks an adjacent segment. |
+| 1 | Hedgehog | Can you coil? | Biting it costs your neck segment and it curls up. |
+| 1 | Frog | Are you too straight? | Hops; tongue strikes a line of 3 tiles. |
+| 1 | Mantis | Where is your neck? | 2-turn sever lock (reach 2). |
+| 1 | Spider | Can you plan ahead? | Webs ahead of your head (webs are coil walls). |
+| 1 | **Mongoose** (boss) | | Fast, bites hard, pounces along lines. |
+| 2 | Mole | Keep the tile clear? | Burrows; erupts on a marked tile. |
+| 2 | Magpie | Protect your items. | Flies over the body, steals an item, escapes after 3 turns. |
+| 2 | Ant | Big coils. | 1 HP, many of them. |
+| 2 | Tortoise | Coil or poison. | Bites deal at most 1. |
+| 2 | **Ant Queen** (boss) | | Summons ants (max 5), bites hard. |
+| 3 | Wasp | Protect the head. | Flies, stings the head's tile. |
+| 3 | Glowworm | Lines again. | Spits light along 4 tiles. |
+| 3 | Rival snake | Can it coil *you*? | Plays by your rules; bite its body to cut it. |
+| 3 | **The Ouroboros** (boss) | | Giant snake that hunts your tail and severs. |
+
+Enemy HP scales +1 per act (non-bosses).
 
 ## Run structure
 
-Branching map à la Slay the Spire. Act 1 "The Garden" first; later "The Roots", "The Deep".
-Nodes: Fight, Elite, Nest (item reward), Molting Pool (shop: buy/remove items
-for flesh, reorder), Bask (rest: regrow flesh), Event, Boss.
-First three rooms of a new save are a scripted tutorial taught through layout,
-not text.
+Branching map à la Slay the Spire, 10 rows per act, 3 acts ("The Garden",
+"The Roots", "The Deep"). Nodes: Fight, Elite (+charm), Nest (item),
+Molting Pool (shop: items, a charm, remove an item — paid in flesh),
+Bask (rest), Event, Boss (+boss charm).
+
+- **Charms**: passive run relics (flesh cap, hunger, shields, crush, …).
+  Boss charms are strong with a drawback.
+- **Species**: Garden Snake, Viper (poison bites), Python (huge coils, no
+  interrupts), Ouroboros (feeds on husks, double tuck) — unlocked by milestones.
+- **Molts**: 6 cumulative ascension levels, one unlocked per victory.
+- **Daily run**: one attempt per day on a date-derived seed.
 
 ## Readability & feel
 
@@ -169,13 +196,10 @@ in `src/bot` for fuzzing and balancing.
 
 ## Roadmap
 
-- [x] P0 Scaffold, git, test runner
-- [ ] P1 Grid, snake, burrow emergence, food, render, turn loop, ASCII fixtures
-- [ ] P2 Beetle, intents (tile strike + segment lock), damage, death
-- [ ] P3 Constriction + Hedgehog
-- [ ] P4 Body-as-deck: items, hand, tuck, play, undo
-- [ ] P5 Sever, husks, Mantis, Frog, Spider
-- [ ] P6 Run: map, rewards, shop, rest, Mongoose boss (Act 1 vertical slice)
-- [ ] P7 Juice: animations, sound, previews, title, save
-- [ ] P8 Bots: fuzzing + balancing
-- [ ] P9 Acts 2–3, more content, species, daily seeds, terminal skin
+- [x] Core rules engine, fuzz-tested
+- [x] Body-as-deck, coils, wrap, 28 items, 15 enemies, 3 bosses
+- [x] Run: map, rewards, shop, rest, events, 3 acts, charms, species, molts, daily
+- [x] Procedural art, synthesized sound, terminal skin, autopilot hints
+- [x] Bots, fight/run simulators, balancing
+- [ ] Bot that plans coils (better balance data for the Python)
+- [ ] More events and items per act; item upgrades
