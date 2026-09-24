@@ -4,7 +4,7 @@
  * records GameEvents; callers clone before dispatching.
  */
 import { DIRS, Dir, Pos, eq, key, neighbors4, step } from './geom';
-import { ITEMS, enemyDef, item } from './registry';
+import { CHARMS, ITEMS, charmSum, enemyDef, item } from './registry';
 import type { Enemy, Fight, GameEvent, ItemId, Seg } from './types';
 import { Tile } from './types';
 
@@ -82,7 +82,7 @@ export function hand(f: Fight): number[] {
 }
 
 export function bodyBonus(f: Fight, field: 'biteBonus' | 'crushBonus' | 'coilAreaBonus'): number {
-  let n = 0;
+  let n = charmSum(f.charms, field);
   for (const { id } of itemsOnBody(f)) n += ITEMS.get(id)?.[field] ?? 0;
   return n;
 }
@@ -156,8 +156,9 @@ export function kill(f: Fight, cause: string) {
 export function hitSnake(f: Fight, bi: number, dmg: number, source: Enemy | null, opts: { sever?: boolean } = {}) {
   const s = f.snake;
   const cause = source ? enemyDef(source.kind).name : 'hunger';
-  if (f.buffs.absorb > 0) {
-    f.buffs.absorb--;
+  if (f.buffs.absorb > 0 || (f.shield ?? 0) > 0) {
+    if (f.buffs.absorb > 0) f.buffs.absorb--;
+    else f.shield!--;
     emit(f, { t: 'absorb', at: s.body[bi] ?? s.body[0] });
     return;
   }
@@ -198,6 +199,7 @@ export function damageEnemy(f: Fight, e: Enemy, dmg: number, cause: string): boo
   }
   if (e.hp <= 0) {
     emit(f, { t: 'enemyDie', enemy: e.id, at: { ...e.pos }, kind: e.kind });
+    for (const c of f.charms ?? []) CHARMS.get(c)?.onKill?.(f, e, cause);
     if (e.carry) {
       addSeg(f, e.carry, 'neck');
       emit(f, { t: 'msg', text: `${item(e.carry).name} recovered` });

@@ -145,7 +145,7 @@ defineEnemy({
   kind: 'queen',
   name: 'Ant Queen',
   char: 'Q',
-  hp: 16,
+  hp: 18,
   glyph: 'queen',
   color: '#d9822b',
   text: 'Boss. Huge and slow. Summons ants around herself every few turns and bites hard. Only a coil of 8 tiles or less can hold her.',

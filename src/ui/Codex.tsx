@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { ENEMIES, ITEMS } from '../core/registry';
+import { CHARMS, ENEMIES, ITEMS } from '../core/registry';
 import { drawCreature } from '../render/creatures';
-import { ItemCard } from './RunScreens';
+import { CharmCard, ItemCard } from './RunScreens';
 
 function CreatureIcon({ kind, color, size = 56 }: { kind: string; color: string; size?: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -18,7 +18,7 @@ function CreatureIcon({ kind, color, size = 56 }: { kind: string; color: string;
 }
 
 export function Codex({ onClose }: { onClose(): void }) {
-  const [tab, setTab] = useState<'items' | 'enemies'>('items');
+  const [tab, setTab] = useState<'items' | 'enemies' | 'charms'>('items');
   const order = ['starter', 'common', 'uncommon', 'rare', 'signature'];
   const items = [...ITEMS.values()].sort((a, b) => order.indexOf(a.rarity) - order.indexOf(b.rarity));
   return (
@@ -26,10 +26,13 @@ export function Codex({ onClose }: { onClose(): void }) {
       <div class="codex-head">
         <h2>Codex</h2>
         <button class={`btn ${tab === 'items' ? 'primary' : ''}`} onClick={() => setTab('items')}>Items ({items.length})</button>
+        <button class={`btn ${tab === 'charms' ? 'primary' : ''}`} onClick={() => setTab('charms')}>Charms ({CHARMS.size})</button>
         <button class={`btn ${tab === 'enemies' ? 'primary' : ''}`} onClick={() => setTab('enemies')}>Creatures ({ENEMIES.size})</button>
         <button class="btn" onClick={onClose}>Back</button>
       </div>
-      {tab === 'items' ? (
+      {tab === 'charms' ? (
+        <div class="choices">{[...CHARMS.values()].map((c) => <CharmCard id={c.id} />)}</div>
+      ) : tab === 'items' ? (
         <>
           <p class="dim">Signature items are grafted temporarily when you eat the creature that carries them.</p>
           <div class="choices">{items.map((d) => <ItemCard id={d.id} />)}</div>

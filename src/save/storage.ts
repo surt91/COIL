@@ -29,6 +29,8 @@ export interface Profile {
   moltUnlocked: number;
   bestMolt: number;
   dailies: Record<string, { won: boolean; act: number; rooms: number }>;
+  /** Milestones: 'act1' (beat act 1), 'act2', 'victory'. */
+  unlocks: string[];
 }
 
 const PKEY = 'coil.profile.v1';
@@ -36,11 +38,11 @@ const PKEY = 'coil.profile.v1';
 export function loadProfile(): Profile {
   try {
     const p = JSON.parse(localStorage.getItem(PKEY) ?? 'null');
-    if (p) return { runs: 0, victories: 0, moltUnlocked: 0, bestMolt: -1, dailies: {}, ...p };
+    if (p) return { runs: 0, victories: 0, moltUnlocked: 0, bestMolt: -1, dailies: {}, unlocks: [], ...p };
   } catch {
     /* ignore */
   }
-  return { runs: 0, victories: 0, moltUnlocked: 0, bestMolt: -1, dailies: {} };
+  return { runs: 0, victories: 0, moltUnlocked: 0, bestMolt: -1, dailies: {}, unlocks: [] };
 }
 
 export function saveProfile(p: Profile) {
@@ -61,6 +63,10 @@ export function recordRun(run: RunState): Profile {
     p.bestMolt = Math.max(p.bestMolt, run.molt ?? 0);
     p.moltUnlocked = Math.max(p.moltUnlocked, (run.molt ?? 0) + 1);
   }
+  const add = (u: string) => void (p.unlocks.includes(u) || p.unlocks.push(u));
+  if (run.act >= 1) add('act1');
+  if (run.act >= 2) add('act2');
+  if (won) add('victory');
   if (run.daily && !p.dailies[run.daily]) p.dailies[run.daily] = { won, act: run.act, rooms: run.stats.rooms };
   saveProfile(p);
   return p;

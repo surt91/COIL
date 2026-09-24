@@ -248,3 +248,8 @@ h1.lose { color: var(--red); }
 .map .node.visited circle { fill: #123b35; stroke: var(--teal); }
 .map .node.visited text { fill: var(--teal); }
 p.small { font-size: 13px; margin-top: -8px; }
+.species { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.species-card { width: 210px; min-height: 96px; }
+.charm-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.charm-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 2px 8px 2px 2px; border-radius: 999px; border: 1px solid var(--c); }
+.card.charm { border-top-style: double; border-top-width: 4px; }

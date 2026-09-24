@@ -101,6 +101,12 @@ export interface Fight {
   events: GameEvent[];
   /** Options for this fight. */
   opts: FightOpts;
+  /** Run charms active in this fight. */
+  charms?: string[];
+  /** Hits absorbed anywhere (charms), persists across turns. */
+  shield?: number;
+  /** Tucks used this turn. */
+  tucks?: number;
 }
 
 export interface FightOpts {

@@ -1,5 +1,5 @@
 import { computeCoils } from '../core/coil';
-import { doMove, legalMoves, moveOutcome } from '../core/fight';
+import { doMove, legalMoves, moveOutcome, wrapMin } from '../core/fight';
 import { DIRS, Dir, Pos, chebyshev, dirTo, eq, manhattan, neighbors4, step } from '../core/geom';
 import * as ops from '../core/ops';
 import { defineItem } from '../core/registry';
@@ -289,10 +289,10 @@ defineItem({
   active: {
     requires: 'Needs a coiled or wrapped enemy.',
     target: 'none',
-    canPlay: (f) => f.enemies.some((e) => e.held || f.snake.body.filter((b) => chebyshev(b, e.pos) === 1).length >= 4),
+    canPlay: (f) => f.enemies.some((e) => e.held || f.snake.body.filter((b) => chebyshev(b, e.pos) === 1).length >= wrapMin(f)),
     play(f) {
       for (const e of f.enemies)
-        if (e.held || f.snake.body.filter((b) => chebyshev(b, e.pos) === 1).length >= 4) ops.damageEnemy(f, e, 4, 'crush');
+        if (e.held || f.snake.body.filter((b) => chebyshev(b, e.pos) === 1).length >= wrapMin(f)) ops.damageEnemy(f, e, 4, 'crush');
     },
   },
   bodyPhase(f) {

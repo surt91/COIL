@@ -1,6 +1,6 @@
 import { computeCoils } from '../core/coil';
 import { Dir, Pos, chebyshev, eq } from '../core/geom';
-import { WRAP_MIN } from '../core/fight';
+import { wrapMin } from '../core/fight';
 import * as ops from '../core/ops';
 import { ENEMIES, ITEMS } from '../core/registry';
 import type { Enemy, Fight, GameEvent } from '../core/types';
@@ -509,13 +509,13 @@ export class BoardRenderer {
         // Wrap progress: how many of your tiles touch it (4 = squeezed).
         const touching = f.snake.body.filter((b) => chebyshev(b, e.pos) === 1).length;
         if (touching >= 2) {
-          const full = touching >= WRAP_MIN;
+          const full = touching >= wrapMin(f);
           ctx.strokeStyle = PAL.coil;
           ctx.lineWidth = full ? 3 : 2;
-          for (let i = 0; i < Math.min(touching, WRAP_MIN); i++) {
-            const a0 = -Math.PI / 2 + (i * Math.PI * 2) / WRAP_MIN + 0.12;
+          for (let i = 0; i < Math.min(touching, wrapMin(f)); i++) {
+            const a0 = -Math.PI / 2 + (i * Math.PI * 2) / wrapMin(f) + 0.12;
             ctx.beginPath();
-            ctx.arc(X, Y, T * 0.46, a0, a0 + (Math.PI * 2) / WRAP_MIN - 0.24);
+            ctx.arc(X, Y, T * 0.46, a0, a0 + (Math.PI * 2) / wrapMin(f) - 0.24);
             ctx.stroke();
           }
         }

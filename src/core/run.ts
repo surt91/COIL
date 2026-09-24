@@ -5,8 +5,9 @@
 import { ENCOUNTERS, Pool } from '../content/encounters';
 import { EVENTS } from '../content/events';
 import { LAYOUTS } from '../content/layouts';
+import { SPECIES } from '../content/species';
 import { createFight } from './fight';
-import { ITEMS, enemyDef } from './registry';
+import { CHARMS, ITEMS, charmSum, enemyDef } from './registry';
 import { Rng, chance, int, makeRng, pick, shuffle, weighted } from './rng';
 import type { Fight, FightOpts, ItemId } from './types';
 
@@ -25,8 +26,8 @@ export interface ShopSlot { item: ItemId; price: number; sold: boolean }
 export type Screen =
   | { t: 'map' }
   | { t: 'fight'; node: number; encounter: string; layout: string; fight: Fight }
-  | { t: 'reward'; options: ItemId[]; skipFlesh: number; title: string }
-  | { t: 'pool'; stock: ShopSlot[]; removePrice: number; removed: boolean }
+  | { t: 'reward'; options: ItemId[]; skipFlesh: number; title: string; charms?: string[]; charmTaken?: boolean }
+  | { t: 'pool'; stock: ShopSlot[]; removePrice: number; removed: boolean; charm?: { id: string; price: number; sold: boolean } }
   | { t: 'bask'; done: boolean }
   | { t: 'event'; id: string; result: string | null }
   | { t: 'victory' }
@@ -44,7 +45,7 @@ export interface RunStats {
 /** Ascension-style difficulty levels, cumulative. */
 export const MOLTS = [
   'Base game',
-  'Hungrier: you starve every 11 turns instead of 14.',
+  'Hungrier: you starve every 10 turns instead of 12.',
   'Tougher Garden: Act 1 enemies have +1 HP.',
   'Lean: you can carry 2 less flesh between rooms.',
   'Crowded: normal fights and elites bring an extra beetle.',
@@ -68,6 +69,8 @@ export interface RunState {
   log: string[];
   /** Visited node ids this act. */
   path?: number[];
+  species?: string;
+  charms?: string[];
 }
 
 export const MAP_ROWS = 10; // rows 0..8 regular, row 9 boss
@@ -79,13 +82,14 @@ export const ACT_HEAL = 4;
 /** Flesh beyond this is digested at room end: you can only carry so much. */
 export const FLESH_CAP = [8, 10, 12];
 const capFor = (act: number) => FLESH_CAP[Math.min(act, FLESH_CAP.length - 1)];
-export const fleshCap = (run: RunState) => capFor(run.act) - (run.molt >= 3 ? 2 : 0);
+export const fleshCap = (run: RunState) => Math.max(2, capFor(run.act) - (run.molt >= 3 ? 2 : 0) + charmSum(run.charms, 'fleshCapBonus'));
 export const ACT_NAMES = ['The Garden', 'The Roots', 'The Deep'];
 
 const clone = <T>(x: T): T => structuredClone(x);
 
-export function createRun(seed: number, molt = 0, daily?: string): RunState {
+export function createRun(seed: number, molt = 0, daily?: string, speciesId = 'garden'): RunState {
   const rng = makeRng(seed);
+  const sp = SPECIES.find((x) => x.id === speciesId) ?? SPECIES[0];
   const run: RunState = {
     version: 1,
     seed,
@@ -93,8 +97,10 @@ export function createRun(seed: number, molt = 0, daily?: string): RunState {
     daily,
     rng,
     act: 0,
-    genome: [...STARTER],
-    flesh: molt >= 5 ? 1 : START_FLESH,
+    genome: [...sp.genome],
+    flesh: molt >= 5 ? 1 : sp.flesh,
+    species: sp.id,
+    charms: [sp.charm],
     map: [],
     at: null,
     screen: { t: 'map' },
@@ -159,7 +165,7 @@ export function reachable(run: RunState): number[] {
 // ---------------------------------------------------------------- nodes
 
 function fightOpts(pool: Pool, row: number, molt: number): Partial<FightOpts> {
-  const hunger = molt >= 1 ? { hungerEvery: 11 } : {};
+  const hunger = molt >= 1 ? { hungerEvery: 10 } : {};
   if (pool === 'boss') return { escalateFrom: 20, escalateEvery: 8, ...hunger };
   if (pool === 'elite') return { escalateFrom: 30, escalateEvery: 6, ...hunger };
   return { escalateFrom: 30 - row, escalateEvery: 6, ...hunger };
@@ -176,6 +182,7 @@ export function startFight(run: RunState, nodeId: number, pool: Pool): RunState 
     genome: run.genome,
     flesh: run.flesh,
     seed: int(run.rng, 0, 2 ** 31),
+    charms: run.charms,
     place: run.molt >= 4 && (pool === 'normal' || pool === 'elite') ? [...enc.enemies, 'beetle'] : enc.enemies,
     opts: { ...fightOpts(pool, node.row, run.molt), minFood: run.act >= 1 ? 2 : 1 },
   });
@@ -208,6 +215,10 @@ export function enterNode(prev: RunState, nodeId: number): RunState {
       return run;
     case 'pool':
       run.screen = { t: 'pool', stock: rollShop(run.rng), removePrice: 3, removed: false };
+      {
+        const c = rollCharms(run, 'common', 1)[0];
+        if (c) run.screen.charm = { id: c, price: 7, sold: false };
+      }
       return run;
     case 'bask':
       run.screen = { t: 'bask', done: false };
@@ -248,6 +259,7 @@ export function finishFight(prev: RunState, fight: Fight): RunState {
       options: rollItems(run.rng, 3, 'boss'),
       skipFlesh: 6,
       title: `${ACT_NAMES[run.act]} conquered — descend`,
+      charms: rollCharms(run, 'boss', 2),
     };
     run.act++;
     run.map = generateMap(run.rng);
@@ -262,6 +274,7 @@ export function finishFight(prev: RunState, fight: Fight): RunState {
     options: rollItems(run.rng, 3, elite ? 'elite' : 'fight'),
     skipFlesh: elite ? 4 : 2,
     title: elite ? 'Elite defeated' : 'Room cleared',
+    charms: elite ? rollCharms(run, 'common', 2) : undefined,
   };
   void kills;
   return run;
@@ -310,6 +323,33 @@ export function rollItems(r: Rng, n: number, kind: RollKind): ItemId[] {
 }
 
 export const PRICE: Record<string, number> = { starter: 3, common: 4, uncommon: 6, rare: 9 };
+
+export function rollCharms(run: RunState, pool: 'common' | 'boss', n: number): string[] {
+  const have = new Set(run.charms ?? []);
+  const opts = shuffle(run.rng, [...CHARMS.values()].filter((c) => c.pool === pool && !have.has(c.id)).map((c) => c.id));
+  return opts.slice(0, n);
+}
+
+export function takeCharm(prev: RunState, idx: number): RunState {
+  const sc = prev.screen;
+  if (sc.t !== 'reward' || !sc.charms || sc.charmTaken || !sc.charms[idx]) return prev;
+  const run = clone(prev);
+  const s2 = run.screen as Extract<Screen, { t: 'reward' }>;
+  run.charms = [...(run.charms ?? []), sc.charms[idx]];
+  s2.charmTaken = true;
+  return run;
+}
+
+export function buyCharm(prev: RunState): RunState {
+  const sc = prev.screen;
+  if (sc.t !== 'pool' || !sc.charm || sc.charm.sold || prev.flesh < sc.charm.price) return prev;
+  const run = clone(prev);
+  const s2 = run.screen as Extract<Screen, { t: 'pool' }>;
+  s2.charm!.sold = true;
+  run.flesh -= sc.charm.price;
+  run.charms = [...(run.charms ?? []), sc.charm.id];
+  return run;
+}
 
 function rollShop(r: Rng): ShopSlot[] {
   return rollItems(r, 4, 'shop').map((item) => ({ item, price: PRICE[ITEMS.get(item)!.rarity] ?? 5, sold: false }));

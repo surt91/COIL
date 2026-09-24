@@ -92,3 +92,42 @@ export function enemyDef(kind: EnemyKind): EnemyDef {
   if (!d) throw new Error(`unknown enemy ${kind}`);
   return d;
 }
+
+/** Charms: passive run-long relics. Fight-side effects read f.charms. */
+export interface CharmDef {
+  id: string;
+  name: string;
+  text: string;
+  glyph: string;
+  color: string;
+  /** Where it can drop. */
+  pool: 'common' | 'boss' | 'species';
+  biteBonus?: number;
+  crushBonus?: number;
+  coilAreaBonus?: number;
+  /** Fewer touching tiles needed to wrap. */
+  wrapBonus?: number;
+  /** Extra turns before hunger bites. */
+  hungerBonus?: number;
+  /** Extra flesh you may carry between rooms. */
+  fleshCapBonus?: number;
+  tuckBonus?: number;
+  /** Your bites never interrupt (no knockback). */
+  noInterrupt?: boolean;
+  /** Poison applied by each bite. */
+  bitePoison?: number;
+  /** Extra bite damage against enemies with at least 3 HP. */
+  toughBite?: number;
+  fightStart?(f: Fight): void;
+  /** An enemy died (after the killing blow). */
+  onKill?(f: Fight, e: Enemy, cause: string): void;
+  onEatHusk?(f: Fight): void;
+}
+
+export const CHARMS = new Map<string, CharmDef>();
+export function defineCharm(d: CharmDef): CharmDef {
+  CHARMS.set(d.id, d);
+  return d;
+}
+export const charmSum = (ids: readonly string[] | undefined, field: 'biteBonus' | 'crushBonus' | 'coilAreaBonus' | 'wrapBonus' | 'hungerBonus' | 'fleshCapBonus' | 'tuckBonus' | 'toughBite' | 'bitePoison') =>
+  (ids ?? []).reduce((a, id) => a + (CHARMS.get(id)?.[field] ?? 0), 0);

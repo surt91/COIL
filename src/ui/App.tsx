@@ -6,6 +6,9 @@ import { MOLTS, RunState, createRun, fleshCap, finishFight, recordEvents, update
 import { seedFromString } from '../core/rng';
 import { loadProfile, loadRun, recordRun, saveRun, todayKey } from '../save/storage';
 import { Codex } from './Codex';
+import { SPECIES } from '../content/species';
+import { GlyphIcon } from './GlyphIcon';
+import { CHARMS } from '../core/registry';
 import { FightView } from './FightView';
 import { BaskScreen, EndScreen, EventScreen, GenomePanel, MapScreen, PoolScreen, RewardScreen } from './RunScreens';
 
@@ -116,10 +119,12 @@ function Title({ onStart }: { onStart(r: RunState): void }) {
   const [seed, setSeed] = useState('');
   const [molt, setMolt] = useState(Math.min(profile.moltUnlocked, MOLTS.length - 1));
   const [codex, setCodex] = useState(false);
+  const unlocked = (sp: (typeof SPECIES)[number]) => !sp.unlock || profile.unlocks.includes(sp.unlock);
+  const [species, setSpecies] = useState('garden');
   const start = () => {
     uiClick();
     const s = seed.trim();
-    onStart(createRun(s ? (/^\d+$/.test(s) ? Number(s) : seedFromString(s)) : Math.floor(Math.random() * 2 ** 31), molt));
+    onStart(createRun(s ? (/^\d+$/.test(s) ? Number(s) : seedFromString(s)) : Math.floor(Math.random() * 2 ** 31), molt, undefined, species));
   };
   const today = todayKey();
   const daily = profile.dailies[today];
@@ -140,6 +145,19 @@ function Title({ onStart }: { onStart(r: RunState): void }) {
         <button class="btn" onClick={startDaily} disabled={!!daily} title="Everyone gets the same seed today. One attempt.">
           {daily ? `Daily done: ${daily.won ? 'victory!' : `act ${daily.act + 1}, ${daily.rooms} rooms`}` : `Daily run ${today}`}
         </button>
+      </div>
+      <div class="species">
+        {SPECIES.map((sp) => {
+          const ok = unlocked(sp);
+          const c = CHARMS.get(sp.charm);
+          return (
+            <button class={`card species-card ${species === sp.id ? 'selected' : ''} ${ok ? '' : 'disabled'}`} style={{ '--c': sp.color }} onClick={() => ok && setSpecies(sp.id)}>
+              <div class="card-top">{c && <GlyphIcon glyph={c.glyph} color={sp.color} size={26} />}<span class="card-name">{sp.name}</span></div>
+              <div class="card-text">{ok ? sp.text : `Locked — ${sp.unlockText}`}</div>
+              {ok && c && <div class="card-passive">{c.text}</div>}
+            </button>
+          );
+        })}
       </div>
       {profile.moltUnlocked > 0 && (
         <div class="molts">

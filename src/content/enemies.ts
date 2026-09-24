@@ -179,7 +179,7 @@ defineEnemy({
   kind: 'mongoose',
   name: 'Mongoose',
   char: 'M',
-  hp: 14,
+  hp: 16,
   glyph: 'mongoose',
   color: '#c9a66b',
   text: 'Boss. Fast — moves two tiles a turn, three when wounded. Bites hard. Pounces along a line when lined up with your head. Only a tight coil (≤3 tiles) can hold it.',

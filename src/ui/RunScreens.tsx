@@ -1,10 +1,10 @@
 import { useState } from 'preact/hooks';
 import { stinger, uiClick } from '../audio/audio';
 import { EVENTS } from '../content/events';
-import { ITEMS, item } from '../core/registry';
+import { CHARMS, ITEMS, item } from '../core/registry';
 import {
   ACT_NAMES, BASK_FLESH, MAP_COLS, MOLTS, MAP_ROWS, NodeKind, RunState, Screen,
-  bask, buy, enterNode, eventChoice, fleshCap, reachable, removeItem, takeReward, toMap,
+  bask, buy, buyCharm, enterNode, eventChoice, fleshCap, reachable, removeItem, takeCharm, takeReward, toMap,
 } from '../core/run';
 import type { ItemId } from '../core/types';
 import { GlyphIcon } from './GlyphIcon';
@@ -29,6 +29,21 @@ export function ItemCard({ id, onClick, footer, disabled, compact }: {
   );
 }
 
+export function CharmCard({ id, onClick, footer, disabled }: { id: string; onClick?: () => void; footer?: string; disabled?: boolean }) {
+  const c = CHARMS.get(id)!;
+  return (
+    <button class={`card item-card charm ${disabled ? 'disabled' : ''}`} style={{ '--c': c.color }} onClick={disabled ? undefined : onClick}>
+      <div class="card-top">
+        <GlyphIcon glyph={c.glyph} color={c.color} size={30} />
+        <span class="card-name">{c.name}</span>
+        <span class="rarity">charm</span>
+      </div>
+      <div class="card-text">{c.text}</div>
+      {footer && <div class="card-footer">{footer}</div>}
+    </button>
+  );
+}
+
 export function GenomePanel({ run, inFight }: { run: RunState; inFight?: boolean }) {
   const counts = new Map<ItemId, number>();
   for (const g of run.genome) counts.set(g, (counts.get(g) ?? 0) + 1);
@@ -38,6 +53,14 @@ export function GenomePanel({ run, inFight }: { run: RunState; inFight?: boolean
       {inFight
         ? <div class="flesh-line dim">Brought {run.flesh} flesh into this room · carry up to {fleshCap(run)} out</div>
         : <div class="flesh-line"><b>{run.flesh}</b> / {fleshCap(run)} flesh <span class="dim">— health & currency</span></div>}
+      {(run.charms ?? []).length > 0 && (
+        <div class="charm-row">
+          {(run.charms ?? []).map((id) => {
+            const c = CHARMS.get(id);
+            return c ? <span class="charm-chip" title={`${c.name}: ${c.text}`} style={{ '--c': c.color }}><GlyphIcon glyph={c.glyph} color={c.color} size={18} /> {c.name}</span> : null;
+          })}
+        </div>
+      )}
       <ul>
         {[...counts].map(([id, n]) => {
           const d = ITEMS.get(id)!;
@@ -132,7 +155,13 @@ export function RewardScreen({ run, setRun, screen }: { run: RunState; setRun: S
           <ItemCard id={id} onClick={() => { stinger('reward'); setRun(takeReward(run, i)); }} />
         ))}
       </div>
-      <button class="btn" onClick={() => { uiClick(); setRun(takeReward(run, null)); }}>Skip — digest it instead (+{screen.skipFlesh} flesh)</button>
+      {screen.charms && screen.charms.length > 0 && (
+        <>
+          <h3>{screen.charmTaken ? 'Charm taken' : 'And choose a charm'}</h3>
+          {!screen.charmTaken && <div class="choices">{screen.charms.map((c, i) => <CharmCard id={c} onClick={() => { stinger('reward'); setRun(takeCharm(run, i)); }} />)}</div>}
+        </>
+      )}
+      <button class="btn" onClick={() => { uiClick(); setRun(takeReward(run, null)); }}>Skip the item — digest it instead (+{screen.skipFlesh} flesh)</button>
       <GenomePanel run={run} />
     </div>
   );
@@ -154,6 +183,14 @@ export function PoolScreen({ run, setRun, screen }: { run: RunState; setRun: Set
           />
         ))}
       </div>
+      {screen.charm && (
+        <CharmCard
+          id={screen.charm.id}
+          disabled={screen.charm.sold || run.flesh < screen.charm.price}
+          onClick={() => { uiClick(); setRun(buyCharm(run)); }}
+          footer={screen.charm.sold ? 'sold' : `${screen.charm.price} flesh`}
+        />
+      )}
       {!removing ? (
         <button class="btn" disabled={screen.removed || run.flesh < screen.removePrice || run.genome.length <= 1} onClick={() => setRemoving(true)}>
           {screen.removed ? 'Already shed an item here' : `Shed an item (${screen.removePrice} flesh)`}

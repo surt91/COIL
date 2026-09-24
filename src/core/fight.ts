@@ -5,16 +5,17 @@
 import { computeCoils, enemyCoilsHead } from './coil';
 import { DIRS, Dir, Pos, chebyshev, eq, key, manhattan, step as stepPos } from './geom';
 import * as ops from './ops';
-import { ENEMIES, enemyDef, item } from './registry';
+import { CHARMS, ENEMIES, charmSum, enemyDef, item } from './registry';
 import { Rng, int, makeRng, pick, shuffle } from './rng';
 import type { Action, Enemy, Fight, FightOpts, Intent, ItemId } from './types';
 import { Tile } from './types';
 
 /** An enemy touching this many snake tiles (8-neighbourhood) is squeezed. */
 export const WRAP_MIN = 4;
+export const wrapMin = (f: Fight) => Math.max(2, WRAP_MIN - charmSum(f.charms, 'wrapBonus'));
 
 export const DEFAULT_OPTS: FightOpts = {
-  hungerEvery: 14,
+  hungerEvery: 12,
   escalateFrom: 25,
   escalateEvery: 6,
   minFood: 1,
@@ -33,6 +34,7 @@ export interface RoomSpec {
   shuffleGenome?: boolean;
   /** Enemy kinds to place on random free tiles away from the start. */
   place?: string[];
+  charms?: string[];
 }
 
 /**
@@ -135,6 +137,9 @@ export function createFight(spec: RoomSpec): Fight {
       if (best) ops.spawnEnemy(f, kind, best);
     }
   }
+  f.charms = [...(spec.charms ?? [])];
+  f.opts.hungerEvery += charmSum(f.charms, 'hungerBonus');
+  for (const c of f.charms) CHARMS.get(c)?.fightStart?.(f);
   for (const e of f.enemies) e.intent = think(f, e);
   ensureFood(f);
   return f;
@@ -222,6 +227,7 @@ export function doMove(f: Fight, dir: Dir, extraBite = 0): boolean {
       ops.addSeg(f, hk.item, hk.item ? 'neck' : 'tail');
       ops.moveHeadTo(f, t, dir);
       f.hunger = 0;
+      for (const c of f.charms ?? []) CHARMS.get(c)?.onEatHusk?.(f);
       ops.emit(f, { t: 'eat', at: t, what: 'husk' });
       return true;
     }
@@ -258,12 +264,13 @@ function bite(f: Fight, e: Enemy, dir: Dir, extraBite: number): boolean {
     ops.removeDead(f);
     return false;
   }
-  let dmg = 1 + f.buffs.bite + ops.bodyBonus(f, 'biteBonus') + extraBite;
+  let dmg = Math.max(1, 1 + f.buffs.bite + ops.bodyBonus(f, 'biteBonus') + extraBite + (e.hp >= 3 ? charmSum(f.charms, 'toughBite') : 0));
   f.buffs.bite = 0;
   if (d.onBitten?.(f, e)) dmg = 0;
   if (d.biteCap !== undefined) dmg = Math.min(dmg, d.biteCap);
   const at = { ...e.pos };
   const killed = dmg > 0 && ops.damageEnemy(f, e, dmg, 'bite');
+  if (!killed && dmg > 0) e.poison += charmSum(f.charms, 'bitePoison');
   ops.emit(f, { t: 'bite', enemy: e.id, at, dmg, killed });
   f.snake.dir = dir;
   if (d.spiky) {
@@ -290,13 +297,14 @@ function bite(f: Fight, e: Enemy, dir: Dir, extraBite: number): boolean {
   // Survived: knocked back one tile, which interrupts it. Pinned enemies (nowhere
   // to be knocked to), snakes and bosses keep their intent.
   const back = stepPos(e.pos, dir);
-  if (!e.body && !d.boss && ops.freeForEnemy(f, back, d.flies)) {
+  const noInterrupt = (f.charms ?? []).some((c) => CHARMS.get(c)?.noInterrupt);
+  if (!e.body && !d.boss && !noInterrupt && ops.freeForEnemy(f, back, d.flies)) {
     ops.emit(f, { t: 'knockback', enemy: e.id, from: { ...e.pos }, to: back });
     e.pos = back;
     e.intent = { t: 'wait' };
     e.mem.interrupted = 1;
   } else {
-    ops.emit(f, { t: 'msg', text: d.boss ? 'unstoppable' : 'pinned — not interrupted' });
+    ops.emit(f, { t: 'msg', text: d.boss ? 'unstoppable' : noInterrupt ? 'not interrupted' : 'pinned — not interrupted' });
   }
   d.afterBitten?.(f, e);
   return false;
@@ -347,7 +355,8 @@ export function step(prev: Fight, a: Action): Fight {
       if (f.tuckUsed || k === undefined) return f;
       const [seg] = f.snake.segs.splice(k, 1);
       f.snake.segs.push(seg);
-      f.tuckUsed = true;
+      f.tucks = (f.tucks ?? 0) + 1;
+      f.tuckUsed = f.tucks >= 1 + charmSum(f.charms, 'tuckBonus');
       break;
     }
   }
@@ -400,7 +409,7 @@ function constrictPhase(f: Fight) {
   for (const e of f.enemies) {
     if (e.held || e.under || e.hp <= 0 || e.body) continue;
     const touching = f.snake.body.filter((b) => chebyshev(b, e.pos) === 1).length;
-    if (touching >= WRAP_MIN) ops.damageEnemy(f, e, 1 + bonus, 'crush');
+    if (touching >= wrapMin(f)) ops.damageEnemy(f, e, 1 + bonus, 'crush');
   }
   const active = coils.filter((c) => c.tiles.some((t) => f.enemies.some((e) => eq(e.pos, t))));
   for (const c of active) ops.emit(f, { t: 'coil', tiles: c.tiles });
@@ -595,6 +604,7 @@ function upkeep(f: Fight) {
   }
   ensureFood(f);
   f.tuckUsed = false;
+  f.tucks = 0;
   f.buffs = { bite: 0, absorb: 0 };
 }
 

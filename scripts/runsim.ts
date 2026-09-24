@@ -13,7 +13,7 @@ const policy = POLICIES[opt('policy', 'lookahead2')];
 const t0 = Date.now();
 const res: RunResult[] = [];
 for (let i = 0; i < runs; i++) {
-  const r = simulateRun(seed0 + i, policy);
+  const r = simulateRun(seed0 + i, policy, 300, opt('species', 'garden'), Number(opt('molt', '0')));
   res.push(r);
   if (args.includes('--verbose')) console.log(JSON.stringify(r));
 }
