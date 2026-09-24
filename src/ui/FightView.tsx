@@ -6,6 +6,8 @@ import { ENEMIES, ITEMS, item } from '../core/registry';
 import type { Action, Enemy, Fight } from '../core/types';
 import { BoardRenderer } from '../render/board';
 import { playEvents } from '../audio/audio';
+import { lookahead2Policy } from '../bot/policies';
+import { makeRng } from '../core/rng';
 import { GlyphIcon } from './GlyphIcon';
 import { Tip, markSeen, nextTip } from './tips';
 
@@ -36,6 +38,7 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0 
   const [hover, setHover] = useState<Pos | null>(null);
   const ended = useRef(false);
   const [tip, setTip] = useState<Tip | null>(() => nextTip(initial));
+  const [hint, setHint] = useState<{ action: Action; preview: Fight } | null>(null);
   selectedRef.current = selected;
 
   // Renderer lifecycle + animation loop.
@@ -91,7 +94,15 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0 
     if (next.events.length === 0 && a.t !== 'tuck') return;
     const endsTurn = next.turn !== f.turn || next.status !== 'play';
     setSelected(null);
+    setHint(null);
     commit(next, endsTurn);
+  }
+
+  /** The autopilot: the same search bot used for balancing. */
+  function suggest(): Action | null {
+    const f = fightRef.current;
+    if (f.status !== 'play') return null;
+    return lookahead2Policy(f, makeRng(f.turn + 1));
   }
 
   function undo() {
@@ -134,7 +145,14 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0 
       } else if (e.key >= '1' && e.key <= '3') selectSlot(Number(e.key) - 1);
       else if (e.key === 't' || e.key === 'T') dispatch({ t: 'tuck' });
       else if (e.key === 'z' || e.key === 'Z' || e.key === 'Backspace') undo();
-      else if (e.key === 'Escape') setSelected(null);
+      else if (e.key === 'Escape') { setSelected(null); setHint(null); }
+      else if (e.key === 'h' || e.key === 'H') {
+        const a = suggest();
+        if (a) setHint({ action: a, preview: step(fightRef.current, a) });
+      } else if (e.key === 'p' || e.key === 'P') {
+        const a = suggest();
+        if (a) dispatch(a);
+      }
       else if (e.key === 'F2' || e.key === '`') {
         e.preventDefault();
         const r = renderer.current;
@@ -160,13 +178,17 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0 
     r.preview = null;
     r.targetDirs = null;
     if (f.status !== 'play') return;
+    if (hint && !hover) {
+      r.preview = hint.preview;
+      return;
+    }
     if (selected !== null) {
       r.targetDirs = DIRS.filter((d) => canPlay(f, selected, d));
       if (hoverDir !== null && canPlay(f, selected, hoverDir)) r.preview = step(f, { t: 'play', slot: selected, dir: hoverDir });
     } else if (hoverDir !== null && legalMoves(f).includes(hoverDir)) {
       r.preview = step(f, { t: 'move', dir: hoverDir });
     }
-  }, [hover, selected, f]);
+  }, [hover, selected, f, hint]);
 
   const toCss = (e: MouseEvent) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -218,6 +240,7 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0 
       <aside class="inspector">
         <Inspector f={f} hover={hover} />
         <MoveHint f={f} dir={hoverDir} />
+        {hint && <div class="autopilot">Autopilot suggests: <b>{describeAction(f, hint.action)}</b> <span class="dim">(P to let it play, Esc to dismiss)</span></div>}
         {side}
       </aside>
       <footer class="hand">
@@ -255,6 +278,15 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0 
       </footer>
     </div>
   );
+}
+
+function describeAction(f: Fight, a: Action): string {
+  const dn = (d?: Dir) => (d === undefined ? '' : ['up', 'right', 'down', 'left'][d]);
+  if (a.t === 'move') return `move ${dn(a.dir)}`;
+  if (a.t === 'tuck') return 'tuck';
+  const k = ops.hand(f)[a.slot];
+  const name = k !== undefined ? ITEMS.get(f.snake.segs[k].item!)?.name : '?';
+  return `play ${name}${a.dir !== undefined && item(f.snake.segs[k].item!).active?.target === 'dir' ? ` ${dn(a.dir)}` : ''}`;
 }
 
 function describeIntent(f: Fight, e: Enemy): string {
@@ -319,6 +351,7 @@ function Legend() {
       <li><b>Hand</b> = the first three items behind your head. <kbd>1</kbd>–<kbd>3</kbd> to play; playing consumes the segment.</li>
       <li><b>Hits</b> destroy the segment they land on.</li>
       <li><b>Coil</b>: enclose enemies with your body (walls help). Tighter = more crush.</li>
+      <li><kbd>H</kbd> asks the autopilot for a hint, <kbd>P</kbd> lets it play a turn. (Every snake needs an autopilot.)</li>
       <li><kbd>F2</kbd> toggles the terminal skin — a nod to where all this started: C and ncurses.</li>
       <li><b>Red</b> = incoming damage. Dashed line = a bite locked on a segment; move that segment out of reach to dodge.</li>
     </ul>

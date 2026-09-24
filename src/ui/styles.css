@@ -227,3 +227,4 @@ h1.lose { color: var(--red); }
 .beast { display: flex; gap: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
 .beast h3 { margin: 0; }
 .beast p { margin: 6px 0 0; font-size: 14px; line-height: 1.4; }
+.autopilot { margin-top: 12px; padding: 8px 10px; border-radius: 8px; background: rgba(76, 201, 240, 0.1); border: 1px solid rgba(76, 201, 240, 0.4); font-size: 14px; }
