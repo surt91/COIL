@@ -38,6 +38,8 @@ kbd {
 @media (max-width: 1200px) {
   .fight { grid-template-columns: 1fr 250px; }
   .card { width: 180px !important; }
+  .card-text { font-size: 12px; }
+  .card-passive { display: none; }
 }
 
 .hud {

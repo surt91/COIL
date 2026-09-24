@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { computeCoils } from '../core/coil';
-import { canPlay, legalMoves, moveOutcome, step } from '../core/fight';
+import { canPlay, legalMoves, moveOutcome, step, wrapMin } from '../core/fight';
 import { DIRS, Dir, Pos, eq, step as stepPos } from '../core/geom';
 import * as ops from '../core/ops';
 import { ENEMIES, ITEMS, item } from '../core/registry';
@@ -248,8 +248,8 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
             <span class="tip-label">Tip</span> {tip.text} <span class="dim">(click to dismiss)</span>
           </div>
         )}
-        <Inspector f={f} hover={hover} />
         <MoveHint f={f} dir={hoverDir} preview={preview} />
+        <Inspector f={f} hover={hover} />
         {hint && <div class="autopilot">Autopilot suggests: <b>{describeAction(f, hint.action)}</b> <span class="dim">(P to let it play, Esc to dismiss)</span></div>}
         {side}
       </aside>
@@ -313,12 +313,16 @@ function describeIntent(f: Fight, e: Enemy): string {
       return `${it.sever ? 'Will SEVER' : 'Will bite'} ${what}${it.windup > 1 ? ` in ${it.windup} turns` : ' next turn'} (if within ${it.reach} tile${it.reach > 1 ? 's' : ''})`;
     }
     case 'web': return 'Spinning webs';
-    default: return it.t;
+    case 'summon': return `Summoning ${it.tiles.length} ${ENEMIES.get(it.kind)?.name ?? it.kind}${it.tiles.length > 1 ? 's' : ''}`;
+    case 'burrow': return 'Digging underground';
+    case 'emerge': return `Erupting from the marked tile for ${it.dmg}`;
+    case 'steal': return 'Going to steal an item';
+    default: return 'Waiting';
   }
 }
 
 function Inspector({ f, hover }: { f: Fight; hover: Pos | null }) {
-  if (!hover) return <div class="inspect dim">Hover a tile to inspect it.<Legend /></div>;
+  if (!hover) return <div class="inspect dim">Hover a tile to inspect it.<Legend f={f} /></div>;
   const e = ops.enemyAt(f, hover);
   if (e) {
     const d = ENEMIES.get(e.kind)!;
@@ -327,6 +331,7 @@ function Inspector({ f, hover }: { f: Fight; hover: Pos | null }) {
         <h3 style={{ color: d.color }}>{d.name}</h3>
         <div>HP {e.hp}/{e.maxHp}{e.poison ? ` · ☠ ${e.poison}` : ''}{e.held ? ' · held' : ''}</div>
         <div class="intent">{describeIntent(f, e)}</div>
+        {d.boss && <div class="dim">Boss: bites don’t interrupt it.</div>}
         <p>{d.text}</p>
       </div>
     );
@@ -354,19 +359,22 @@ function Inspector({ f, hover }: { f: Fight; hover: Pos | null }) {
   const tile = ops.tileAt(f, hover);
   if (tile === 2) return <div class="inspect"><h3>Exit</h3><p>{f.cleared ? 'Open! Move into it to leave the room.' : 'Closed until every enemy is dead (escalation spawns don’t count).'}</p></div>;
   if (tile === 3) return <div class="inspect"><h3>Burrow</h3><p>{f.entry && eq(f.entry, hover) ? 'Where you came in. While you are still emerging, segments at its mouth are safe.' : 'Late in a fight, beetles crawl out of holes like this.'} Your head can’t go back in.</p></div>;
+  const coil = computeCoils(f).find((c) => c.tiles.some((t) => eq(t, hover)));
+  if (coil) return <div class="inspect"><h3>Inside your coil</h3><p>{coil.area} enclosed tile{coil.area > 1 ? 's' : ''}: {coil.crush ? `enemies here take ${coil.crush} crush per turn` : 'enemies here are held, but not crushed'}. Coiled enemies can’t move or attack.</p></div>;
   if (ops.foodAt(f, hover) >= 0) return <div class="inspect"><h3>Food</h3><p>+1 flesh at the tail. Resets hunger.</p></div>;
   if (ops.webAt(f, hover) >= 0) return <div class="inspect"><h3>Web</h3><p>Moving into it costs your move. Counts as a coil wall.</p></div>;
-  return <div class="inspect dim">Empty.<Legend /></div>;
+  return <div class="inspect dim">Empty.<Legend f={f} /></div>;
 }
 
-function Legend() {
+function Legend({ f }: { f: Fight }) {
   return (
     <ul class="legend">
       <li><b>Move</b> arrows / WASD / click. You can never stand still.</li>
       <li><b>Hand</b> = the first three items behind your head. <kbd>1</kbd>–<kbd>3</kbd> to play; playing consumes the segment.</li>
       <li><b>Hits</b> destroy the segment they land on.</li>
-      <li><b>Coil</b>: enclose enemies with your body (walls help). Tighter = more crush (1 tile: 3/turn, 2–3: 2, 4–8: 1, 9–12: held only). To keep a coil, chase your own tail.</li>
-      <li><b>Wrap</b>: the violet arcs count how many of your tiles touch an enemy. At 4 (diagonals count) it is squeezed for 1 each turn.</li>
+      <li><b>Coil</b>: enclose enemies with your body (walls help). Coiled enemies can’t move or attack. Tighter = more crush (1 tile: 3/turn, 2–3: 2, 4–8: 1, 9–12: held only). To keep a coil, chase your own tail.</li>
+      <li><b>Wrap</b>: the violet arcs count how many of your tiles touch an enemy. At {wrapMin(f)} (diagonals count) it is squeezed for 1 each turn.</li>
+      <li><b>Bites interrupt</b> by knocking the enemy back — not if it is pinned against something, and never bosses.</li>
       <li><kbd>H</kbd> asks the autopilot for a hint, <kbd>P</kbd> lets it play a turn. (Every snake needs an autopilot.)</li>
       <li><kbd>F2</kbd> toggles the terminal skin — a nod to where all this started: C and ncurses.</li>
       <li><b>Red</b> = incoming damage. A red reticle = a bite locked on that segment: it lands only if the segment is still inside the faint red box after your move.</li>

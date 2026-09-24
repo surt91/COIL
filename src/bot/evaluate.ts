@@ -150,8 +150,8 @@ export function evaluate(f: Fight, w: Weights = DEFAULT_WEIGHTS): number {
   for (const sg of s.segs) v += segValue(sg, w);
   if (f.status === 'won') return WIN + v;
 
-  // Enemies: remaining HP, count, poison that will tick.
-  for (const e of f.enemies) {
+  // Enemies: remaining HP, count, poison that will tick. Once cleared, leftover minions don't matter.
+  for (const e of f.cleared ? [] : f.enemies) {
     v -= w.enemyAlive + w.enemyHp * e.hp;
     v += w.poison * Math.min(e.poison, e.hp);
   }
@@ -172,7 +172,7 @@ export function evaluate(f: Fight, w: Weights = DEFAULT_WEIGHTS): number {
 
   const h = ops.head(f);
   // Engage: be close to the nearest enemy.
-  if (f.enemies.length) {
+  if (f.enemies.length && !f.cleared) {
     let dmin = Infinity;
     for (const e of f.enemies) dmin = Math.min(dmin, manhattan(e.pos, h));
     v -= w.enemyDist * dmin;

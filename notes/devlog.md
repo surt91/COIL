@@ -238,3 +238,31 @@ Erste Messung mit Charms: Bot-Siegquote **63 % → 93 %**. Zwei Lektionen:
 
 Stand (lookahead2, Molt 0): Garden 67 %, Python 53 % (der Bot plant keine
 Coils — Menschen dürften den Python deutlich besser spielen), Viper 83 %.
+
+## 2026-09-24 — Playtest 2: "Die einfachste Aktion schlägt die Signatur-Aktion"
+
+Der zweite Playtester hat einen kompletten Run **gewonnen** (alle drei Bosse,
+15 Räume, 54 Kills, davon 39 durch Coil/Wrap) — und die schärfste Kritik des
+ganzen Projekts geliefert:
+
+> Right now the easiest action (touch 3 tiles) outperforms the signature one
+> (enclose), and the snowball erases the challenge.
+
+Ein Wrap passiert entlang von Wänden fast gratis; mit zwei Crush-Charms machte
+er 3 Schaden pro Zug. Ein echter Ring kostet 5–8 geplante Züge und mehrere Items.
+Und ab Akt 2 war die Schlange 30+ Segmente lang: nichts war mehr bedrohlich.
+
+**Änderungen:**
+- Wrap macht pauschal 1 und profitiert von keinem Bonus.
+- Echte Coils sind jetzt die Belohnung: **eingeschlossene Gegner können weder
+  sich bewegen noch angreifen.** (Vorher konnten sie den Ring beißen.)
+- **Das Genom ist jetzt wirklich ein Deck:** Pro Raum wachsen nur 8 zufällige
+  Items. Das begrenzt die Länge, macht Genom-Verdünnung zu einer echten Kosten
+  und "Item entfernen" im Shop zu einer echten Entscheidung. (Mit 7 statt 8
+  sank die Bot-Siegquote von 60 % auf 40 % — die Stellschraube ist empfindlich.)
+- Bugs: Events ignorierten den Fleisch-Cap; wer das Item vor dem Charm wählte,
+  verlor den Charm; der Autopilot farmte nach dem Säubern Minions statt
+  hinauszugehen und verhungerte (in einem Spiel, in dem man ihn per Taste
+  einschalten kann!); Shop-Käufe ohne Undo.
+
+Bot-Stand: 58 %, die Tode konzentrieren sich jetzt auf die drei Bosse.

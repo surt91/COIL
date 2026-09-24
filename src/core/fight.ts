@@ -400,7 +400,8 @@ function constrictPhase(f: Fight) {
     if (c && maxArea !== undefined && c.area > maxArea) c = undefined;
     e.held = !!c;
     if (c) {
-      if (e.intent.t === 'move') e.intent = { t: 'wait' };
+      // Coiled enemies are helpless: no moving, no attacking out of the ring.
+      e.intent = { t: 'wait' };
       const dmg = c.crush > 0 ? c.crush + bonus : 0;
       if (dmg > 0) ops.damageEnemy(f, e, dmg, 'crush');
     }
@@ -409,7 +410,7 @@ function constrictPhase(f: Fight) {
   for (const e of f.enemies) {
     if (e.held || e.under || e.hp <= 0 || e.body) continue;
     const touching = f.snake.body.filter((b) => chebyshev(b, e.pos) === 1).length;
-    if (touching >= wrapMin(f)) ops.damageEnemy(f, e, 1 + bonus, 'crush');
+    if (touching >= wrapMin(f)) ops.damageEnemy(f, e, 1, 'crush');
   }
   const active = coils.filter((c) => c.tiles.some((t) => f.enemies.some((e) => eq(e.pos, t))));
   for (const c of active) ops.emit(f, { t: 'coil', tiles: c.tiles });
@@ -452,7 +453,7 @@ function enemyPhase(f: Fight) {
 
 export function think(f: Fight, e: Enemy): Intent {
   const it = enemyDef(e.kind).think(f, e);
-  if (e.held && it.t === 'move') return { t: 'wait' };
+  if (e.held) return { t: 'wait' };
   if ((it.t === 'lock' || it.t === 'steal') && protectedSeg(f, it.seg)) return { t: 'wait' };
   return it;
 }

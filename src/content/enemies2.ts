@@ -1,5 +1,6 @@
 /** Act 2 ("The Roots") and Act 3 ("The Deep") enemies. */
 import { DIRS, Pos, chebyshev, dirTo, manhattan, step } from '../core/geom';
+import { protectedSeg } from '../core/fight';
 import * as ops from '../core/ops';
 import { defineEnemy } from '../core/registry';
 import type { Enemy, Fight, Intent } from '../core/types';
@@ -7,7 +8,8 @@ import type { Enemy, Fight, Intent } from '../core/types';
 function adjacentParts(f: Fight, p: Pos) {
   const out: { uid: number; bi: number }[] = [];
   f.snake.body.forEach((b, bi) => {
-    if (manhattan(b, p) === 1) out.push({ uid: bi === 0 ? 0 : f.snake.segs[bi - 1].uid, bi });
+    const uid = bi === 0 ? 0 : f.snake.segs[bi - 1].uid;
+    if (manhattan(b, p) === 1 && !protectedSeg(f, uid)) out.push({ uid, bi });
   });
   return out;
 }
@@ -84,9 +86,9 @@ defineEnemy({
     const s = f.snake;
     for (let bi = 1; bi < s.body.length; bi++) {
       const seg = s.segs[bi - 1];
-      if (seg.item && chebyshev(s.body[bi], e.pos) <= 1) return { t: 'steal', seg: seg.uid, reach: 1 };
+      if (seg.item && chebyshev(s.body[bi], e.pos) <= 1 && !protectedSeg(f, seg.uid)) return { t: 'steal', seg: seg.uid, reach: 1 };
     }
-    const targets = s.body.filter((_, bi) => bi > 0 && s.segs[bi - 1]?.item);
+    const targets = s.body.filter((_, bi) => bi > 0 && s.segs[bi - 1]?.item && !protectedSeg(f, s.segs[bi - 1].uid));
     return approach(f, e, targets.length ? targets : s.body, 2, true);
   },
 });

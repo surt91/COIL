@@ -1,4 +1,5 @@
 import { DIRS, Dir, Pos, chebyshev, dirTo, manhattan, step } from '../core/geom';
+import { protectedSeg } from '../core/fight';
 import * as ops from '../core/ops';
 import { defineEnemy } from '../core/registry';
 import type { Enemy, Fight, Intent } from '../core/types';
@@ -7,7 +8,8 @@ import type { Enemy, Fight, Intent } from '../core/types';
 function adjacentParts(f: Fight, p: Pos, reach = 1): { uid: number; bi: number }[] {
   const out: { uid: number; bi: number }[] = [];
   f.snake.body.forEach((b, bi) => {
-    if (manhattan(b, p) <= reach && manhattan(b, p) > 0) out.push({ uid: bi === 0 ? 0 : f.snake.segs[bi - 1].uid, bi });
+    const uid = bi === 0 ? 0 : f.snake.segs[bi - 1].uid;
+    if (manhattan(b, p) <= reach && manhattan(b, p) > 0 && !protectedSeg(f, uid)) out.push({ uid, bi });
   });
   return out;
 }
@@ -136,7 +138,7 @@ defineEnemy({
     const s = f.snake;
     let best = -1, bestScore = -1;
     for (let bi = 1; bi < s.body.length; bi++) {
-      if (chebyshev(s.body[bi], e.pos) > 2) continue;
+      if (chebyshev(s.body[bi], e.pos) > 2 || protectedSeg(f, s.segs[bi - 1].uid)) continue;
       const behind = s.segs.slice(bi - 1).filter((x) => x.item).length;
       const score = behind * 10 + (s.segs.length - bi);
       if (score > bestScore) { bestScore = score; best = bi; }
@@ -179,7 +181,7 @@ defineEnemy({
   kind: 'mongoose',
   name: 'Mongoose',
   char: 'M',
-  hp: 16,
+  hp: 14,
   glyph: 'mongoose',
   color: '#c9a66b',
   text: 'Boss. Fast — moves two tiles a turn, three when wounded. Bites hard. Pounces along a line when lined up with your head. Only a tight coil (≤3 tiles) can hold it.',

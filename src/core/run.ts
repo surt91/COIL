@@ -26,7 +26,7 @@ export interface ShopSlot { item: ItemId; price: number; sold: boolean }
 export type Screen =
   | { t: 'map' }
   | { t: 'fight'; node: number; encounter: string; layout: string; fight: Fight }
-  | { t: 'reward'; options: ItemId[]; skipFlesh: number; title: string; charms?: string[]; charmTaken?: boolean }
+  | { t: 'reward'; options: ItemId[]; skipFlesh: number; title: string; charms?: string[]; charmTaken?: boolean; itemTaken?: boolean }
   | { t: 'pool'; stock: ShopSlot[]; removePrice: number; removed: boolean; charm?: { id: string; price: number; sold: boolean } }
   | { t: 'bask'; done: boolean }
   | { t: 'event'; id: string; result: string | null }
@@ -82,6 +82,9 @@ export const ACT_HEAL = 4;
 /** Flesh beyond this is digested at room end: you can only carry so much. */
 export const FLESH_CAP = [8, 10, 12];
 const capFor = (act: number) => FLESH_CAP[Math.min(act, FLESH_CAP.length - 1)];
+/** How many genome items grow on you per room. */
+export const GENOME_DRAW = 8;
+export const genomeDraw = (run: RunState) => GENOME_DRAW + charmSum(run.charms, 'drawBonus');
 export const fleshCap = (run: RunState) => Math.max(2, capFor(run.act) - (run.molt >= 3 ? 2 : 0) + charmSum(run.charms, 'fleshCapBonus'));
 export const ACT_NAMES = ['The Garden', 'The Roots', 'The Deep'];
 
@@ -177,19 +180,22 @@ export function startFight(run: RunState, nodeId: number, pool: Pool): RunState 
   const layouts = LAYOUTS.filter((l) => (enc.layouts ? enc.layouts.includes(l.id) : !l.boss));
   const layout = pick(run.rng, layouts);
   const node = run.map[nodeId];
+  // Your genome is a deck: each room only some of it grows on you.
+  const drawn = shuffle(run.rng, [...run.genome]).slice(0, genomeDraw(run));
   const fight = createFight({
     rows: layout.rows,
-    genome: run.genome,
+    genome: drawn,
     flesh: run.flesh,
     seed: int(run.rng, 0, 2 ** 31),
     charms: run.charms,
     place: run.molt >= 4 && (pool === 'normal' || pool === 'elite') ? [...enc.enemies, 'beetle'] : enc.enemies,
-    opts: { ...fightOpts(pool, node.row, run.molt), minFood: run.act >= 1 ? 2 : 1 },
+    opts: { ...fightOpts(pool, node.row, run.molt), minFood: run.act >= 1 || pool === 'boss' ? 2 : 1 },
   });
   // Later acts: tougher versions of the regulars.
   for (const e of fight.enemies) {
     const boss = enemyDef(e.kind).boss;
-    const bonus = boss ? (run.molt >= 6 ? Math.round(e.hp * 0.3) : 0) : e.hp >= 2 ? run.act + (run.molt >= 2 && run.act === 0 ? 1 : 0) : 0;
+    const actBonus = [0, 1, 3][Math.min(run.act, 2)];
+    const bonus = boss ? (run.molt >= 6 ? Math.round(e.hp * 0.3) : 0) : e.hp >= 2 ? actBonus + (run.molt >= 2 && run.act === 0 ? 1 : 0) : 0;
     e.hp += bonus;
     e.maxHp += bonus;
   }
@@ -217,7 +223,7 @@ export function enterNode(prev: RunState, nodeId: number): RunState {
       run.screen = { t: 'pool', stock: rollShop(run.rng), removePrice: 3, removed: false };
       {
         const c = rollCharms(run, 'common', 1)[0];
-        if (c) run.screen.charm = { id: c, price: 7, sold: false };
+        if (c) run.screen.charm = { id: c, price: 6, sold: false };
       }
       return run;
     case 'bask':
@@ -244,6 +250,7 @@ export function finishFight(prev: RunState, fight: Fight): RunState {
   if (fight.status === 'dead') {
     const d = fight.events.find((e) => e.t === 'death');
     const layout = LAYOUTS.find((l) => l.id === (run.screen as { layout: string }).layout);
+    run.flesh = 0;
     run.screen = { t: 'dead', cause: d && d.t === 'death' ? d.cause : 'unknown', where: layout?.name ?? '' };
     return run;
   }
@@ -322,7 +329,7 @@ export function rollItems(r: Rng, n: number, kind: RollKind): ItemId[] {
   return out;
 }
 
-export const PRICE: Record<string, number> = { starter: 3, common: 4, uncommon: 6, rare: 9 };
+export const PRICE: Record<string, number> = { starter: 2, common: 3, uncommon: 5, rare: 7 };
 
 export function rollCharms(run: RunState, pool: 'common' | 'boss', n: number): string[] {
   const have = new Set(run.charms ?? []);
@@ -337,6 +344,7 @@ export function takeCharm(prev: RunState, idx: number): RunState {
   const s2 = run.screen as Extract<Screen, { t: 'reward' }>;
   run.charms = [...(run.charms ?? []), sc.charms[idx]];
   s2.charmTaken = true;
+  if (s2.itemTaken) run.screen = { t: 'map' };
   return run;
 }
 
@@ -359,9 +367,11 @@ export function takeReward(prev: RunState, idx: number | null): RunState {
   if (prev.screen.t !== 'reward') return prev;
   const run = clone(prev);
   const sc = run.screen as Extract<Screen, { t: 'reward' }>;
+  if (sc.itemTaken) return prev;
   if (idx === null) run.flesh = Math.max(run.flesh, Math.min(fleshCap(run), run.flesh + sc.skipFlesh));
   else run.genome.push(sc.options[idx]);
-  run.screen = { t: 'map' };
+  sc.itemTaken = true;
+  if (!sc.charms?.length || sc.charmTaken) run.screen = { t: 'map' };
   return run;
 }
 
@@ -408,7 +418,9 @@ export function eventChoice(prev: RunState, choice: number): RunState {
   const c = ev.choices[choice];
   if (!c || (c.canChoose && !c.canChoose(prev))) return prev;
   const run = clone(prev);
+  const before = run.flesh;
   const result = c.apply(run, run.rng);
+  if (run.flesh > before) run.flesh = Math.max(before, Math.min(run.flesh, fleshCap(run)));
   if (run.screen.t === 'event') run.screen.result = result;
   return run;
 }

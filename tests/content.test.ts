@@ -8,7 +8,7 @@ import { manhattan } from '../src/core/geom';
 import { hand } from '../src/core/ops';
 import { ENEMIES, ITEMS } from '../src/core/registry';
 import { makeRng, pick } from '../src/core/rng';
-import { STARTER, createRun, enterNode, eventChoice, finishFight, generateMap, reachable, takeReward } from '../src/core/run';
+import { STARTER, createRun, enterNode, eventChoice, finishFight, generateMap, reachable, takeCharm, takeReward } from '../src/core/run';
 import type { Action, Fight } from '../src/core/types';
 
 const ALL_ITEMS = [...ITEMS.keys()].filter((k) => ITEMS.get(k)!.rarity !== 'signature');
@@ -89,7 +89,7 @@ describe('run', () => {
         const f = structuredClone(sc.fight);
         f.status = 'won';
         run = finishFight(run, f);
-      } else if (sc.t === 'reward') run = takeReward(run, 0);
+      } else if (sc.t === 'reward') run = sc.charms?.length && !sc.charmTaken ? takeCharm(run, 0) : takeReward(run, 0);
       else if (sc.t === 'event') {
         run = eventChoice(run, EVENTS.find((e) => e.id === sc.id)!.choices.length - 1);
         run = { ...run, screen: { t: 'map' } };

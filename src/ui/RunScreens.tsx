@@ -4,7 +4,7 @@ import { EVENTS } from '../content/events';
 import { CHARMS, ITEMS, item } from '../core/registry';
 import {
   ACT_NAMES, BASK_FLESH, MAP_COLS, MOLTS, MAP_ROWS, NodeKind, RunState, Screen,
-  bask, buy, buyCharm, enterNode, eventChoice, fleshCap, reachable, removeItem, takeCharm, takeReward, toMap,
+  bask, buy, buyCharm, enterNode, eventChoice, fleshCap, genomeDraw, reachable, removeItem, takeCharm, takeReward, toMap,
 } from '../core/run';
 import type { ItemId } from '../core/types';
 import { GlyphIcon } from './GlyphIcon';
@@ -49,7 +49,7 @@ export function GenomePanel({ run, inFight }: { run: RunState; inFight?: boolean
   for (const g of run.genome) counts.set(g, (counts.get(g) ?? 0) + 1);
   return (
     <div class="genome">
-      <h3>Genome <span class="dim">({run.genome.length} items)</span></h3>
+      <h3>Genome <span class="dim">({run.genome.length} items · {Math.min(genomeDraw(run), run.genome.length)} grow each room)</span></h3>
       {inFight
         ? <div class="flesh-line dim">Brought {run.flesh} flesh into this room · carry up to {fleshCap(run)} out</div>
         : <div class="flesh-line"><b>{run.flesh}</b> / {fleshCap(run)} flesh <span class="dim">— health & currency</span></div>}
@@ -149,26 +149,34 @@ export function RewardScreen({ run, setRun, screen }: { run: RunState; setRun: S
     <div class="screen center-screen">
       <h2>{screen.title}</h2>
       <p class="dim">Choose an item to add to your genome. It will grow on your body in every room from now on.</p>
-      <p class="dim small">You carry <b>{run.flesh}</b> flesh (max {fleshCap(run)}; temporary items were digested into flesh, the rest was too much to carry).</p>
-      <div class="choices">
-        {screen.options.map((id, i) => (
-          <ItemCard id={id} onClick={() => { stinger('reward'); setRun(takeReward(run, i)); }} />
-        ))}
-      </div>
+      <p class="dim small">You carry <b>{run.flesh}</b> of at most {fleshCap(run)} flesh (temporary items were digested into flesh{run.flesh >= fleshCap(run) ? '; anything beyond the cap was too much to carry' : ''}).</p>
+      {screen.itemTaken ? <h3>Item chosen</h3> : (
+        <div class="choices">
+          {screen.options.map((id, i) => (
+            <ItemCard id={id} onClick={() => { stinger('reward'); setRun(takeReward(run, i)); }} />
+          ))}
+        </div>
+      )}
       {screen.charms && screen.charms.length > 0 && (
         <>
           <h3>{screen.charmTaken ? 'Charm taken' : 'And choose a charm'}</h3>
           {!screen.charmTaken && <div class="choices">{screen.charms.map((c, i) => <CharmCard id={c} onClick={() => { stinger('reward'); setRun(takeCharm(run, i)); }} />)}</div>}
         </>
       )}
-      <button class="btn" onClick={() => { uiClick(); setRun(takeReward(run, null)); }}>Skip the item — digest it instead (+{screen.skipFlesh} flesh)</button>
+      {!screen.itemTaken && <button class="btn" onClick={() => { uiClick(); setRun(takeReward(run, null)); }}>Skip the item — digest it instead (+{screen.skipFlesh} flesh)</button>}
+      {screen.itemTaken && !screen.charmTaken && <button class="btn" onClick={() => { uiClick(); setRun(toMap(run)); }}>Leave the charm</button>}
       <GenomePanel run={run} />
     </div>
   );
 }
 
-export function PoolScreen({ run, setRun, screen }: { run: RunState; setRun: SetRun; screen: Extract<Screen, { t: 'pool' }> }) {
+export function PoolScreen({ run, setRun: setRun0, screen }: { run: RunState; setRun: SetRun; screen: Extract<Screen, { t: 'pool' }> }) {
   const [removing, setRemoving] = useState(false);
+  const [undoStack, setUndo] = useState<RunState[]>([]);
+  const setRun = (r: RunState) => {
+    if (r !== run && r.screen.t === 'pool') setUndo((u) => [...u, run]);
+    setRun0(r);
+  };
   return (
     <div class="screen center-screen">
       <h2>Molting Pool</h2>
@@ -206,7 +214,10 @@ export function PoolScreen({ run, setRun, screen }: { run: RunState; setRun: Set
           <button class="btn" onClick={() => setRemoving(false)}>Cancel</button>
         </div>
       )}
-      <button class="btn primary" onClick={() => { uiClick(); setRun(toMap(run)); }}>Leave</button>
+      <div class="title-buttons">
+        {undoStack.length > 0 && <button class="btn" onClick={() => { uiClick(); setRun0(undoStack[undoStack.length - 1]); setUndo((u) => u.slice(0, -1)); }}>Undo last purchase</button>}
+        <button class="btn primary" onClick={() => { uiClick(); setRun0(toMap(run)); }}>Leave</button>
+      </div>
       <GenomePanel run={run} />
     </div>
   );

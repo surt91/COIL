@@ -122,7 +122,9 @@ export class BoardRenderer {
   private cy = (y: number) => this.oy + (y + 0.5) * this.T;
 
   private float(p: Pos, text: string, color: string, big = false) {
-    this.floats.push({ x: p.x, y: p.y, text, color, life: 0, max: big ? 2200 : 1000, big });
+    // Stack texts that appear near each other at the same time.
+    const near = this.floats.filter((f) => f.life < 500 && Math.abs(f.x - p.x) < 2 && Math.abs(f.y - p.y) < 1.5).length;
+    this.floats.push({ x: p.x, y: p.y - near * 0.55, text, color, life: 0, max: big ? 2200 : 1000, big });
   }
 
   private burst(p: Pos, color: string, n: number, speed = 3, size = 3) {
@@ -340,6 +342,17 @@ export class BoardRenderer {
               ctx.strokeStyle = open ? PAL.food : 'rgba(120,140,160,0.4)';
               ctx.lineWidth = open ? 3 : 2;
               ctx.stroke();
+              if (!open) {
+                // Closed: bars across the hole.
+                ctx.strokeStyle = 'rgba(150, 170, 190, 0.55)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                for (const k of [-0.2, 0, 0.2]) {
+                  ctx.moveTo(X + T / 2 + k * T, Y + T * 0.22);
+                  ctx.lineTo(X + T / 2 + k * T, Y + T * 0.78);
+                }
+                ctx.stroke();
+              }
             }
           }
         }

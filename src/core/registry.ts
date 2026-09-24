@@ -114,6 +114,8 @@ export interface CharmDef {
   tuckBonus?: number;
   /** Your bites never interrupt (no knockback). */
   noInterrupt?: boolean;
+  /** More genome items grow per room. */
+  drawBonus?: number;
   /** Poison applied by each bite. */
   bitePoison?: number;
   /** Extra bite damage against enemies with at least 3 HP. */
@@ -129,5 +131,5 @@ export function defineCharm(d: CharmDef): CharmDef {
   CHARMS.set(d.id, d);
   return d;
 }
-export const charmSum = (ids: readonly string[] | undefined, field: 'biteBonus' | 'crushBonus' | 'coilAreaBonus' | 'wrapBonus' | 'hungerBonus' | 'fleshCapBonus' | 'tuckBonus' | 'toughBite' | 'bitePoison') =>
+export const charmSum = (ids: readonly string[] | undefined, field: 'biteBonus' | 'crushBonus' | 'coilAreaBonus' | 'wrapBonus' | 'hungerBonus' | 'fleshCapBonus' | 'tuckBonus' | 'toughBite' | 'bitePoison' | 'drawBonus') =>
   (ids ?? []).reduce((a, id) => a + (CHARMS.get(id)?.[field] ?? 0), 0);
