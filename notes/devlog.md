@@ -266,3 +266,35 @@ Und ab Akt 2 war die Schlange 30+ Segmente lang: nichts war mehr bedrohlich.
   einschalten kann!); Shop-Käufe ohne Undo.
 
 Bot-Stand: 58 %, die Tode konzentrieren sich jetzt auf die drei Bosse.
+
+## 2026-09-25 — Der erste menschliche Spieler
+
+Der Auftraggeber hat Akt 1 durchgespielt. Sein wichtigster Befund:
+
+> Ich habe zwei Durchläufe verloren, bevor mir klar wurde, dass ich die
+> Items/Karten sehr freizügig einsetzen muss.
+
+Das ist das klassische "Zu gut zum Benutzen"-Problem (Heiltränke in RPGs),
+hier verstärkt durch die Kernidee selbst: *Karte spielen = kürzer werden*
+fühlt sich an wie Schaden. Zwei Subagenten (Systemdesign vs.
+Spielerpsychologie) kamen unabhängig zur selben Diagnose — und die war
+beschämend einfach: **Das Spiel hat nirgends gesagt, dass Items im nächsten
+Raum zurückkommen.** Dazu zählte die HUD "Segmente" als große Zahl, Items
+inklusive. Jeder gespielte Item ließ die Lebensanzeige sinken.
+
+Änderungen:
+- HUD trennt ♥ Fleisch (Leben, trägt sich weiter) von Items (↻ kommen zurück).
+- Gespielte Items nähren: pro 2 gespielte +1 Fleisch am Raumende (max. 2).
+  Das Horten kostet jetzt sichtbar etwas.
+- Handkarten, auf die ein Gegner zielt, pulsieren rot: "Targeted! Play it —
+  the attack fizzles." (Die Regel existierte schon seit Tag 1, war aber unsichtbar.)
+- Vorschau unterscheidet "Spend: Lunge (back next room)" von "Destroyed unplayed".
+- Raum-Bilanz auf dem Belohnungsbildschirm: gespielt / verschwendet.
+- "Passive:" heißt jetzt "While carried:", "consumes the segment" ist weg.
+
+Außerdem: Item-Upgrades ("Molting") für alle 23 Items, 10 neue Events (ein
+Nokia-Stein im Moos mit HIGHSCORE 3310, ein Blockade-Automat von 1976, ein
+Einsiedlerkrebs, der Segmente tauscht …), ein neuer Schlangen-Renderer
+(Catmull-Rom-Mittellinie, gefülltes Polygon mit Verjüngung, Rautenmuster,
+Keilkopf mit Schlitzpupillen) und prozedurale Kartenillustrationen — alles
+weiterhin ohne eine einzige Bilddatei.

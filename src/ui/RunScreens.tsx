@@ -121,7 +121,6 @@ export function GenomePanel({ run, inFight }: { run: RunState; inFight?: boolean
   return (
     <div class="genome">
       {open && <GenomeView run={run} onClose={() => setOpen(false)} />}
-      <button class="btn view-genome" onClick={() => setOpen(true)}>View genome <kbd>G</kbd></button>
       <h3>Genome <span class="dim">({run.genome.length} items · {Math.min(genomeDraw(run), run.genome.length)} grow each room)</span></h3>
       {inFight
         ? <div class="flesh-line dim">Brought {run.flesh} flesh into this room · carry up to {fleshCap(run)} out</div>
@@ -144,6 +143,7 @@ export function GenomePanel({ run, inFight }: { run: RunState; inFight?: boolean
           );
         })}
       </ul>
+      <button class="btn view-genome" onClick={() => setOpen(true)}>View all cards <kbd>G</kbd></button>
     </div>
   );
 }

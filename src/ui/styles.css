@@ -280,7 +280,7 @@ p.small { font-size: 13px; margin-top: -8px; }
 .genome-view-inner { max-width: 1320px; margin: 0 auto; }
 .genome-view h3 { margin: 18px 0 10px; }
 .genome-view .choices { justify-content: flex-start; }
-.view-genome { float: right; font-size: 12px; padding: 4px 8px; }
+.view-genome { width: 100%; margin-top: 10px; font-size: 13px; padding: 6px 8px; }
 .genome li { font-size: 15px; }
 .genome li:hover { color: var(--gold); }
 .map-legend { font-size: 16px; }
