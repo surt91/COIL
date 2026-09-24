@@ -174,8 +174,8 @@ function Title({ onStart }: { onStart(r: RunState): void }) {
         <ul>
           <li>Turn-based. Every turn your head moves one tile — you can never stand still. Your body follows.</li>
           <li>Every segment is <b>flesh</b> or carries an <b>item</b>. The first three items behind your head are your <b>hand</b>: press <kbd>1</kbd>–<kbd>3</kbd> to play one. Playing consumes that segment.</li>
-          <li>Enemies telegraph everything. A hit destroys the segment it lands on — and its item. A dashed red line means a bite locked on a segment: move so that segment slides out of reach, or bite the attacker first.</li>
-          <li><b>Coil</b>: enclose enemies with your body (walls help). Tighter coils crush harder.</li>
+          <li>Enemies telegraph everything. A hit destroys the segment it lands on — and its item. A red reticle means a bite locked on a segment: move so that segment slides out of the attacker's reach, or bite the attacker first to knock it back.</li>
+          <li><b>Coil</b>: enclose enemies with your body (walls help). Tighter coils crush harder. Touching an enemy with 4 of your tiles <b>wraps</b> it — it gets squeezed too.</li>
           <li>Hover a tile next to your head to preview the whole turn. <kbd>Z</kbd> undoes card plays, <kbd>T</kbd> tucks an item to your tail.</li>
           <li>Flesh carries between rooms. It is your health and your currency.</li>
         </ul>
