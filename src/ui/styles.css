@@ -31,15 +31,16 @@ kbd {
 .fight {
   display: grid;
   grid-template-columns: 1fr 300px;
-  grid-template-rows: auto minmax(0, 1fr) 196px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   grid-template-areas: 'hud hud' 'board side' 'hand side';
   height: 100%;
 }
 @media (max-width: 1200px) {
   .fight { grid-template-columns: 1fr 250px; }
-  .card { width: 200px !important; }
-  .card-text { font-size: 12px; }
-  .card-passive { display: none; }
+  .hand .card { width: 200px; }
+  .hand .card-text { font-size: 12px; }
+  .hand .card-passive { display: none; }
+  .hud { gap: 14px; font-size: 14px; }
 }
 
 .hud {
@@ -270,7 +271,7 @@ p.small { font-size: 13px; margin-top: -8px; }
 .upgrade-compare .arrow { font-size: 28px; color: var(--gold); }
 .molted { color: var(--gold); font-size: 14px; }
 
-.card-art { display: block; margin: -10px -12px 8px; border-radius: 9px 9px 0 0; }
+.card-art { display: block; width: calc(100% + 24px); margin: -10px -12px 8px; border-radius: 9px 9px 0 0; flex-shrink: 0; }
 .card.compact .card-art { display: none; }
 .item-card { width: 240px; }
 .card { display: flex; flex-direction: column; justify-content: flex-start; }
@@ -285,3 +286,10 @@ p.small { font-size: 13px; margin-top: -8px; }
 .genome li:hover { color: var(--gold); }
 .map-legend { font-size: 16px; }
 .map-legend .dot { width: 28px; font-size: 20px; }
+
+.center-screen > *, .screen .choices > * { flex-shrink: 0; }
+.hud { flex-wrap: nowrap; overflow: hidden; white-space: nowrap; padding-right: 64px; }
+.hud-title { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.hand .card { min-height: 150px; }
+.rarity { white-space: nowrap; font-size: 9px; }
+.card-top { flex-wrap: wrap; }

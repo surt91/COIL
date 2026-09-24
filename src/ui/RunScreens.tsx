@@ -18,7 +18,7 @@ export function ItemCard({ id, onClick, footer, disabled, compact }: {
   const d = item(id);
   return (
     <button class={`card item-card ${disabled ? 'disabled' : ''} ${compact ? 'compact' : ''}`} style={{ '--c': d.color }} onClick={disabled ? undefined : onClick}>
-      {!compact && <CardArt id={id} width={238} height={84} />}
+      {!compact && <CardArt id={id} height={84} />}
       <div class="card-top">
         <GlyphIcon glyph={d.glyph} color={d.color} size={compact ? 22 : 30} />
         <span class="card-name">{d.name}</span>
@@ -36,7 +36,7 @@ export function CharmCard({ id, onClick, footer, disabled }: { id: string; onCli
   const c = CHARMS.get(id)!;
   return (
     <button class={`card item-card charm ${disabled ? 'disabled' : ''}`} style={{ '--c': c.color }} onClick={disabled ? undefined : onClick}>
-      <CardArt id={id} width={238} height={84} />
+      <CardArt id={id} height={84} />
       <div class="card-top">
         <GlyphIcon glyph={c.glyph} color={c.color} size={30} />
         <span class="card-name">{c.name}</span>
