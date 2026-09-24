@@ -215,7 +215,9 @@ export class BoardRenderer {
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     if (!f) return;
     if (this.terminal) return this.drawTerminal(f, now);
-    const p = this.instant || !this.prev ? 1 : ease(Math.min(1, (now - this.animStart) / this.animDur));
+    const k = Math.max(1, f.events.filter((e) => e.t === 'move').length);
+    const dur = this.animDur * (1 + (k - 1) * 0.6);
+    const p = this.instant || !this.prev ? 1 : ease(Math.min(1, (now - this.animStart) / dur));
     this.shake *= Math.pow(0.9, dt / 16);
     const sx = (Math.random() - 0.5) * this.shake, sy = (Math.random() - 0.5) * this.shake;
     ctx.save();
@@ -660,15 +662,31 @@ export class BoardRenderer {
     }
   }
 
+  /**
+   * Interpolated body positions. Segments slide along the trail the head laid
+   * down this action (so multi-step moves follow corners instead of cutting them).
+   */
   private snakePoints(f: Fight, p: number) {
     const next = f.snake.body;
     const prev = this.prev?.snake.body;
-    if (!prev || prev.length === 0 || Math.abs(prev[0].x - next[0].x) + Math.abs(prev[0].y - next[0].y) > 2)
-      return next.map((q) => ({ ...q }));
-    return next.map((q, i) => {
-      const a = prev[Math.min(i, prev.length - 1)];
-      return { x: lerp(a.x, q.x, p), y: lerp(a.y, q.y, p) };
-    });
+    if (!prev || prev.length === 0) return next.map((q) => ({ ...q }));
+    const steps = f.events.filter((e) => e.t === 'move').map((e) => (e as { to: Pos }).to);
+    const trail = [...steps].reverse().concat(prev);
+    const k = steps.length;
+    const consistent = next.every((q, i) => i >= trail.length || eq(q, trail[i]));
+    if (!consistent) {
+      if (Math.abs(prev[0].x - next[0].x) + Math.abs(prev[0].y - next[0].y) > 2) return next.map((q) => ({ ...q }));
+      return next.map((q, i) => {
+        const a = prev[Math.min(i, prev.length - 1)];
+        return { x: lerp(a.x, q.x, p), y: lerp(a.y, q.y, p) };
+      });
+    }
+    const at = (t: number) => {
+      const i = Math.min(Math.floor(t), trail.length - 1), j = Math.min(i + 1, trail.length - 1);
+      const fr = Math.min(1, t - i);
+      return { x: lerp(trail[i].x, trail[j].x, fr), y: lerp(trail[i].y, trail[j].y, fr) };
+    };
+    return next.map((_, i) => at(Math.min(i + k * (1 - p), trail.length - 1)));
   }
 
   private drawSnake(f: Fight, pts: { x: number; y: number }[], now: number) {
