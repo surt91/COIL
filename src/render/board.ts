@@ -575,7 +575,7 @@ export class BoardRenderer {
         continue;
       }
       ctx.rotate(Math.atan2(head.y - e.pos.y, head.x - e.pos.x));
-      drawCreature(ctx, e.kind, T, d?.color ?? '#fff', now / 1000 + e.id, (e.mem.curled ?? 0) > 0);
+      drawCreature(ctx, e.kind, d?.boss ? T * 1.35 : T, d?.color ?? '#fff', now / 1000 + e.id, (e.mem.curled ?? 0) > 0);
       ctx.restore();
       this.drawEnemyHud(e, X, Y, d, now);
       if (this.hover && eq(this.hover, e.pos)) {
@@ -641,7 +641,7 @@ export class BoardRenderer {
       return { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) };
     })].map((q) => ({ x: this.cx(q.x), y: this.cy(q.y) }));
     const n = pts.length;
-    const samples = sampleBody(pts, (u) => lerp(0.56, 0.32, n > 1 ? u / (n - 1) : 0) * T, T * 0.03, now + e.id * 777, T * 0.4);
+    const samples = sampleBody(pts, (u) => lerp(0.56, 0.32, n > 1 ? u / (n - 1) : 0) * T, T * 0.03, now + e.id * 777, T * 0.2);
     drawBody(this.ctx, samples, n, enemySnakeStyle(color));
   }
 

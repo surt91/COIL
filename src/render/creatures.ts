@@ -244,7 +244,7 @@ export function drawCreature(ctx: G, kind: string, T: number, color: string, t: 
     }
     case 'magpie': {
       const flap = Math.sin(t * 14) * 0.25;
-      ctx.fillStyle = '#1b1b2f';
+      ctx.fillStyle = '#3a4a78';
       for (const s of [-1, 1]) {
         ctx.beginPath();
         ctx.ellipse(-T * 0.02, s * T * 0.2, T * 0.26, T * 0.08, s * (0.5 + flap), 0, Math.PI * 2);

@@ -2,19 +2,25 @@
 
 *A turn-based roguelike about a snake that is its own everything.*
 
+### ▶ [Play in your browser: surt91.github.io/COIL](https://surt91.github.io/COIL/)
+
+[![Deploy](https://github.com/surt91/COIL/actions/workflows/pages.yml/badge.svg)](https://github.com/surt91/COIL/actions/workflows/pages.yml)
+
 Your body is your health bar, your wallet, your deck and your weapon:
 
 - Every segment behind your head is **flesh** or carries an **item**. The first
-  three items behind your head are your **hand** — playing one consumes that
-  segment.
+  three items behind your head are your **hand** — playing one spends that
+  segment, but items are ammunition: they all come back next room.
 - Enemies telegraph every attack. A hit destroys the segment it lands on — and
   the item on it.
 - Enclose enemies with your body to **coil** and crush them.
 - Flesh carries over between rooms: it is your health *and* the currency you
   pay the Molting Pool with.
 
-Three acts (The Garden, The Roots, The Deep), a branching map, 28 items,
-15 enemies (including three bosses: Mongoose, Ant Queen, the Ouroboros).
+Three acts (The Garden, The Roots, The Deep), a branching map, 28 items that
+can all be upgraded ("molted"), 19 charms, 4 snake species, 17 events,
+15 enemies (including three bosses: Mongoose, Ant Queen, the Ouroboros)
+and 6 difficulty depths.
 All art is procedural Canvas2D, all sound is synthesized WebAudio — there are
 no asset files. Press <kbd>F2</kbd> in a fight for the ncurses-style terminal skin.
 

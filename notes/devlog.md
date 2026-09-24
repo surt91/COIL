@@ -298,3 +298,22 @@ Einsiedlerkrebs, der Segmente tauscht …), ein neuer Schlangen-Renderer
 (Catmull-Rom-Mittellinie, gefülltes Polygon mit Verjüngung, Rautenmuster,
 Keilkopf mit Schlitzpupillen) und prozedurale Kartenillustrationen — alles
 weiterhin ohne eine einzige Bilddatei.
+
+## 2026-09-25 — Playtest 3 und Deployment
+
+Dritter Browser-Playtest, diesmal mit dem Auftrag "spiel wie ein neuer Spieler":
+Die Ammo-Botschaft kommt an ("verstanden in Zug 4 des ersten Kampfs, durch den
+Tipp; der rote Puls auf Fang in Zug 8 hat es verstärkt"). Gefunden wurden vor
+allem Layout-Fehler (abgeschnittene Karten, eine CSS-Regel, die unter 1200 px
+*alle* Passiv-Texte versteckte) und eine Namenskollision: "Molt" war
+gleichzeitig die Upgrade-Aktion, ein Item und die Schwierigkeitsstufen. Jetzt:
+Molt = Upgrade, das Item heißt "Ghost Skin", die Stufen heißen "Depth".
+
+Außerdem: Die schwächsten Illustrationen (Gorge, Acid, Silk) sind neu,
+gehäutete Items haben einen Goldrahmen, Event-Modifikatoren für den nächsten
+Kampf sind als Chips auf Karte und HUD sichtbar.
+
+Deployment: GitHub Actions baut und testet bei jedem Push und deployt auf
+GitHub Pages. Eine `CLAUDE.md` hält fest, wie hier gearbeitet wird — inklusive
+der Regel, dass dies *mein* Spiel ist und Vorschläge des Auftraggebers
+Denkanstöße eines Spielers sind.
