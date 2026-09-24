@@ -6,6 +6,7 @@ import type { Enemy, Fight, GameEvent } from '../core/types';
 import { Tile } from '../core/types';
 import { drawCreature } from './creatures';
 import { drawGlyph } from './glyphs';
+import { renderAscii } from './ascii';
 
 export const PAL = {
   bg: '#0d1321',
@@ -57,6 +58,8 @@ export class BoardRenderer {
   previewDir: Dir | null = null;
   targetDirs: Dir[] | null = null;
   instant = false;
+  /** ncurses-style ASCII skin. */
+  terminal = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -191,6 +194,7 @@ export class BoardRenderer {
     ctx.fillStyle = PAL.bg;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     if (!f) return;
+    if (this.terminal) return this.drawTerminal(f, now);
     const p = this.instant || !this.prev ? 1 : ease(Math.min(1, (now - this.animStart) / this.animDur));
     this.shake *= Math.pow(0.9, dt / 16);
     const sx = (Math.random() - 0.5) * this.shake, sy = (Math.random() - 0.5) * this.shake;
@@ -209,6 +213,34 @@ export class BoardRenderer {
     this.drawTargeting(f, now);
     this.drawFx(dt);
     ctx.restore();
+  }
+
+  private drawTerminal(f: Fight, now: number) {
+    const ctx = this.ctx, T = this.T;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    const lines = renderAscii(f).slice(0, f.h);
+    ctx.font = `bold ${Math.round(T * 0.8)}px ui-monospace, 'DejaVu Sans Mono', monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const color = (c: string) =>
+      c === '#' ? '#1f7a1f' : c === '@' ? '#b6ff9e' : /[123]/.test(c) ? '#ffe066' : c === '+' ? '#7fd1ff' : c === 'o' ? '#5fdc5f'
+      : c === '*' ? '#ff5555' : c === '!' ? '#ff3030' : c === ':' ? '#c77dff' : c === '.' ? '#133313' : /[a-zA-Z]/.test(c) ? '#ff9f40' : '#8f8';
+    lines.forEach((line, y) => {
+      [...line].forEach((c, x) => {
+        ctx.fillStyle = color(c);
+        ctx.fillText(c, this.cx(x), this.cy(y));
+      });
+    });
+    // scanlines + cursor blink
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    for (let y = 0; y < this.canvas.height; y += 3) ctx.fillRect(0, y, this.canvas.width, 1);
+    if (Math.floor(now / 500) % 2 === 0) {
+      const h = f.snake.body[0];
+      ctx.fillStyle = 'rgba(182,255,158,0.25)';
+      ctx.fillRect(this.ox + h.x * T, this.oy + h.y * T, T, T);
+    }
+    ctx.textBaseline = 'alphabetic';
   }
 
   private drawTerrain(f: Fight, now: number) {

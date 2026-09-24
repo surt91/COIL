@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { initAudio, isMuted, setMuted, startAmbient, stinger, uiClick } from '../audio/audio';
 import { LAYOUTS } from '../content/layouts';
+import { createFight } from '../core/fight';
 import { RunState, createRun, finishFight, recordEvents, updateFight } from '../core/run';
 import { seedFromString } from '../core/rng';
 import { loadRun, saveRun } from '../save/storage';
@@ -23,7 +24,17 @@ export function App() {
     window.addEventListener('keydown', unlock);
     window.addEventListener('pointerdown', unlock);
     const params = new URLSearchParams(location.search);
-    if (params.has('seed')) {
+    if (params.has('fight')) {
+      // Debug: ?fight=<layout>&enemies=beetle,frog&seed=N
+      const r = createRun(Number(params.get('seed') ?? 1));
+      const layout = LAYOUTS.find((l) => l.id === params.get('fight')) ?? LAYOUTS[0];
+      r.at = r.map.find((n) => n.row === 0)!.id;
+      r.screen = {
+        t: 'fight', node: r.at, encounter: 'debug', layout: layout.id,
+        fight: createFight({ rows: layout.rows, genome: r.genome, flesh: r.flesh, seed: Number(params.get('seed') ?? 1), place: (params.get('enemies') ?? 'beetle').split(',') }),
+      };
+      setRun(r);
+    } else if (params.has('seed')) {
       const s = params.get('seed')!;
       setRun(createRun(/^\d+$/.test(s) ? Number(s) : seedFromString(s)));
     }

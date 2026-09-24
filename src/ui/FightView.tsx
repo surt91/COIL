@@ -43,6 +43,7 @@ export function FightView({ initial, title, onEnd, onStep, side }: FightViewProp
     renderer.current = r;
     (window as any).__coil = { get fight() { return fightRef.current; }, dispatch, renderer: r };
     r.instant = new URLSearchParams(location.search).has('instant');
+    try { r.terminal = localStorage.getItem('coil.terminal') === '1'; } catch { /* ignore */ }
     r.push(initial);
     const fit = () => {
       const el = wrapRef.current!;
@@ -132,6 +133,14 @@ export function FightView({ initial, title, onEnd, onStep, side }: FightViewProp
       else if (e.key === 't' || e.key === 'T') dispatch({ t: 'tuck' });
       else if (e.key === 'z' || e.key === 'Z' || e.key === 'Backspace') undo();
       else if (e.key === 'Escape') setSelected(null);
+      else if (e.key === 'F2' || e.key === '`') {
+        e.preventDefault();
+        const r = renderer.current;
+        if (r) {
+          r.terminal = !r.terminal;
+          try { localStorage.setItem('coil.terminal', r.terminal ? '1' : '0'); } catch { /* ignore */ }
+        }
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -303,6 +312,7 @@ function Legend() {
       <li><b>Hand</b> = the first three items behind your head. <kbd>1</kbd>–<kbd>3</kbd> to play; playing consumes the segment.</li>
       <li><b>Hits</b> destroy the segment they land on.</li>
       <li><b>Coil</b>: enclose enemies with your body (walls help). Tighter = more crush.</li>
+      <li><kbd>F2</kbd> toggles the terminal skin — a nod to where all this started: C and ncurses.</li>
       <li><b>Red</b> = incoming damage. Dashed line = a bite locked on a segment; move that segment out of reach to dodge.</li>
     </ul>
   );
