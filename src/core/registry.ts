@@ -14,6 +14,13 @@ export interface ItemDef {
   glyph: string;
   color: string;
   rarity: 'starter' | 'common' | 'uncommon' | 'rare' | 'signature';
+  /** Upgraded items point to their base version (and vice versa). */
+  base?: ItemId;
+  upgrade?: ItemId;
+  /** Hunger eats this segment instead of the tail. */
+  hungerShield?: boolean;
+  /** Fewer touching tiles needed to wrap while on the body. */
+  wrapBonus?: number;
   passiveText?: string;
   activeText?: string;
   /** Flat bonus to bite damage while this item is on the body. */
@@ -133,3 +140,13 @@ export function defineCharm(d: CharmDef): CharmDef {
 }
 export const charmSum = (ids: readonly string[] | undefined, field: 'biteBonus' | 'crushBonus' | 'coilAreaBonus' | 'wrapBonus' | 'hungerBonus' | 'fleshCapBonus' | 'tuckBonus' | 'toughBite' | 'bitePoison' | 'drawBonus') =>
   (ids ?? []).reduce((a, id) => a + (CHARMS.get(id)?.[field] ?? 0), 0);
+
+/** Define the upgraded version of an item; unspecified fields are inherited. */
+export function defineUpgrade(baseId: ItemId, d: Partial<ItemDef> & { name: string }): ItemDef {
+  const b = item(baseId);
+  const up: ItemDef = { ...b, ...d, id: `${baseId}+`, base: baseId, upgrade: undefined };
+  if (d.active === undefined && b.active) up.active = b.active;
+  b.upgrade = up.id;
+  ITEMS.set(up.id, up);
+  return up;
+}

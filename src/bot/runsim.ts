@@ -4,7 +4,7 @@ import { EVENTS } from '../content/events';
 import { step } from '../core/fight';
 import { ITEMS } from '../core/registry';
 import { Rng, makeRng, pick } from '../core/rng';
-import { NodeKind, RunState, bask, buy, createRun, enterNode, eventChoice, finishFight, reachable, recordEvents, takeCharm, takeReward, toMap } from '../core/run';
+import { NodeKind, RunState, bask, buy, canUpgrade, fleshCap, upgradeItem, createRun, enterNode, eventChoice, finishFight, reachable, recordEvents, takeCharm, takeReward, toMap } from '../core/run';
 import type { Fight, ItemId } from '../core/types';
 import type { Policy } from './policies';
 
@@ -30,7 +30,7 @@ const TIER: Record<string, number> = {
   scale: 5, swallow: 5, ouroboros: 5, sprint: 4, reserve: 4, gorge: 3, rattle: 4, reverse: 3, tailwhip: 3,
   kinetic: 2, molt: 3, shed: 1,
 };
-const tier = (id: ItemId) => TIER[id] ?? 3;
+const tier = (id: ItemId) => (TIER[id.replace('+', '')] ?? 3) + (id.endsWith('+') ? 1 : 0);
 
 function chooseNode(run: RunState, r: Rng): number {
   const opts = reachable(run).map((id) => run.map[id]);
@@ -81,7 +81,8 @@ export function simulateRun(seed: number, policy: Policy, turnCap = 300, species
       if (i < 0) continue;
       run = toMap(run);
     } else if (sc.t === 'bask') {
-      run = toMap(bask(run));
+      const up = run.genome.map((g, i) => [tier(g), i, g] as const).filter(([, , g]) => canUpgrade(g)).sort((a, b) => b[0] - a[0])[0];
+      run = toMap(run.flesh >= fleshCap(run) - 2 && up ? upgradeItem(run, up[1]) : bask(run));
     } else if (sc.t === 'event') {
       const ev = EVENTS.find((e) => e.id === sc.id)!;
       const idx = ev.choices.findIndex((c) => !c.canChoose || c.canChoose(run));

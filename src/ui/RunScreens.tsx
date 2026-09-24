@@ -4,7 +4,7 @@ import { EVENTS } from '../content/events';
 import { CHARMS, ITEMS, item } from '../core/registry';
 import {
   ACT_NAMES, BASK_FLESH, MAP_COLS, MOLTS, MAP_ROWS, NodeKind, RunState, Screen,
-  bask, buy, buyCharm, enterNode, eventChoice, fleshCap, genomeDraw, reachable, removeItem, takeCharm, takeReward, toMap,
+  bask, buy, buyCharm, canUpgrade, enterNode, eventChoice, fleshCap, genomeDraw, reachable, removeItem, takeCharm, takeReward, toMap, upgradeItem,
 } from '../core/run';
 import type { ItemId } from '../core/types';
 import { GlyphIcon } from './GlyphIcon';
@@ -20,6 +20,7 @@ export function ItemCard({ id, onClick, footer, disabled, compact }: {
       <div class="card-top">
         <GlyphIcon glyph={d.glyph} color={d.color} size={compact ? 22 : 30} />
         <span class="card-name">{d.name}</span>
+        {d.base && <span class="molted" title="Molted (upgraded)">✦</span>}
         <span class={`rarity r-${d.rarity}`}>{d.rarity}</span>
       </div>
       {!compact && d.activeText && <div class="card-text">{d.active?.move ? <b class="tag">MOVE </b> : null}{d.activeText}</div>}
@@ -41,6 +42,32 @@ export function CharmCard({ id, onClick, footer, disabled }: { id: string; onCli
       <div class="card-text">{c.text}</div>
       {footer && <div class="card-footer">{footer}</div>}
     </button>
+  );
+}
+
+/** Pick an item to molt; shows the current and upgraded version side by side on hover. */
+export function UpgradePicker({ run, onPick, onCancel }: { run: RunState; onPick(idx: number): void; onCancel(): void }) {
+  const [hover, setHover] = useState<number | null>(null);
+  const opts = run.genome.map((id, i) => [id, i] as const).filter(([id]) => canUpgrade(id));
+  const h = hover !== null ? run.genome[hover] : opts[0]?.[0];
+  return (
+    <div class="upgrade-pick">
+      <p>Choose an item to molt. It grows back stronger — for the rest of the run.</p>
+      <div class="choices small">
+        {opts.map(([id, i]) => (
+          <div onMouseEnter={() => setHover(i)}><ItemCard id={id} compact onClick={() => onPick(i)} /></div>
+        ))}
+        {opts.length === 0 && <p class="dim">Nothing left to molt.</p>}
+      </div>
+      {h && canUpgrade(h) && (
+        <div class="upgrade-compare">
+          <ItemCard id={h} />
+          <span class="arrow">→</span>
+          <ItemCard id={item(h).upgrade!} />
+        </div>
+      )}
+      <button class="btn" onClick={onCancel}>Cancel</button>
+    </div>
   );
 }
 
@@ -178,6 +205,7 @@ export function RewardScreen({ run, setRun, screen }: { run: RunState; setRun: S
 
 export function PoolScreen({ run, setRun: setRun0, screen }: { run: RunState; setRun: SetRun; screen: Extract<Screen, { t: 'pool' }> }) {
   const [removing, setRemoving] = useState(false);
+  const [molting, setMolting] = useState(false);
   const [undoStack, setUndo] = useState<RunState[]>([]);
   const setRun = (r: RunState) => {
     if (r !== run && r.screen.t === 'pool') setUndo((u) => [...u, run]);
@@ -205,6 +233,12 @@ export function PoolScreen({ run, setRun: setRun0, screen }: { run: RunState; se
           footer={screen.charm.sold ? 'sold' : `${screen.charm.price} flesh`}
         />
       )}
+      {screen.moltPrice !== undefined && !molting && (
+        <button class="btn" disabled={screen.molted || run.flesh < screen.moltPrice || !run.genome.some(canUpgrade)} onClick={() => setMolting(true)}>
+          {screen.molted ? 'Already molted here' : `Molt an item (${screen.moltPrice} flesh)`}
+        </button>
+      )}
+      {molting && <UpgradePicker run={run} onPick={(i) => { stinger('reward'); setRun(upgradeItem(run, i)); setMolting(false); }} onCancel={() => setMolting(false)} />}
       {!removing ? (
         <button class="btn" disabled={screen.removed || run.flesh < screen.removePrice || run.genome.length <= 1} onClick={() => setRemoving(true)}>
           {screen.removed ? 'Already shed an item here' : `Shed an item (${screen.removePrice} flesh)`}
@@ -230,33 +264,43 @@ export function PoolScreen({ run, setRun: setRun0, screen }: { run: RunState; se
 }
 
 export function BaskScreen({ run, setRun, screen }: { run: RunState; setRun: SetRun; screen: Extract<Screen, { t: 'bask' }> }) {
-  const [removing, setRemoving] = useState(false);
+  const [mode, setMode] = useState<'choose' | 'remove' | 'molt'>('choose');
+  const full = run.flesh >= fleshCap(run);
+  const canMolt = run.genome.some(canUpgrade);
   return (
     <div class="screen center-screen">
       <h2>A Warm Stone</h2>
-      <p class="dim">Sunlight falls through the leaves. You could rest here — or take the time to shed something.</p>
-      {!screen.done && !removing && (
+      <p class="dim">Sunlight falls through the leaves. There is time for one thing.</p>
+      {!screen.done && mode === 'choose' && (
         <div class="choices">
-          <button class={`card big-choice ${run.flesh >= fleshCap(run) ? 'disabled' : ''}`} onClick={() => { if (run.flesh < fleshCap(run)) { uiClick(); setRun(bask(run)); } }}>
+          <button class={`card big-choice ${full ? 'disabled' : ''}`} onClick={() => { if (!full) { uiClick(); setRun(bask(run)); } }}>
             <div class="card-name">Bask</div>
             <div class="card-text">
-              {run.flesh >= fleshCap(run)
-                ? `You are already full (${run.flesh}/${fleshCap(run)} flesh).`
-                : `Regrow ${Math.min(BASK_FLESH, fleshCap(run) - run.flesh)} flesh (${run.flesh} → ${Math.min(fleshCap(run), run.flesh + BASK_FLESH)}).`}
+              {full ? `You are already full (${run.flesh}/${fleshCap(run)} flesh).` : `Regrow ${Math.min(BASK_FLESH, fleshCap(run) - run.flesh)} flesh (${run.flesh} → ${Math.min(fleshCap(run), run.flesh + BASK_FLESH)}).`}
             </div>
           </button>
-          <button class="card big-choice" disabled={run.genome.length <= 1} onClick={() => setRemoving(true)}>
+          <button class={`card big-choice ${canMolt ? '' : 'disabled'}`} onClick={() => canMolt && setMode('molt')}>
             <div class="card-name">Molt</div>
-            <div class="card-text">Remove an item from your genome for free.</div>
+            <div class="card-text">Shed your skin: upgrade one item for the rest of the run.</div>
+          </button>
+          <button class={`card big-choice ${run.genome.length > 1 ? '' : 'disabled'}`} onClick={() => run.genome.length > 1 && setMode('remove')}>
+            <div class="card-name">Scrape</div>
+            <div class="card-text">Rub an item off against the stone: remove it from your genome.</div>
           </button>
         </div>
       )}
-      {removing && !screen.done && (
-        <div class="choices small">
-          {run.genome.map((id, i) => (
-            <ItemCard id={id} compact onClick={() => { uiClick(); setRun(removeItem(run, i, true)); setRemoving(false); }} />
-          ))}
-        </div>
+      {!screen.done && mode === 'remove' && (
+        <>
+          <div class="choices small">
+            {run.genome.map((id, i) => (
+              <ItemCard id={id} compact onClick={() => { uiClick(); setRun(removeItem(run, i, true)); setMode('choose'); }} />
+            ))}
+          </div>
+          <button class="btn" onClick={() => setMode('choose')}>Cancel</button>
+        </>
+      )}
+      {!screen.done && mode === 'molt' && (
+        <UpgradePicker run={run} onPick={(i) => { stinger('reward'); setRun(upgradeItem(run, i)); setMode('choose'); }} onCancel={() => setMode('choose')} />
       )}
       {screen.done && <p>You feel renewed.</p>}
       <button class="btn primary" onClick={() => { uiClick(); setRun(toMap(run)); }}>{screen.done ? 'Move on' : 'Skip'}</button>

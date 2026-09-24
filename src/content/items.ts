@@ -1,8 +1,8 @@
 import { computeCoils } from '../core/coil';
 import { doMove, legalMoves, moveOutcome, wrapMin } from '../core/fight';
-import { DIRS, Dir, Pos, chebyshev, dirTo, eq, manhattan, neighbors4, step } from '../core/geom';
+import { DIRS, Dir, Pos, chebyshev, dirTo, eq, key, manhattan, neighbors4, step } from '../core/geom';
 import * as ops from '../core/ops';
-import { defineItem } from '../core/registry';
+import { ENEMIES, defineItem, defineUpgrade } from '../core/registry';
 import { pick } from '../core/rng';
 import type { Enemy, Fight } from '../core/types';
 
@@ -570,4 +570,396 @@ defineItem({
   coilAreaBonus: 8,
   crushBonus: 1,
   active: { target: 'none', play: (f) => crushNow(f, 1) },
+});
+
+// ================================================================ upgrades ("molted" items)
+
+const locksFizzle = (f: Fight) => {
+  for (const e of f.enemies) if (e.intent.t === 'lock' || e.intent.t === 'steal') e.intent = { t: 'wait' };
+};
+const wrapped = (f: Fight, e: Enemy) => e.held || f.snake.body.filter((b) => chebyshev(b, e.pos) === 1).length >= wrapMin(f);
+function allInLine(f: Fight, d: Dir, n: number): Enemy[] {
+  const out: Enemy[] = [];
+  let p = ops.head(f);
+  for (let i = 0; i < n; i++) {
+    p = step(p, d);
+    if (!ops.inBounds(f, p) || ops.isSolid(f, p)) break;
+    const e = ops.enemyAt(f, p);
+    if (e && !out.includes(e)) out.push(e);
+  }
+  return out;
+}
+
+defineUpgrade('lunge', {
+  name: 'Striking Lunge',
+  activeText: 'Move: dash 2 tiles straight, the second step bites for +1. A kill regrows a temporary Lunge behind your head.',
+  active: {
+    target: 'dir',
+    move: true,
+    requires: 'Needs a free tile ahead in that direction.',
+    canPlay: (f, a) => firstStepOk(f, a.dir),
+    play(f, a) {
+      const kills = () => f.events.filter((e) => e.t === 'enemyDie').length;
+      const k0 = kills();
+      if (doMove(f, a.dir!) && f.status === 'play' && firstStepOk(f, a.dir)) doMove(f, a.dir!, 1);
+      if (kills() > k0) ops.addSeg(f, 'lunge', 'neck', true);
+    },
+  },
+});
+
+defineUpgrade('fang', {
+  name: 'Hollow Fang',
+  activeText: 'Your next bite this turn deals +2 and injects 3 poison.',
+  active: { target: 'none', play: (f) => { f.buffs.bite += 2; f.buffs.poison = (f.buffs.poison ?? 0) + 3; } },
+});
+
+defineUpgrade('scale', {
+  name: 'Keeled Scale',
+  passiveText: 'Absorbs a hit on this segment, then becomes a regular Scale (two hits in total).',
+  activeText: 'Absorb the next 2 hits anywhere this turn.',
+  onHit(f, k) {
+    const p = segPosAt(f, k) ?? ops.head(f);
+    f.snake.segs[k].item = 'scale';
+    ops.emit(f, { t: 'absorb', at: p });
+    return true;
+  },
+  active: { target: 'none', play: (f) => void (f.buffs.absorb += 2) },
+});
+
+defineUpgrade('venom', {
+  name: 'Venom Gland',
+  passiveText: 'Enemies next to this segment, diagonals included, get 1 poison each turn.',
+  activeText: 'Piercing spit: every enemy in a line (5 tiles) gets 3 poison.',
+  bodyPhase(f, k) {
+    const p = segPosAt(f, k);
+    if (!p) return;
+    for (const e of f.enemies) if (chebyshev(e.pos, p) === 1) e.poison++;
+  },
+  active: {
+    target: 'dir',
+    requires: 'Needs an enemy in a straight line (5 tiles).',
+    canPlay: (f, a) => a.dir !== undefined && allInLine(f, a.dir, 5).length > 0,
+    play(f, a) {
+      for (const e of allInLine(f, a.dir!, 5)) e.poison += 3;
+    },
+  },
+});
+
+defineUpgrade('spine', {
+  name: 'Barbed Spine',
+  activeText: 'Every enemy next to your body takes 1 — or 2 if it touches 3 or more of your tiles.',
+  active: {
+    target: 'none',
+    play(f) {
+      for (const e of f.enemies) {
+        const touch = f.snake.body.filter((b) => chebyshev(b, e.pos) === 1).length;
+        if (f.snake.body.some((b) => manhattan(b, e.pos) === 1)) ops.damageEnemy(f, e, touch >= 3 ? 2 : 1, 'spine');
+      }
+    },
+  },
+});
+
+defineUpgrade('heart', {
+  name: 'Twin Heart',
+  activeText: 'Grow 2 flesh, and a temporary Heart regrows at your tail.',
+  active: {
+    target: 'none',
+    play(f) {
+      ops.addSeg(f, null, 'tail');
+      ops.addSeg(f, null, 'tail');
+      ops.addSeg(f, 'heart', 'tail', true);
+      ops.emit(f, { t: 'grow', n: 3 });
+    },
+  },
+});
+
+defineUpgrade('muscle', {
+  name: 'Sinew',
+  passiveText: 'Your coils crush for +1, and wrapping needs one tile less.',
+  wrapBonus: 1,
+  activeText: 'Crush every coiled or wrapped enemy right now.',
+  active: {
+    target: 'none',
+    play(f) {
+      for (const e of f.enemies) if (wrapped(f, e)) ops.damageEnemy(f, e, 2 + ops.bodyBonus(f, 'crushBonus'), 'crush');
+    },
+  },
+});
+
+defineUpgrade('reverse', {
+  name: 'Two-Headed',
+  activeText: 'Swap head and tail. Every bite locked onto you fizzles.',
+  active: {
+    target: 'none',
+    requires: 'Needs your whole body out of the burrow and at least 3 segments.',
+    canPlay: (f) => ops.pending(f) === 0 && f.snake.body.length > 3,
+    play(f) {
+      const s = f.snake;
+      s.body.reverse();
+      s.segs.reverse();
+      s.dir = dirTo(s.body[1], s.body[0]);
+      locksFizzle(f);
+    },
+  },
+});
+
+defineUpgrade('shed', {
+  name: 'Clean Shed',
+  activeText: 'Your last 4 segments fall off as husks — then 2 fresh flesh grow back.',
+  active: {
+    target: 'none',
+    play(f) {
+      ops.sever(f, Math.max(0, f.snake.body.length - 1 - 4));
+      ops.addSeg(f, null, 'tail');
+      ops.addSeg(f, null, 'tail');
+    },
+  },
+});
+
+defineUpgrade('rattle', {
+  name: 'Tail Rattle',
+  activeText: 'Enemies within 3 tiles of your head or your tail tip lose their intent.',
+  active: {
+    target: 'none',
+    play(f) {
+      const h = ops.head(f), t = f.snake.body[f.snake.body.length - 1];
+      for (const e of f.enemies) if (chebyshev(e.pos, h) <= 3 || chebyshev(e.pos, t) <= 3) e.intent = { t: 'wait' };
+      ops.emit(f, { t: 'msg', text: 'Rattle!' });
+    },
+  },
+});
+
+defineUpgrade('tailwhip', {
+  name: 'Whip Crack',
+  activeText: 'Your tail tip deals 2 to every enemy around it and cancels their intents.',
+  active: {
+    target: 'none',
+    play(f) {
+      const tip = f.snake.body[f.snake.body.length - 1];
+      ops.emit(f, { t: 'strike', enemy: 0, tiles: neighbors4(tip) });
+      for (const e of f.enemies)
+        if (chebyshev(e.pos, tip) === 1) {
+          e.intent = { t: 'wait' };
+          ops.damageEnemy(f, e, 2, 'tail whip');
+        }
+    },
+  },
+});
+
+defineUpgrade('swallow', {
+  name: 'Unhinged Jaw',
+  activeText: 'Swallow an adjacent enemy with ≤3 HP whole: +2 flesh, and graft its signature item.',
+  active: {
+    target: 'dir',
+    requires: 'Needs an adjacent enemy with 3 HP or less.',
+    canPlay(f, a) {
+      if (a.dir === undefined) return false;
+      const e = ops.enemyAt(f, step(ops.head(f), a.dir));
+      return !!e && e.hp <= 3 && !e.body;
+    },
+    play(f, a) {
+      const e = ops.enemyAt(f, step(ops.head(f), a.dir!))!;
+      ops.damageEnemy(f, e, e.hp, 'swallow');
+      ops.addSeg(f, null, 'tail');
+      ops.addSeg(f, null, 'tail');
+      const sig = ENEMIES.get(e.kind)?.signature;
+      if (sig) ops.addSeg(f, sig, 'neck', true);
+      f.hunger = 0;
+      ops.emit(f, { t: 'eat', at: { ...e.pos }, what: 'enemy' });
+    },
+  },
+});
+
+defineUpgrade('molt', {
+  name: 'Full Molt',
+  activeText: 'Leave your shape behind as a husk-skin for 3 turns. Every bite locked onto you fizzles.',
+  active: {
+    target: 'none',
+    play(f) {
+      for (const p of f.snake.body.slice(1)) f.husks.push({ pos: { ...p }, item: null, ttl: 4 });
+      locksFizzle(f);
+    },
+  },
+});
+
+defineUpgrade('ouroboros', {
+  name: 'Worldserpent',
+  passiveText: 'While your tail tip touches your head, coils crush +2 and hunger stands still.',
+  activeText: 'Every coiled or wrapped enemy takes 4 — or 6 if your tail tip touches your head.',
+  bodyPhase(f) {
+    const s = f.snake;
+    if (s.body.length > 3 && manhattan(s.body[0], s.body[s.body.length - 1]) === 1) {
+      f.buffs.crush = (f.buffs.crush ?? 0) + 2;
+      f.hunger = Math.max(0, f.hunger - 1);
+    }
+  },
+  active: {
+    target: 'none',
+    requires: 'Needs a coiled or wrapped enemy.',
+    canPlay: (f) => f.enemies.some((e) => wrapped(f, e)),
+    play(f) {
+      const s = f.snake;
+      const loop = s.body.length > 3 && manhattan(s.body[0], s.body[s.body.length - 1]) === 1;
+      for (const e of f.enemies) if (wrapped(f, e)) ops.damageEnemy(f, e, loop ? 6 : 4, 'crush');
+    },
+  },
+});
+
+defineUpgrade('kinetic', {
+  name: 'Smart Kinetic Walk',
+  activeText: 'Move: take 4 self-avoiding steps that never enter a telegraphed tile and prefer food.',
+  active: {
+    target: 'none',
+    move: true,
+    requires: 'Needs a free tile next to your head.',
+    canPlay: (f) => DIRS.some((d) => firstStepOk(f, d)),
+    play(f) {
+      for (let i = 0; i < 4 && f.status === 'play'; i++) {
+        const danger = new Set(f.enemies.flatMap((e) => (e.intent.t === 'strike' ? e.intent.tiles : e.intent.t === 'emerge' ? [e.intent.at] : [])).map(key));
+        const opts = DIRS.filter((d) => {
+          const o = moveOutcome(f, d).k;
+          return (o === 'step' || o === 'food' || o === 'husk') && !danger.has(key(step(ops.head(f), d)));
+        });
+        if (!opts.length) return;
+        const food = opts.filter((d) => moveOutcome(f, d).k === 'food');
+        doMove(f, pick(f.rng, food.length ? food : opts));
+      }
+    },
+  },
+});
+
+defineUpgrade('strike', {
+  name: 'Striking Coil',
+  activeText: 'Hit the first enemy within 2 tiles in a line for 2 and yank it next to your head. It loses its intent.',
+  active: {
+    target: 'dir',
+    requires: 'Needs an enemy within 2 tiles in a straight line.',
+    canPlay: (f, a) => a.dir !== undefined && !!firstInLine(f, a.dir, 2),
+    play(f, a) {
+      const e = firstInLine(f, a.dir!, 2)!;
+      ops.damageEnemy(f, e, 2 + f.buffs.bite, 'bite');
+      f.buffs.bite = 0;
+      if (e.hp <= 0) return;
+      e.intent = { t: 'wait' };
+      const to = step(ops.head(f), a.dir!);
+      if (!e.body && ops.freeForEnemy(f, to)) {
+        ops.emit(f, { t: 'knockback', enemy: e.id, from: { ...e.pos }, to });
+        e.pos = to;
+      }
+    },
+  },
+});
+
+defineUpgrade('sprint', {
+  name: 'Slipstream',
+  activeText: 'Move: slither up to 4 tiles straight ahead, tearing through webs.',
+  active: {
+    target: 'dir',
+    move: true,
+    requires: 'Needs a free tile ahead in that direction.',
+    canPlay: (f, a) => a.dir !== undefined && (firstStepOk(f, a.dir) || ops.webAt(f, step(ops.head(f), a.dir)) >= 0),
+    play(f, a) {
+      for (let i = 0; i < 4 && f.status === 'play'; i++) {
+        const w = ops.webAt(f, step(ops.head(f), a.dir!));
+        if (w >= 0) f.webs.splice(w, 1);
+        if (!firstStepOk(f, a.dir)) return;
+        if (!doMove(f, a.dir!)) return;
+      }
+    },
+  },
+});
+
+defineUpgrade('reserve', {
+  name: 'Deep Reserve',
+  hungerShield: true,
+  passiveText: 'When hunger bites, it eats this segment instead of your tail.',
+  activeText: 'Grow 2 flesh and reset your hunger.',
+});
+
+defineUpgrade('acid', {
+  name: 'Stomach Acid',
+  activeText: 'Every coiled or wrapped enemy takes 2 and gets 3 poison.',
+  active: {
+    target: 'none',
+    requires: 'Needs a coiled or wrapped enemy.',
+    canPlay: (f) => f.enemies.some((e) => wrapped(f, e)),
+    play(f) {
+      for (const e of f.enemies)
+        if (wrapped(f, e)) {
+          ops.damageEnemy(f, e, 2, 'acid');
+          e.poison += 3;
+        }
+    },
+  },
+});
+
+defineUpgrade('hood', {
+  name: 'Spectacled Hood',
+  activeText: 'Flare: enemies within 2 tiles are pushed back and lose their intent. Enemies that can’t be pushed take 2.',
+  active: {
+    target: 'none',
+    play(f) {
+      const h = ops.head(f);
+      for (const e of f.enemies) {
+        if (e.under || chebyshev(e.pos, h) > 2) continue;
+        e.intent = { t: 'wait' };
+        const to = step(e.pos, dirTo(h, e.pos));
+        if (!e.body && ops.freeForEnemy(f, to)) {
+          ops.emit(f, { t: 'knockback', enemy: e.id, from: { ...e.pos }, to });
+          e.pos = to;
+        } else ops.damageEnemy(f, e, 2, 'hood');
+      }
+      ops.emit(f, { t: 'msg', text: 'HSSS!' });
+    },
+  },
+});
+
+defineUpgrade('egg', {
+  name: 'Clutch',
+  passiveText: 'When this segment is destroyed, it hatches: grow 3 flesh and a temporary Fang.',
+  activeText: 'Grow 2 flesh.',
+  onHit(f) {
+    for (let i = 0; i < 3; i++) ops.addSeg(f, null, 'tail');
+    ops.addSeg(f, 'fang', 'neck', true);
+    ops.emit(f, { t: 'grow', n: 3 });
+    return false;
+  },
+  active: { target: 'none', play: (f) => { ops.addSeg(f, null, 'tail'); ops.addSeg(f, null, 'tail'); } },
+});
+
+defineUpgrade('gorge', {
+  name: 'Bottomless Gorge',
+  activeText: 'Suck in all food and husks within 3 tiles: +1 flesh each, and husk items graft back on.',
+  active: {
+    target: 'none',
+    requires: 'Needs food or husks within 3 tiles of your head.',
+    canPlay: (f) => f.food.some((p) => manhattan(p, ops.head(f)) <= 3) || f.husks.some((hk) => manhattan(hk.pos, ops.head(f)) <= 3),
+    play(f) {
+      const h = ops.head(f);
+      for (const p of f.food.filter((q) => manhattan(q, h) <= 3)) {
+        ops.addSeg(f, null, 'tail');
+        ops.emit(f, { t: 'eat', at: p, what: 'food' });
+      }
+      f.food = f.food.filter((q) => manhattan(q, h) > 3);
+      for (const hk of f.husks.filter((q) => manhattan(q.pos, h) <= 3)) {
+        ops.addSeg(f, hk.item, hk.item ? 'neck' : 'tail');
+        ops.emit(f, { t: 'eat', at: hk.pos, what: 'husk' });
+      }
+      f.husks = f.husks.filter((q) => manhattan(q.pos, h) > 3);
+      f.hunger = 0;
+    },
+  },
+});
+
+defineUpgrade('python', {
+  name: 'Reticulated Coils',
+  passiveText: 'Coils up to 22 tiles count, and they crush for +1.',
+  coilAreaBonus: 10,
+  activeText: 'Every coiled or wrapped enemy takes 3.',
+  active: {
+    target: 'none',
+    play(f) {
+      for (const e of f.enemies) if (wrapped(f, e)) ops.damageEnemy(f, e, 3, 'crush');
+    },
+  },
 });

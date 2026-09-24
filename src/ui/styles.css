@@ -263,3 +263,8 @@ p.small { font-size: 13px; margin-top: -8px; }
 .movehint .spend { color: #7fd1ff; }
 .ledger { display: flex; gap: 24px; padding: 8px 16px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); }
 .ledger .bad { color: #f4a261; }
+
+.upgrade-pick { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.upgrade-compare { display: flex; align-items: center; gap: 12px; }
+.upgrade-compare .arrow { font-size: 28px; color: var(--gold); }
+.molted { color: var(--gold); font-size: 14px; }

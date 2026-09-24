@@ -6,7 +6,9 @@ import { ENCOUNTERS, Pool } from '../content/encounters';
 import { EVENTS } from '../content/events';
 import { LAYOUTS } from '../content/layouts';
 import { SPECIES } from '../content/species';
-import { createFight } from './fight';
+import { createFight, randomEmpty, think } from './fight';
+import { addSeg, spawnEnemy } from './ops';
+import { manhattan } from './geom';
 import { CHARMS, ITEMS, charmSum, enemyDef } from './registry';
 import { Rng, chance, int, makeRng, pick, shuffle, weighted } from './rng';
 import type { Fight, FightOpts, ItemId } from './types';
@@ -27,7 +29,7 @@ export type Screen =
   | { t: 'map' }
   | { t: 'fight'; node: number; encounter: string; layout: string; fight: Fight }
   | { t: 'reward'; options: ItemId[]; skipFlesh: number; title: string; charms?: string[]; charmTaken?: boolean; itemTaken?: boolean }
-  | { t: 'pool'; stock: ShopSlot[]; removePrice: number; removed: boolean; charm?: { id: string; price: number; sold: boolean } }
+  | { t: 'pool'; stock: ShopSlot[]; removePrice: number; removed: boolean; charm?: { id: string; price: number; sold: boolean }; moltPrice?: number; molted?: boolean }
   | { t: 'bask'; done: boolean }
   | { t: 'event'; id: string; result: string | null }
   | { t: 'victory' }
@@ -53,6 +55,15 @@ export const MOLTS = [
   'Apex: bosses have 30% more HP.',
 ];
 
+export interface NextFight {
+  extraEnemies?: string[];
+  tempItems?: ItemId[];
+  hungerEvery?: number;
+  enemyPoison?: number;
+  shield?: number;
+  fleshDelta?: number;
+}
+
 export interface RunState {
   version: 1;
   seed: number;
@@ -71,6 +82,10 @@ export interface RunState {
   path?: number[];
   species?: string;
   charms?: string[];
+  /** Modifiers for the next fight, set by events. */
+  nextFight?: NextFight;
+  /** Extra HP for the next boss (events). */
+  bossBonus?: number;
   /** Ledger of the last cleared room (shown on the reward screen). */
   lastRoom?: { played: number; wasted: number; regrown: number; kept: number; body: number };
 }
@@ -195,11 +210,31 @@ export function startFight(run: RunState, nodeId: number, pool: Pool): RunState 
     place: run.molt >= 4 && (pool === 'normal' || pool === 'elite') ? [...enc.enemies, 'beetle'] : enc.enemies,
     opts: { ...fightOpts(pool, node.row, run.molt), minFood: run.act >= 1 || pool === 'boss' ? 2 : 1 },
   });
+  // Event modifiers for this fight.
+  const nf = run.nextFight;
+  run.nextFight = undefined;
+  if (nf) {
+    for (const it of nf.tempItems ?? []) addSeg(fight, it, 'neck', true);
+    if (nf.hungerEvery) fight.opts.hungerEvery = nf.hungerEvery;
+    if (nf.shield) fight.shield = (fight.shield ?? 0) + nf.shield;
+    for (let i = 0; i < -(nf.fleshDelta ?? 0); i++) {
+      const k = fight.snake.segs.map((x) => !x.item).lastIndexOf(true);
+      if (k >= 0) fight.snake.segs.splice(k, 1);
+    }
+    for (const kind of nf.extraEnemies ?? []) {
+      const p = randomEmpty(fight.rng, fight);
+      if (p && manhattan(p, fight.snake.body[0]) >= 5) {
+        const e = spawnEnemy(fight, kind, p);
+        e.intent = think(fight, e);
+      }
+    }
+    for (const e of fight.enemies) e.poison += nf.enemyPoison ?? 0;
+  }
   // Later acts: tougher versions of the regulars.
   for (const e of fight.enemies) {
     const boss = enemyDef(e.kind).boss;
     const actBonus = [0, 1, 3][Math.min(run.act, 2)];
-    const bonus = boss ? (run.molt >= 6 ? Math.round(e.hp * 0.3) : 0) : e.hp >= 2 ? actBonus + (run.molt >= 2 && run.act === 0 ? 1 : 0) : 0;
+    const bonus = boss ? (run.molt >= 6 ? Math.round(e.hp * 0.3) : 0) + (run.bossBonus ?? 0) : e.hp >= 2 ? actBonus + (run.molt >= 2 && run.act === 0 ? 1 : 0) : 0;
     e.hp += bonus;
     e.maxHp += bonus;
   }
@@ -224,7 +259,7 @@ export function enterNode(prev: RunState, nodeId: number): RunState {
       run.screen = { t: 'reward', options: rollItems(run.rng, 3, 'nest'), skipFlesh: 3, title: 'A nest of strange eggs' };
       return run;
     case 'pool':
-      run.screen = { t: 'pool', stock: rollShop(run.rng), removePrice: 3, removed: false };
+      run.screen = { t: 'pool', stock: rollShop(run.rng), removePrice: 3, removed: false, moltPrice: MOLT_PRICE, molted: false };
       {
         const c = rollCharms(run, 'common', 1)[0];
         if (c) run.screen.charm = { id: c, price: 6, sold: false };
@@ -234,7 +269,7 @@ export function enterNode(prev: RunState, nodeId: number): RunState {
       run.screen = { t: 'bask', done: false };
       return run;
     case 'event':
-      run.screen = { t: 'event', id: pick(run.rng, EVENTS).id, result: null };
+      run.screen = { t: 'event', id: pick(run.rng, EVENTS.filter((e) => !e.acts || e.acts.includes(run.act))).id, result: null };
       return run;
   }
 }
@@ -328,7 +363,7 @@ export function rollItems(r: Rng, n: number, kind: RollKind): ItemId[] {
     : kind === 'nest' ? { common: 4, uncommon: 6, rare: 3 }
     : kind === 'boss' ? { uncommon: 2, rare: 8 }
     : { starter: 2, common: 8, uncommon: 5, rare: 2 };
-  const pool = [...ITEMS.values()].filter((d) => d.rarity !== 'signature' && weights[d.rarity]);
+  const pool = [...ITEMS.values()].filter((d) => d.rarity !== 'signature' && !d.base && weights[d.rarity]);
   const out: ItemId[] = [];
   for (let guard = 0; out.length < n && guard < 100; guard++) {
     const d = weighted(r, pool.map((x) => [x, weights[x.rarity]] as const));
@@ -411,6 +446,28 @@ export function removeItem(prev: RunState, genomeIdx: number, free = false): Run
 }
 
 export const BASK_FLESH = 5;
+export const MOLT_PRICE = 4;
+
+export const canUpgrade = (id: ItemId) => !!ITEMS.get(id)?.upgrade;
+
+/** Molt an item: it grows back as its upgraded version. Bask (free) or the Pool (flesh). */
+export function upgradeItem(prev: RunState, genomeIdx: number): RunState {
+  const id = prev.genome[genomeIdx];
+  if (!id || !canUpgrade(id)) return prev;
+  const run = clone(prev);
+  const sc = run.screen;
+  if (sc.t === 'bask') {
+    if (sc.done) return prev;
+    sc.done = true;
+  } else if (sc.t === 'pool') {
+    const price = sc.moltPrice ?? MOLT_PRICE;
+    if (sc.molted || run.flesh < price) return prev;
+    run.flesh -= price;
+    sc.molted = true;
+  } else if (sc.t !== 'event') return prev;
+  run.genome[genomeIdx] = ITEMS.get(id)!.upgrade!;
+  return run;
+}
 
 export function bask(prev: RunState): RunState {
   if (prev.screen.t !== 'bask' || prev.screen.done) return prev;

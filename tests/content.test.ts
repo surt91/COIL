@@ -67,6 +67,34 @@ describe('content', () => {
   });
 });
 
+describe('events', () => {
+  test('every choice of every event applies cleanly and next-fight modifiers work', () => {
+    for (const ev of EVENTS) {
+      ev.choices.forEach((c, i) => {
+        for (let seed = 1; seed <= 4; seed++) {
+          let run = createRun(seed);
+          run.genome.push('venom', 'lunge+');
+          run.flesh = 8;
+          run = { ...run, act: ev.acts?.[0] ?? 0, screen: { t: 'event', id: ev.id, result: null } };
+          if (c.canChoose && !c.canChoose(run)) continue;
+          run = eventChoice(run, i);
+          expect(run.screen.t === 'event' && run.screen.result).toBeTruthy();
+          for (const g of run.genome) expect(ITEMS.has(g)).toBe(true);
+          run = enterNode({ ...run, screen: { t: 'map' }, at: null }, reachable({ ...run, at: null })[0]);
+          if (run.screen.t === 'fight') expect(run.nextFight).toBeUndefined();
+        }
+      });
+    }
+  });
+
+  test('every item has a valid upgrade chain', () => {
+    for (const d of ITEMS.values()) {
+      if (d.upgrade) expect(ITEMS.get(d.upgrade)!.base).toBe(d.id);
+      if (d.base) expect(ITEMS.get(d.base)!.upgrade).toBe(d.id);
+    }
+  });
+});
+
 describe('run', () => {
   test('map: every node reachable from row 0 and leads to the boss', () => {
     for (let s = 1; s < 30; s++) {

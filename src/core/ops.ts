@@ -81,7 +81,7 @@ export function hand(f: Fight): number[] {
   return out;
 }
 
-export function bodyBonus(f: Fight, field: 'biteBonus' | 'crushBonus' | 'coilAreaBonus'): number {
+export function bodyBonus(f: Fight, field: 'biteBonus' | 'crushBonus' | 'coilAreaBonus' | 'wrapBonus'): number {
   let n = charmSum(f.charms, field);
   for (const { id } of itemsOnBody(f)) n += ITEMS.get(id)?.[field] ?? 0;
   return n;

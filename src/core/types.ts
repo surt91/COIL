@@ -90,7 +90,7 @@ export interface Fight {
   status: FightStatus;
   tuckUsed: boolean;
   /** Per-turn buffs from played items. */
-  buffs: { bite: number; absorb: number; crush?: number };
+  buffs: { bite: number; absorb: number; crush?: number; poison?: number };
   nextId: number;
   rng: Rng;
   /** The start burrow; its mouth is safe while the snake is still emerging. */

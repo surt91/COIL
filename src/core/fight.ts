@@ -12,7 +12,7 @@ import { Tile } from './types';
 
 /** An enemy touching this many snake tiles (8-neighbourhood) is squeezed. */
 export const WRAP_MIN = 4;
-export const wrapMin = (f: Fight) => Math.max(2, WRAP_MIN - charmSum(f.charms, 'wrapBonus'));
+export const wrapMin = (f: Fight) => Math.max(2, WRAP_MIN - ops.bodyBonus(f, 'wrapBonus'));
 
 export const DEFAULT_OPTS: FightOpts = {
   hungerEvery: 12,
@@ -270,7 +270,8 @@ function bite(f: Fight, e: Enemy, dir: Dir, extraBite: number): boolean {
   if (d.biteCap !== undefined) dmg = Math.min(dmg, d.biteCap);
   const at = { ...e.pos };
   const killed = dmg > 0 && ops.damageEnemy(f, e, dmg, 'bite');
-  if (!killed && dmg > 0) e.poison += charmSum(f.charms, 'bitePoison');
+  if (!killed && dmg > 0) e.poison += charmSum(f.charms, 'bitePoison') + (f.buffs.poison ?? 0);
+  f.buffs.poison = 0;
   ops.emit(f, { t: 'bite', enemy: e.id, at, dmg, killed });
   f.snake.dir = dir;
   if (d.spiky) {
@@ -589,7 +590,9 @@ function upkeep(f: Fight) {
     const s = f.snake;
     const at = s.body[s.body.length - 1];
     ops.emit(f, { t: 'hunger', at });
-    if (!ops.removeTail(f, 'hunger')) ops.kill(f, 'starvation');
+    const shield = s.segs.findIndex((x) => x.item && item(x.item).hungerShield);
+    if (shield >= 0) ops.removeSeg(f, shield, 'hunger');
+    else if (!ops.removeTail(f, 'hunger')) ops.kill(f, 'starvation');
     if (f.status !== 'play') return;
   }
 
