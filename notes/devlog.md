@@ -132,3 +132,56 @@ Molting Pool als Shop, der mit *Fleisch* bezahlt wird, Events, Mungo-Boss).
 **Tutorial-Entscheidung:** Statt geskripteter Tutorial-Räume kontextuelle
 Tipps, die genau einmal erscheinen, wenn eine Mechanik zum ersten Mal auftaucht
 (erster Lock, erste Zungenlinie, erster Coil, erster Hunger …).
+
+## 2026-09-24 — Der Bot als Game Designer
+
+Ein Subagent hat einen headless Bot geschrieben: 1-ply-Greedy und 2-ply-Lookahead
+über `step()`, mit einer Bewertungsfunktion (Segmentwert, Gegner-HP, Coils,
+Fallen-Vermeidung per Flood Fill, landende Telegraphen). ~80 ms pro Kampf.
+Er ist gleichzeitig Fuzzer (Invarianten nach jedem Schritt) und Balancing-Tool.
+
+**Was der Fuzzer fand (bevor je ein Mensch es sah):**
+1. Gegner konnten auf Futter stehen; ein tödlicher Biss bewegte den Kopf auf das
+   Feld, ohne das Futter zu essen → später "wächst" die Schlange beim Betreten
+   ihrer eigenen Schwanzspitze → Kopf auf Schwanz. (Dieselbe Klasse Bug hatte
+   ich parallel über Molt-Häute gefunden.)
+2. Softlock: Der Kopf kriecht zurück in die 1-Feld-Nische des Eingangsbaus.
+   Einziger Ausweg wäre der Nacken. → Baue sind jetzt Sackgassen für den Kopf,
+   und als allerletzter Ausweg darf man sich in den Nacken beißen.
+3. Maulwürfe tauchten unter dem Körper auf; Flieger landeten auf dem Körper
+   (und wären dann unbeißbar gewesen).
+
+**Was die Zahlen sagten (erste Messung):**
+| Metrik | Wert | Ziel |
+|---|---|---|
+| Crush-Anteil an Kills | 7 % | ≥ 25 % |
+| Todesursache Hunger | 29–43 % | "Druck", nicht Hauptkiller |
+| Eskalation | Käfer-Tretmühle, 150-Zug-Kämpfe | |
+
+Die Diagnose des Bots war präzise: Eine 6–10 Segmente lange Schlange *kann*
+offenes Gelände schlicht nicht einschließen (ein 3×3-Ring braucht 8 Segmente
+für *ein* Feld). Coils waren binär — alles oder nichts.
+
+**Gegenmaßnahmen:**
+- *Wrap*: Ein Gegner, der 4+ Felder der Schlange berührt (Diagonalen zählen),
+  wird auch ohne geschlossenen Ring gequetscht. Coilen wird inkrementell.
+- Eskalations-Käfer und beschworene Ameisen sind "Minions" und blockieren das
+  Raum-Ende nicht mehr.
+- Hunger alle 12 statt 10 Züge.
+- Heart war unterbepreist, Ouroboros nutzlos (0,01 Einsätze pro Kampf) →
+  neu designt.
+
+**Zweite Messung — ganze Runs (3 Akte) mit Run-Simulator:**
+Neues Problem: *Fleisch explodiert* (5 → 19 → 36 Segmente). Lange Schlangen sind
+zu sicher, und Fleisch als Währung verliert Knappheit. → Fleisch-Obergrenze pro
+Akt (8/10/12, "den Rest verdaust du"), Gegner-HP skaliert pro Akt.
+
+| Stand | Bot-Siegquote (Runs) | Crush-Anteil |
+|---|---|---|
+| vorher | 70 % | 0 % gemessen (Bug in der Zählung) |
+| nach Fleisch-Cap & HP-Skalierung | 58 % | 26 % ✔ |
+
+Interessant: Der Bot kennt alle Telegraphen und rechnet 2 Züge voraus — das
+entspricht einem sorgfältigen Menschen, der die Zugvorschau nutzt. Aber er
+*plant keine Coils*. Ein Mensch, der das tut, dürfte also stärker sein. Deshalb
+peile ich für den Bot eher 40–60 % an und will später Schwierigkeitsstufen.
