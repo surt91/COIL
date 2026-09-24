@@ -5,6 +5,7 @@ import * as ops from '../core/ops';
 import { ENEMIES, ITEMS, item } from '../core/registry';
 import type { Action, Enemy, Fight } from '../core/types';
 import { BoardRenderer } from '../render/board';
+import { playEvents } from '../audio/audio';
 import { GlyphIcon } from './GlyphIcon';
 
 const KEY_DIRS: Record<string, Dir> = {
@@ -16,9 +17,12 @@ export interface FightViewProps {
   initial: Fight;
   title: string;
   onEnd(f: Fight): void;
+  /** Called after every committed action (saving, stats, audio). */
+  onStep?(f: Fight, undo?: boolean): void;
+  side?: preact.ComponentChildren;
 }
 
-export function FightView({ initial, title, onEnd }: FightViewProps) {
+export function FightView({ initial, title, onEnd, onStep, side }: FightViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const renderer = useRef<BoardRenderer | null>(null);
@@ -63,6 +67,8 @@ export function FightView({ initial, title, onEnd }: FightViewProps) {
     if (endsTurn) turnStart.current = next;
     setFight(next);
     renderer.current?.push(next);
+    playEvents(next.events);
+    onStep?.(next);
     if (next.status !== 'play' && !ended.current) {
       ended.current = true;
       setTimeout(() => onEnd(next), next.status === 'won' ? 350 : 1400);
@@ -86,6 +92,7 @@ export function FightView({ initial, title, onEnd }: FightViewProps) {
     setFight(f);
     setSelected(null);
     renderer.current?.set(f);
+    onStep?.(f, true);
   }
 
   function selectSlot(slot: number) {
@@ -184,6 +191,7 @@ export function FightView({ initial, title, onEnd }: FightViewProps) {
       <aside class="inspector">
         <Inspector f={f} hover={hover} />
         <MoveHint f={f} dir={hoverDir} />
+        {side}
       </aside>
       <footer class="hand">
         {[0, 1, 2].map((slot) => {

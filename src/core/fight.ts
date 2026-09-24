@@ -28,6 +28,8 @@ export interface RoomSpec {
   /** Optional explicit snake (tests): body positions head first, segment items. */
   snake?: { body: Pos[]; items?: (ItemId | null)[]; dir?: Dir };
   shuffleGenome?: boolean;
+  /** Enemy kinds to place on random free tiles away from the start. */
+  place?: string[];
 }
 
 /**
@@ -102,6 +104,19 @@ export function createFight(spec: RoomSpec): Fight {
     f.snake.dir = best;
   }
   for (const [kind, p] of enemies) ops.spawnEnemy(f, kind, p);
+  for (const kind of spec.place ?? []) {
+    const s0 = f.snake.body[0];
+    for (let tries = 0; tries < 400; tries++) {
+      const p = randomEmpty(f.rng, f);
+      if (!p) break;
+      const far = manhattan(p, s0) >= Math.max(5, 8 - tries / 50);
+      const spaced = f.enemies.every((e) => manhattan(e.pos, p) >= 2);
+      if (far && spaced && !f.spawns.some((q) => eq(q, p))) {
+        ops.spawnEnemy(f, kind, p);
+        break;
+      }
+    }
+  }
   for (const e of f.enemies) e.intent = think(f, e);
   ensureFood(f);
   return f;
@@ -319,7 +334,9 @@ function constrictPhase(f: Fight) {
   const where = new Map<number, (typeof coils)[number]>();
   for (const c of coils) for (const t of c.tiles) where.set(key(t), c);
   for (const e of f.enemies) {
-    const c = where.get(key(e.pos));
+    let c = where.get(key(e.pos));
+    const maxArea = enemyDef(e.kind).heldMaxArea;
+    if (c && maxArea !== undefined && c.area > maxArea) c = undefined;
     e.held = !!c;
     if (c) {
       if (e.intent.t === 'move') e.intent = { t: 'wait' };

@@ -48,6 +48,9 @@ export interface EnemyDef {
   spiky?: boolean;
   /** Passes over the snake body. */
   flies?: boolean;
+  boss?: boolean;
+  /** Only coils of at most this area hold (and crush) it. */
+  heldMaxArea?: number;
   signature?: ItemId;
   /** Choose the next intent. Called at the end of each enemy phase. */
   think(f: Fight, e: Enemy): Intent;

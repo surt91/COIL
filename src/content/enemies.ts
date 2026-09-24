@@ -173,3 +173,27 @@ defineEnemy({
     return { t: 'wait' };
   },
 });
+
+defineEnemy({
+  kind: 'mongoose',
+  name: 'Mongoose',
+  char: 'M',
+  hp: 14,
+  glyph: 'mongoose',
+  color: '#c9a66b',
+  text: 'Boss. Fast — moves two tiles a turn, three when wounded. Bites hard. Pounces along a line when lined up with your head. Only a tight coil (≤3 tiles) can hold it.',
+  boss: true,
+  heldMaxArea: 3,
+  think(f, e) {
+    e.mem.t = (e.mem.t ?? 0) + 1;
+    const h = ops.head(f);
+    const wounded = e.hp <= e.maxHp / 2;
+    const adj = adjacentParts(f, e.pos);
+    if (adj.length) return { t: 'lock', seg: juiciest(f, adj).uid, dmg: wounded ? 2 : 1, windup: 1, reach: 1 };
+    if (e.mem.t % 3 === 0 && (h.x === e.pos.x || h.y === e.pos.y) && manhattan(h, e.pos) <= 5) {
+      const tiles = line(f, e.pos, dirTo(e.pos, h), 5);
+      if (tiles.length) return { t: 'strike', tiles, dmg: 1 };
+    }
+    return approach(f, e, f.snake.body, wounded ? 3 : 2);
+  },
+});

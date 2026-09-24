@@ -1,0 +1,253 @@
+import { useState } from 'preact/hooks';
+import { stinger, uiClick } from '../audio/audio';
+import { EVENTS } from '../content/events';
+import { ITEMS, item } from '../core/registry';
+import {
+  ACT_NAMES, BASK_FLESH, MAP_COLS, MAP_ROWS, NodeKind, RunState, Screen,
+  bask, buy, enterNode, eventChoice, reachable, removeItem, takeReward, toMap,
+} from '../core/run';
+import type { ItemId } from '../core/types';
+import { GlyphIcon } from './GlyphIcon';
+
+type SetRun = (r: RunState) => void;
+
+export function ItemCard({ id, onClick, footer, disabled, compact }: {
+  id: ItemId; onClick?: () => void; footer?: preact.ComponentChildren; disabled?: boolean; compact?: boolean;
+}) {
+  const d = item(id);
+  return (
+    <button class={`card item-card ${disabled ? 'disabled' : ''} ${compact ? 'compact' : ''}`} style={{ '--c': d.color }} onClick={disabled ? undefined : onClick}>
+      <div class="card-top">
+        <GlyphIcon glyph={d.glyph} color={d.color} size={compact ? 22 : 30} />
+        <span class="card-name">{d.name}</span>
+        <span class={`rarity r-${d.rarity}`}>{d.rarity}</span>
+      </div>
+      {!compact && d.activeText && <div class="card-text">{d.active?.move ? <b class="tag">MOVE </b> : null}{d.activeText}</div>}
+      {!compact && d.passiveText && <div class="card-passive">Passive: {d.passiveText}</div>}
+      {footer && <div class="card-footer">{footer}</div>}
+    </button>
+  );
+}
+
+export function GenomePanel({ run }: { run: RunState }) {
+  const counts = new Map<ItemId, number>();
+  for (const g of run.genome) counts.set(g, (counts.get(g) ?? 0) + 1);
+  return (
+    <div class="genome">
+      <h3>Genome <span class="dim">({run.genome.length} items)</span></h3>
+      <div class="flesh-line"><b>{run.flesh}</b> flesh <span class="dim">— health & currency</span></div>
+      <ul>
+        {[...counts].map(([id, n]) => {
+          const d = ITEMS.get(id)!;
+          return (
+            <li title={[d.activeText, d.passiveText && `Passive: ${d.passiveText}`].filter(Boolean).join('\n')}>
+              <GlyphIcon glyph={d.glyph} color={d.color} size={20} /> {d.name}{n > 1 ? ` ×${n}` : ''}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+const NODE_ICON: Record<NodeKind, string> = {
+  fight: '⚔', elite: '☠', nest: '◉', pool: '≋', bask: '☀', event: '?', boss: '♛',
+};
+const NODE_NAME: Record<NodeKind, string> = {
+  fight: 'Fight', elite: 'Elite', nest: 'Nest (item)', pool: 'Molting Pool (shop)', bask: 'Bask (rest)', event: 'Unknown', boss: 'Boss',
+};
+
+export function MapScreen({ run, setRun }: { run: RunState; setRun: SetRun }) {
+  const reach = new Set(reachable(run));
+  const W = 520, H = 640, padX = 60, padY = 50;
+  const px = (col: number) => padX + (col / (MAP_COLS - 1)) * (W - 2 * padX);
+  const py = (row: number) => H - padY - (row / (MAP_ROWS - 1)) * (H - 2 * padY);
+  const [hover, setHover] = useState<number | null>(null);
+  const visitedPath = new Set<number>();
+  // approximate: current node and everything below it that leads to it is not tracked; highlight current
+  if (run.at !== null) visitedPath.add(run.at);
+  return (
+    <div class="screen map-screen">
+      <div class="map-col">
+        <h2>Act {run.act + 1}: {ACT_NAMES[run.act]}</h2>
+        <svg width={W} height={H} class="map">
+          {run.map.flatMap((n) =>
+            n.next.map((m) => {
+              const t = run.map[m];
+              const active = run.at === n.id && reach.has(m);
+              return <line x1={px(n.col)} y1={py(n.row)} x2={px(t.col)} y2={py(t.row)} class={`edge ${active ? 'active' : ''}`} />;
+            }),
+          )}
+          {run.map.map((n) => {
+            const can = reach.has(n.id);
+            const here = run.at === n.id;
+            const passed = run.at !== null && n.row <= run.map[run.at].row && !here;
+            return (
+              <g
+                class={`node k-${n.kind} ${can ? 'can' : ''} ${here ? 'here' : ''} ${passed ? 'passed' : ''}`}
+                transform={`translate(${px(n.col)},${py(n.row)})`}
+                onClick={() => { if (can) { uiClick(); if (n.kind === 'boss') stinger('boss'); setRun(enterNode(run, n.id)); } }}
+                onMouseEnter={() => setHover(n.id)}
+                onMouseLeave={() => setHover(null)}
+              >
+                <circle r={n.kind === 'boss' ? 26 : 18} />
+                <text dy="0.35em">{NODE_ICON[n.kind]}</text>
+              </g>
+            );
+          })}
+        </svg>
+        <div class="map-hint">{hover !== null ? NODE_NAME[run.map[hover].kind] : 'Choose your path. Paths only go upward.'}</div>
+      </div>
+      <aside class="side">
+        <GenomePanel run={run} />
+        <Legend />
+      </aside>
+    </div>
+  );
+}
+
+function Legend() {
+  return (
+    <ul class="map-legend">
+      {(Object.keys(NODE_ICON) as NodeKind[]).map((k) => (
+        <li><span class={`dot k-${k}`}>{NODE_ICON[k]}</span> {NODE_NAME[k]}</li>
+      ))}
+    </ul>
+  );
+}
+
+export function RewardScreen({ run, setRun, screen }: { run: RunState; setRun: SetRun; screen: Extract<Screen, { t: 'reward' }> }) {
+  return (
+    <div class="screen center-screen">
+      <h2>{screen.title}</h2>
+      <p class="dim">Choose an item to add to your genome. It will grow on your body in every room from now on.</p>
+      <div class="choices">
+        {screen.options.map((id, i) => (
+          <ItemCard id={id} onClick={() => { stinger('reward'); setRun(takeReward(run, i)); }} />
+        ))}
+      </div>
+      <button class="btn" onClick={() => { uiClick(); setRun(takeReward(run, null)); }}>Skip — digest it instead (+{screen.skipFlesh} flesh)</button>
+      <GenomePanel run={run} />
+    </div>
+  );
+}
+
+export function PoolScreen({ run, setRun, screen }: { run: RunState; setRun: SetRun; screen: Extract<Screen, { t: 'pool' }> }) {
+  const [removing, setRemoving] = useState(false);
+  return (
+    <div class="screen center-screen">
+      <h2>Molting Pool</h2>
+      <p class="dim">Old skins drift in the warm water. Trade flesh for new growths — or shed what you don't need. You have <b>{run.flesh}</b> flesh.</p>
+      <div class="choices">
+        {screen.stock.map((s, i) => (
+          <ItemCard
+            id={s.item}
+            disabled={s.sold || run.flesh < s.price}
+            onClick={() => { uiClick(); setRun(buy(run, i)); }}
+            footer={s.sold ? 'sold' : `${s.price} flesh`}
+          />
+        ))}
+      </div>
+      {!removing ? (
+        <button class="btn" disabled={screen.removed || run.flesh < screen.removePrice || run.genome.length <= 1} onClick={() => setRemoving(true)}>
+          {screen.removed ? 'Already shed an item here' : `Shed an item (${screen.removePrice} flesh)`}
+        </button>
+      ) : (
+        <div class="remove-pick">
+          <p>Choose an item to remove:</p>
+          <div class="choices small">
+            {run.genome.map((id, i) => (
+              <ItemCard id={id} compact onClick={() => { uiClick(); setRun(removeItem(run, i)); setRemoving(false); }} />
+            ))}
+          </div>
+          <button class="btn" onClick={() => setRemoving(false)}>Cancel</button>
+        </div>
+      )}
+      <button class="btn primary" onClick={() => { uiClick(); setRun(toMap(run)); }}>Leave</button>
+    </div>
+  );
+}
+
+export function BaskScreen({ run, setRun, screen }: { run: RunState; setRun: SetRun; screen: Extract<Screen, { t: 'bask' }> }) {
+  const [removing, setRemoving] = useState(false);
+  return (
+    <div class="screen center-screen">
+      <h2>A Warm Stone</h2>
+      <p class="dim">Sunlight falls through the leaves. You could rest here — or take the time to shed something.</p>
+      {!screen.done && !removing && (
+        <div class="choices">
+          <button class="card big-choice" onClick={() => { uiClick(); setRun(bask(run)); }}>
+            <div class="card-name">Bask</div>
+            <div class="card-text">Regrow {BASK_FLESH} flesh.</div>
+          </button>
+          <button class="card big-choice" disabled={run.genome.length <= 1} onClick={() => setRemoving(true)}>
+            <div class="card-name">Molt</div>
+            <div class="card-text">Remove an item from your genome for free.</div>
+          </button>
+        </div>
+      )}
+      {removing && !screen.done && (
+        <div class="choices small">
+          {run.genome.map((id, i) => (
+            <ItemCard id={id} compact onClick={() => { uiClick(); setRun(removeItem(run, i, true)); setRemoving(false); }} />
+          ))}
+        </div>
+      )}
+      {screen.done && <p>You feel renewed.</p>}
+      <button class="btn primary" onClick={() => { uiClick(); setRun(toMap(run)); }}>{screen.done ? 'Move on' : 'Skip'}</button>
+      <GenomePanel run={run} />
+    </div>
+  );
+}
+
+export function EventScreen({ run, setRun, screen }: { run: RunState; setRun: SetRun; screen: Extract<Screen, { t: 'event' }> }) {
+  const ev = EVENTS.find((e) => e.id === screen.id)!;
+  return (
+    <div class="screen center-screen event">
+      <h2>{ev.title}</h2>
+      <p class="event-text">{ev.text}</p>
+      {screen.result === null ? (
+        <div class="event-choices">
+          {ev.choices.map((c, i) => {
+            const ok = !c.canChoose || c.canChoose(run);
+            return (
+              <button class="btn choice" disabled={!ok} onClick={() => { uiClick(); setRun(eventChoice(run, i)); }}>
+                {c.label}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <>
+          <p class="event-result">{screen.result}</p>
+          <button class="btn primary" onClick={() => { uiClick(); setRun(toMap(run)); }}>Continue</button>
+        </>
+      )}
+      <GenomePanel run={run} />
+    </div>
+  );
+}
+
+export function EndScreen({ run, onDone }: { run: RunState; onDone: () => void }) {
+  const s = run.stats;
+  const won = run.screen.t === 'victory';
+  return (
+    <div class="screen center-screen">
+      <h1 class={won ? 'win' : 'lose'}>{won ? 'The Garden is yours' : 'Your coil unwinds'}</h1>
+      {run.screen.t === 'dead' && <p>Killed by <b>{run.screen.cause}</b> in {run.screen.where}.</p>}
+      <table class="stats">
+        <tbody>
+          <tr><td>Rooms cleared</td><td>{s.rooms}</td></tr>
+          <tr><td>Enemies killed</td><td>{s.kills}</td></tr>
+          <tr><td>…of those crushed in coils</td><td>{s.coilKills}</td></tr>
+          <tr><td>Things eaten</td><td>{s.eaten}</td></tr>
+          <tr><td>Segments lost</td><td>{s.lostSegments}</td></tr>
+          <tr><td>Turns</td><td>{s.turns}</td></tr>
+          <tr><td>Seed</td><td>{run.seed}</td></tr>
+        </tbody>
+      </table>
+      <GenomePanel run={run} />
+      <button class="btn primary" onClick={onDone}>Back to title</button>
+    </div>
+  );
+}

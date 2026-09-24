@@ -1,0 +1,331 @@
+/**
+ * Run layer: map, node flow, rewards, shop, rest and events. Pure and
+ * deterministic like the fight core — every function returns a new RunState.
+ */
+import { ENCOUNTERS, Pool } from '../content/encounters';
+import { EVENTS } from '../content/events';
+import { LAYOUTS } from '../content/layouts';
+import { createFight } from './fight';
+import { ITEMS } from './registry';
+import { Rng, chance, int, makeRng, pick, shuffle, weighted } from './rng';
+import type { Fight, FightOpts, ItemId } from './types';
+
+export type NodeKind = 'fight' | 'elite' | 'nest' | 'pool' | 'bask' | 'event' | 'boss';
+
+export interface MapNode {
+  id: number;
+  row: number;
+  col: number;
+  kind: NodeKind;
+  next: number[];
+}
+
+export interface ShopSlot { item: ItemId; price: number; sold: boolean }
+
+export type Screen =
+  | { t: 'map' }
+  | { t: 'fight'; node: number; encounter: string; layout: string; fight: Fight }
+  | { t: 'reward'; options: ItemId[]; skipFlesh: number; title: string }
+  | { t: 'pool'; stock: ShopSlot[]; removePrice: number; removed: boolean }
+  | { t: 'bask'; done: boolean }
+  | { t: 'event'; id: string; result: string | null }
+  | { t: 'victory' }
+  | { t: 'dead'; cause: string; where: string };
+
+export interface RunStats {
+  rooms: number;
+  kills: number;
+  turns: number;
+  eaten: number;
+  coilKills: number;
+  lostSegments: number;
+}
+
+export interface RunState {
+  version: 1;
+  seed: number;
+  rng: Rng;
+  act: number;
+  genome: ItemId[];
+  flesh: number;
+  map: MapNode[];
+  at: number | null;
+  screen: Screen;
+  stats: RunStats;
+  log: string[];
+}
+
+export const MAP_ROWS = 8; // rows 0..6 regular, row 7 boss
+export const MAP_COLS = 5;
+export const STARTER: ItemId[] = ['lunge', 'fang', 'scale', 'scale', 'reverse', 'rattle'];
+export const START_FLESH = 5;
+export const ACT_NAMES = ['The Garden', 'The Roots', 'The Deep'];
+
+const clone = <T>(x: T): T => structuredClone(x);
+
+export function createRun(seed: number): RunState {
+  const rng = makeRng(seed);
+  const run: RunState = {
+    version: 1,
+    seed,
+    rng,
+    act: 0,
+    genome: [...STARTER],
+    flesh: START_FLESH,
+    map: [],
+    at: null,
+    screen: { t: 'map' },
+    stats: { rooms: 0, kills: 0, turns: 0, eaten: 0, coilKills: 0, lostSegments: 0 },
+    log: [],
+  };
+  run.map = generateMap(run.rng);
+  return run;
+}
+
+// ---------------------------------------------------------------- map
+
+export function generateMap(r: Rng): MapNode[] {
+  const nodes = new Map<string, MapNode>();
+  let nextId = 0;
+  const get = (row: number, col: number) => {
+    const k = `${row},${col}`;
+    let n = nodes.get(k);
+    if (!n) {
+      n = { id: nextId++, row, col, kind: 'fight', next: [] };
+      nodes.set(k, n);
+    }
+    return n;
+  };
+  const starts = shuffle(r, [0, 1, 2, 3, 4]).slice(0, 3);
+  starts.push(pick(r, [0, 1, 2, 3, 4]));
+  for (const s of starts) {
+    let col = s;
+    let prev = get(0, col);
+    for (let row = 1; row < MAP_ROWS - 1; row++) {
+      col = Math.max(0, Math.min(MAP_COLS - 1, col + int(r, -1, 1)));
+      const n = get(row, col);
+      if (!prev.next.includes(n.id)) prev.next.push(n.id);
+      prev = n;
+    }
+  }
+  const boss = get(MAP_ROWS - 1, 2);
+  boss.kind = 'boss';
+  const all = [...nodes.values()];
+  for (const n of all) if (n.row === MAP_ROWS - 2) n.next = [boss.id];
+  // Kinds.
+  for (const n of all) {
+    if (n.kind === 'boss') continue;
+    if (n.row === 0) n.kind = 'fight';
+    else if (n.row === MAP_ROWS - 2) n.kind = 'bask';
+    else if (n.row === 3 && chance(r, 0.5)) n.kind = 'nest';
+    else {
+      const opts: [NodeKind, number][] = [['fight', 45], ['event', 20], ['pool', 12], ['nest', 7]];
+      if (n.row >= 2) opts.push(['elite', 14]);
+      if (n.row >= 3) opts.push(['bask', 8]);
+      n.kind = weighted(r, opts);
+    }
+  }
+  return all.sort((a, b) => a.id - b.id);
+}
+
+export function reachable(run: RunState): number[] {
+  if (run.at === null) return run.map.filter((n) => n.row === 0).map((n) => n.id);
+  return run.map[run.at].next;
+}
+
+// ---------------------------------------------------------------- nodes
+
+function fightOpts(pool: Pool, row: number): Partial<FightOpts> {
+  if (pool === 'boss') return { escalateFrom: 12, escalateEvery: 7 };
+  if (pool === 'elite') return { escalateFrom: 30, escalateEvery: 6 };
+  return { escalateFrom: 30 - row, escalateEvery: 6 };
+}
+
+export function startFight(run: RunState, nodeId: number, pool: Pool): RunState {
+  const encs = ENCOUNTERS.filter((e) => e.act === Math.min(run.act, 0) && e.pool === pool);
+  const enc = pick(run.rng, encs);
+  const layouts = LAYOUTS.filter((l) => (enc.layouts ? enc.layouts.includes(l.id) : !l.boss));
+  const layout = pick(run.rng, layouts);
+  const node = run.map[nodeId];
+  const fight = createFight({
+    rows: layout.rows,
+    genome: run.genome,
+    flesh: run.flesh,
+    seed: int(run.rng, 0, 2 ** 31),
+    place: enc.enemies,
+    opts: fightOpts(pool, node.row),
+  });
+  run.screen = { t: 'fight', node: nodeId, encounter: enc.id, layout: layout.id, fight };
+  return run;
+}
+
+export function enterNode(prev: RunState, nodeId: number): RunState {
+  if (!reachable(prev).includes(nodeId)) return prev;
+  const run = clone(prev);
+  run.at = nodeId;
+  const n = run.map[nodeId];
+  switch (n.kind) {
+    case 'fight':
+      return startFight(run, nodeId, n.row <= 1 ? 'easy' : 'normal');
+    case 'elite':
+      return startFight(run, nodeId, 'elite');
+    case 'boss':
+      return startFight(run, nodeId, 'boss');
+    case 'nest':
+      run.screen = { t: 'reward', options: rollItems(run.rng, 3, 'nest'), skipFlesh: 3, title: 'A nest of strange eggs' };
+      return run;
+    case 'pool':
+      run.screen = { t: 'pool', stock: rollShop(run.rng), removePrice: 3, removed: false };
+      return run;
+    case 'bask':
+      run.screen = { t: 'bask', done: false };
+      return run;
+    case 'event':
+      run.screen = { t: 'event', id: pick(run.rng, EVENTS).id, result: null };
+      return run;
+  }
+}
+
+/** Save progress inside a fight (for continue). */
+export function updateFight(prev: RunState, fight: Fight): RunState {
+  if (prev.screen.t !== 'fight') return prev;
+  return { ...prev, screen: { ...prev.screen, fight } };
+}
+
+export function finishFight(prev: RunState, fight: Fight): RunState {
+  const run = clone(prev);
+  if (run.screen.t !== 'fight') return run;
+  const node = run.map[run.screen.node];
+  const kills = countKills(fight);
+  run.stats.turns += fight.turn;
+  if (fight.status === 'dead') {
+    const d = fight.events.find((e) => e.t === 'death');
+    const layout = LAYOUTS.find((l) => l.id === (run.screen as { layout: string }).layout);
+    run.screen = { t: 'dead', cause: d && d.t === 'death' ? d.cause : 'unknown', where: layout?.name ?? '' };
+    return run;
+  }
+  run.stats.rooms++;
+  run.flesh = fight.snake.segs.filter((s) => !s.item || s.temp).length;
+  if (node.kind === 'boss') {
+    run.screen = { t: 'victory' };
+    return run;
+  }
+  const elite = node.kind === 'elite';
+  run.screen = {
+    t: 'reward',
+    options: rollItems(run.rng, 3, elite ? 'elite' : 'fight'),
+    skipFlesh: elite ? 4 : 2,
+    title: elite ? 'Elite defeated' : 'Room cleared',
+  };
+  void kills;
+  return run;
+}
+
+/** Track stats from the fight's event stream (the UI feeds every step's events). */
+export function recordEvents(prev: RunState, events: Fight['events']): RunState {
+  let changed = false;
+  const stats = { ...prev.stats };
+  let lastCause = '';
+  for (const e of events) {
+    if (e.t === 'enemyHurt') lastCause = e.cause;
+    if (e.t === 'enemyDie') {
+      stats.kills++;
+      if (lastCause === 'crush') stats.coilKills++;
+      changed = true;
+    }
+    if (e.t === 'eat') { stats.eaten++; changed = true; }
+    if (e.t === 'segLost' && e.cause !== 'cost') { stats.lostSegments++; changed = true; }
+  }
+  return changed ? { ...prev, stats } : prev;
+}
+
+function countKills(f: Fight) {
+  return f.events.filter((e) => e.t === 'enemyDie').length;
+}
+
+// ---------------------------------------------------------------- rewards
+
+type RollKind = 'fight' | 'elite' | 'nest' | 'shop';
+
+export function rollItems(r: Rng, n: number, kind: RollKind): ItemId[] {
+  const weights: Record<string, number> =
+    kind === 'fight' ? { starter: 3, common: 10, uncommon: 4, rare: 1 }
+    : kind === 'elite' ? { common: 3, uncommon: 8, rare: 4 }
+    : kind === 'nest' ? { common: 4, uncommon: 6, rare: 3 }
+    : { starter: 2, common: 8, uncommon: 5, rare: 2 };
+  const pool = [...ITEMS.values()].filter((d) => d.rarity !== 'signature' && weights[d.rarity]);
+  const out: ItemId[] = [];
+  for (let guard = 0; out.length < n && guard < 100; guard++) {
+    const d = weighted(r, pool.map((x) => [x, weights[x.rarity]] as const));
+    if (!out.includes(d.id)) out.push(d.id);
+  }
+  return out;
+}
+
+export const PRICE: Record<string, number> = { starter: 3, common: 4, uncommon: 6, rare: 9 };
+
+function rollShop(r: Rng): ShopSlot[] {
+  return rollItems(r, 4, 'shop').map((item) => ({ item, price: PRICE[ITEMS.get(item)!.rarity] ?? 5, sold: false }));
+}
+
+export function takeReward(prev: RunState, idx: number | null): RunState {
+  if (prev.screen.t !== 'reward') return prev;
+  const run = clone(prev);
+  const sc = run.screen as Extract<Screen, { t: 'reward' }>;
+  if (idx === null) run.flesh += sc.skipFlesh;
+  else run.genome.push(sc.options[idx]);
+  run.screen = { t: 'map' };
+  return run;
+}
+
+export function buy(prev: RunState, slot: number): RunState {
+  if (prev.screen.t !== 'pool') return prev;
+  const s = prev.screen.stock[slot];
+  if (!s || s.sold || prev.flesh < s.price) return prev;
+  const run = clone(prev);
+  const sc = run.screen as Extract<Screen, { t: 'pool' }>;
+  sc.stock[slot].sold = true;
+  run.flesh -= s.price;
+  run.genome.push(s.item);
+  return run;
+}
+
+export function removeItem(prev: RunState, genomeIdx: number, free = false): RunState {
+  const run = clone(prev);
+  if (run.genome.length <= 1 || genomeIdx < 0 || genomeIdx >= run.genome.length) return prev;
+  if (run.screen.t === 'pool') {
+    if (run.screen.removed || run.flesh < run.screen.removePrice) return prev;
+    run.flesh -= run.screen.removePrice;
+    run.screen.removed = true;
+  } else if (run.screen.t === 'bask') {
+    if (run.screen.done || !free) return prev;
+    run.screen.done = true;
+  } else if (!free) return prev;
+  run.genome.splice(genomeIdx, 1);
+  return run;
+}
+
+export const BASK_FLESH = 5;
+
+export function bask(prev: RunState): RunState {
+  if (prev.screen.t !== 'bask' || prev.screen.done) return prev;
+  const run = clone(prev);
+  run.flesh += BASK_FLESH;
+  (run.screen as Extract<Screen, { t: 'bask' }>).done = true;
+  return run;
+}
+
+export function eventChoice(prev: RunState, choice: number): RunState {
+  if (prev.screen.t !== 'event' || prev.screen.result !== null) return prev;
+  const ev = EVENTS.find((e) => e.id === (prev.screen as { id: string }).id)!;
+  const c = ev.choices[choice];
+  if (!c || (c.canChoose && !c.canChoose(prev))) return prev;
+  const run = clone(prev);
+  const result = c.apply(run, run.rng);
+  if (run.screen.t === 'event') run.screen.result = result;
+  return run;
+}
+
+export function toMap(prev: RunState): RunState {
+  return { ...prev, screen: { t: 'map' } };
+}
