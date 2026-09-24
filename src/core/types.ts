@@ -1,0 +1,127 @@
+import type { Dir, Pos } from './geom';
+import type { Rng } from './rng';
+
+export type ItemId = string;
+export type EnemyKind = string;
+
+/** A body segment. `uid` 0 is reserved for the head. */
+export interface Seg {
+  uid: number;
+  item: ItemId | null;
+  /** Temporary items (eaten from enemies) digest into flesh at room end. */
+  temp?: boolean;
+}
+
+/**
+ * body[0] is the head, body[i] is the position of segs[i-1].
+ * segs.length may exceed body.length - 1: the surplus is "pending" — still in
+ * the burrow at room start, or freshly grown — and appears at the tail as the
+ * snake moves.
+ */
+export interface Snake {
+  body: Pos[];
+  segs: Seg[];
+  dir: Dir;
+}
+
+export type Intent =
+  | { t: 'wait' }
+  | { t: 'move'; dir: Dir; steps: number }
+  | { t: 'strike'; tiles: Pos[]; dmg: number }
+  /** Latches onto a segment (uid). Lands if the segment is within `reach` (Chebyshev) at resolution. */
+  | { t: 'lock'; seg: number; dmg: number; sever?: boolean; windup: number; reach: number }
+  | { t: 'web'; tiles: Pos[] }
+  | { t: 'burrow' }
+  | { t: 'emerge'; at: Pos; dmg: number }
+  | { t: 'steal'; seg: number };
+
+export interface Enemy {
+  id: number;
+  kind: EnemyKind;
+  pos: Pos;
+  hp: number;
+  maxHp: number;
+  intent: Intent;
+  poison: number;
+  held: boolean;
+  /** Free-form per-enemy memory (cooldowns, phases). */
+  mem: Record<string, number>;
+}
+
+export interface Husk {
+  pos: Pos;
+  item: ItemId | null;
+  ttl: number;
+}
+
+export const enum Tile {
+  Floor = 0,
+  Wall = 1,
+  Exit = 2,
+  Burrow = 3,
+}
+
+export type FightStatus = 'play' | 'won' | 'dead';
+
+export interface Fight {
+  w: number;
+  h: number;
+  tiles: Tile[];
+  food: Pos[];
+  husks: Husk[];
+  webs: Pos[];
+  enemies: Enemy[];
+  snake: Snake;
+  turn: number;
+  /** Turns since the snake last ate. */
+  hunger: number;
+  cleared: boolean;
+  status: FightStatus;
+  tuckUsed: boolean;
+  /** Per-turn buffs from played items. */
+  buffs: { bite: number; absorb: number };
+  nextId: number;
+  rng: Rng;
+  /** Tiles the escalation spawner uses. */
+  spawns: Pos[];
+  /** Events produced by the last action (consumed by the renderer). */
+  events: GameEvent[];
+  /** Options for this fight. */
+  opts: FightOpts;
+}
+
+export interface FightOpts {
+  hungerEvery: number;
+  escalateFrom: number;
+  escalateEvery: number;
+  minFood: number;
+}
+
+export type Action =
+  | { t: 'move'; dir: Dir }
+  | { t: 'play'; slot: number; dir?: Dir }
+  | { t: 'tuck' };
+
+export type GameEvent =
+  | { t: 'move'; from: Pos; to: Pos }
+  | { t: 'eat'; at: Pos; what: 'food' | 'husk' | 'enemy' }
+  | { t: 'grow'; n: number }
+  | { t: 'bite'; enemy: number; at: Pos; dmg: number; killed: boolean }
+  | { t: 'knockback'; enemy: number; from: Pos; to: Pos }
+  | { t: 'enemyMove'; enemy: number; from: Pos; to: Pos }
+  | { t: 'enemyHurt'; enemy: number; at: Pos; dmg: number; cause: string }
+  | { t: 'enemyDie'; enemy: number; at: Pos; kind: EnemyKind }
+  | { t: 'strike'; enemy: number; tiles: Pos[] }
+  | { t: 'segLost'; at: Pos; item: ItemId | null; cause: string }
+  | { t: 'absorb'; at: Pos }
+  | { t: 'sever'; at: Pos; n: number }
+  | { t: 'fizzle'; enemy: number }
+  | { t: 'coil'; tiles: Pos[] }
+  | { t: 'play'; item: ItemId }
+  | { t: 'webbed'; at: Pos }
+  | { t: 'spawn'; enemy: number; at: Pos }
+  | { t: 'hunger'; at: Pos }
+  | { t: 'cleared' }
+  | { t: 'exit' }
+  | { t: 'death'; cause: string }
+  | { t: 'msg'; text: string };
