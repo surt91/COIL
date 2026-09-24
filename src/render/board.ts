@@ -8,6 +8,7 @@ import { Tile } from '../core/types';
 import { drawCreature } from './creatures';
 import { drawGlyph } from './glyphs';
 import { renderAscii } from './ascii';
+import { SerpentStyle, drawBody, drawHead, sampleBody } from './serpent';
 
 export const PAL = {
   bg: '#0d1321',
@@ -24,6 +25,30 @@ export const PAL = {
   husk: '#6c757d',
   web: 'rgba(210, 200, 255, 0.55)',
   text: '#e8f1f2',
+};
+
+function hexRgb(h: string): number[] {
+  const v = parseInt(h.slice(1), 16);
+  return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+}
+
+const styleCache = new Map<string, SerpentStyle>();
+function enemySnakeStyle(color: string): SerpentStyle {
+  let st = styleCache.get(color);
+  if (!st) {
+    const c = hexRgb(color);
+    st = { head: c, tail: c.map((v) => v * 0.45), outline: '#0a0610', pattern: 'rgba(20, 0, 30, 0.45)', stripe: 'rgba(255,255,255,0.12)' };
+    styleCache.set(color, st);
+  }
+  return st;
+}
+
+const SNAKE_STYLE: SerpentStyle = {
+  head: [72, 226, 186],
+  tail: [22, 110, 96],
+  outline: '#06100e',
+  pattern: 'rgba(6, 46, 38, 0.7)',
+  stripe: 'rgba(200, 255, 235, 0.18)',
 };
 
 /** Per-act terrain themes. */
@@ -540,9 +565,30 @@ export class BoardRenderer {
       ctx.fillRect(X - T * 0.6, Y - T * 0.6, T * 1.2, T * 1.2);
       ctx.save();
       ctx.translate(X, Y);
+      if (e.body) {
+        // Snakes face along their own body, away from the neck.
+        const nb = e.body[0];
+        ctx.rotate(nb ? Math.atan2(e.pos.y - nb.y, e.pos.x - nb.x) : Math.atan2(head.y - e.pos.y, head.x - e.pos.x));
+        drawHead(ctx, T, enemySnakeStyle(d?.color ?? '#e056fd'), now + e.id * 777, { crown: e.kind === 'ouroboros', eye: '#ff5d73' });
+        ctx.restore();
+        this.drawEnemyHud(e, X, Y, d, now);
+        continue;
+      }
       ctx.rotate(Math.atan2(head.y - e.pos.y, head.x - e.pos.x));
       drawCreature(ctx, e.kind, T, d?.color ?? '#fff', now / 1000 + e.id, (e.mem.curled ?? 0) > 0);
       ctx.restore();
+      this.drawEnemyHud(e, X, Y, d, now);
+      if (this.hover && eq(this.hover, e.pos)) {
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(this.ox + e.pos.x * T + 1, this.oy + e.pos.y * T + 1, T - 2, T - 2);
+      }
+    }
+  }
+
+  private drawEnemyHud(e: Enemy, X: number, Y: number, d: ReturnType<typeof ENEMIES.get>, now: number) {
+    const ctx = this.ctx, T = this.T;
+    void now;
       // HP pips (a number for big ones)
       if (e.maxHp <= 6) {
         for (let i = 0; i < e.maxHp; i++) {
@@ -583,41 +629,20 @@ export class BoardRenderer {
           ctx.stroke();
         }
       }
-      if (this.hover && eq(this.hover, e.pos)) {
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(this.ox + e.pos.x * T + 1, this.oy + e.pos.y * T + 1, T - 2, T - 2);
-      }
-    }
   }
 
   private drawEnemySnake(e: Enemy, head: { x: number; y: number }, color: string, now: number) {
-    const ctx = this.ctx, T = this.T;
+    const T = this.T;
     const prev = this.prev?.enemies.find((x) => x.id === e.id)?.body;
+    const t = this.instant ? 1 : ease(Math.min(1, (now - this.animStart) / this.animDur));
     const pts = [head, ...e.body!.map((b, i) => {
       const a = prev?.[i];
       if (!a || Math.abs(a.x - b.x) + Math.abs(a.y - b.y) > 1) return b;
-      const t = this.instant ? 1 : ease(Math.min(1, (now - this.animStart) / this.animDur));
       return { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) };
-    })];
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    for (const [w, c] of [[T * 0.56, PAL.outline], [T * 0.5, color]] as const) {
-      for (let i = pts.length - 1; i > 0; i--) {
-        ctx.strokeStyle = c;
-        ctx.lineWidth = w * lerp(1, 0.6, i / pts.length);
-        ctx.beginPath();
-        ctx.moveTo(this.cx(pts[i].x), this.cy(pts[i].y));
-        ctx.lineTo(this.cx(pts[i - 1].x), this.cy(pts[i - 1].y));
-        ctx.stroke();
-      }
-    }
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
-    for (let i = 1; i < pts.length; i++) {
-      ctx.beginPath();
-      ctx.arc(this.cx(pts[i].x), this.cy(pts[i].y), T * 0.09, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    })].map((q) => ({ x: this.cx(q.x), y: this.cy(q.y) }));
+    const n = pts.length;
+    const samples = sampleBody(pts, (u) => lerp(0.56, 0.32, n > 1 ? u / (n - 1) : 0) * T, T * 0.03, now + e.id * 777, T * 0.4);
+    drawBody(this.ctx, samples, n, enemySnakeStyle(color));
   }
 
   private drawLocks(f: Fight, pts: { x: number; y: number }[], now: number) {
@@ -732,48 +757,28 @@ export class BoardRenderer {
   private drawSnake(f: Fight, pts: { x: number; y: number }[], now: number) {
     const ctx = this.ctx, T = this.T;
     const n = pts.length;
-    const width = (i: number) => {
-      let w = lerp(0.62, 0.34, n > 1 ? i / (n - 1) : 0) * T;
+    const width = (t: number) => {
+      // Narrow neck, thickest around a third of the way back, tapering tail.
+      const u = n > 1 ? t / (n - 1) : 0;
+      const neck = Math.min(1, t / 1.2);
+      let w = (lerp(0.46, 0.64, neck) * (1 - u) + 0.36 * u) * T;
       for (const b of this.bulges) {
-        const pos = ((now - b.start) / 70);
-        const d = Math.abs(i - pos);
+        const d = Math.abs(t - (now - b.start) / 70);
         if (d < 1.5) w *= 1 + 0.35 * (1 - d / 1.5);
       }
       return w;
     };
     this.bulges = this.bulges.filter((b) => (now - b.start) / 70 < n + 2);
-    const sway = (i: number) => Math.sin(now / 400 + i * 0.9) * 0.02 * T;
-    const P = (i: number) => ({ x: this.cx(pts[i].x), y: this.cy(pts[i].y) + (i > 0 ? sway(i) : 0) });
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+    const px = pts.map((q) => ({ x: this.cx(q.x), y: this.cy(q.y) }));
+    const samples = sampleBody(px, width, T * 0.035, now, T * 0.45);
+    // Item badges and the head sit on the swaying centreline.
+    const onBody = (i: number) => {
+      const s = samples.find((x) => x.t >= i) ?? samples[samples.length - 1];
+      return s ? { x: s.x, y: s.y } : px[i];
+    };
+    const P = (i: number) => (i === 0 || !samples.length ? px[i] : onBody(i));
     if (f.status === 'dead') ctx.globalAlpha = 0.5;
-    // outline
-    for (let i = n - 1; i > 0; i--) {
-      const a = P(i), b = P(i - 1);
-      ctx.strokeStyle = PAL.outline;
-      ctx.lineWidth = width(i) + 4;
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.stroke();
-    }
-    for (let i = n - 1; i > 0; i--) {
-      const a = P(i), b = P(i - 1);
-      ctx.strokeStyle = mix(PAL.snake, PAL.snakeTail, i / Math.max(1, n - 1));
-      ctx.lineWidth = width(i);
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.stroke();
-    }
-    // dorsal pattern
-    for (let i = 1; i < n; i++) {
-      const a = P(i);
-      ctx.fillStyle = 'rgba(255,255,255,0.12)';
-      ctx.beginPath();
-      ctx.arc(a.x, a.y, width(i) * 0.18, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    drawBody(ctx, samples, n, SNAKE_STYLE);
     // items
     const handIdx = ops.hand(f);
     f.snake.segs.forEach((s, k) => {
@@ -821,38 +826,7 @@ export class BoardRenderer {
     ctx.save();
     ctx.translate(h.x, h.y);
     ctx.rotate(ang);
-    ctx.fillStyle = PAL.outline;
-    ctx.beginPath();
-    ctx.ellipse(T * 0.04, 0, T * 0.4, T * 0.34, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = mix(PAL.snake, [120, 240, 210], 0.3);
-    ctx.beginPath();
-    ctx.ellipse(T * 0.04, 0, T * 0.37, T * 0.31, 0, 0, Math.PI * 2);
-    ctx.fill();
-    const blink = Math.sin(now / 1700) > 0.985;
-    for (const s of [-1, 1]) {
-      ctx.fillStyle = '#f1faee';
-      ctx.beginPath();
-      ctx.ellipse(T * 0.16, s * T * 0.14, T * 0.09, blink ? T * 0.015 : T * 0.08, 0, 0, Math.PI * 2);
-      ctx.fill();
-      if (!blink) {
-        ctx.fillStyle = '#0d1321';
-        ctx.beginPath();
-        ctx.ellipse(T * 0.19, s * T * 0.14, T * 0.03, T * 0.065, 0, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    if (Math.sin(now / 900) > 0.93) {
-      ctx.strokeStyle = PAL.danger;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(T * 0.4, 0);
-      ctx.lineTo(T * 0.58, 0);
-      ctx.lineTo(T * 0.66, -T * 0.06);
-      ctx.moveTo(T * 0.58, 0);
-      ctx.lineTo(T * 0.66, T * 0.06);
-      ctx.stroke();
-    }
+    drawHead(ctx, T, SNAKE_STYLE, now);
     ctx.restore();
     ctx.globalAlpha = 1;
     // pending segments count at the burrow
