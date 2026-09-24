@@ -21,7 +21,7 @@ function juiciest(f: Fight, parts: { uid: number; bi: number }[]) {
 
 const approach = (f: Fight, e: Enemy, goals: Pos[], steps = 1): Intent => {
   const d = ops.pathStep(f, e.pos, goals);
-  return d === null ? { t: 'wait' } : { t: 'move', dir: d, steps };
+  return d === null ? { t: 'wait' } : { t: 'move', dir: d, steps, chase: steps > 1 };
 };
 
 function retreat(f: Fight, e: Enemy, from: Pos): Intent {

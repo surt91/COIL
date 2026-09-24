@@ -26,7 +26,8 @@ export interface Snake {
 
 export type Intent =
   | { t: 'wait' }
-  | { t: 'move'; dir: Dir; steps: number }
+  /** `chase`: steps after the first re-path toward the snake. */
+  | { t: 'move'; dir: Dir; steps: number; chase?: boolean }
   | { t: 'strike'; tiles: Pos[]; dmg: number }
   /** Latches onto a segment (uid). Lands if the segment is within `reach` (Chebyshev) at resolution. */
   | { t: 'lock'; seg: number; dmg: number; sever?: boolean; windup: number; reach: number }

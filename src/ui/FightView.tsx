@@ -7,6 +7,7 @@ import type { Action, Enemy, Fight } from '../core/types';
 import { BoardRenderer } from '../render/board';
 import { playEvents } from '../audio/audio';
 import { GlyphIcon } from './GlyphIcon';
+import { Tip, markSeen, nextTip } from './tips';
 
 const KEY_DIRS: Record<string, Dir> = {
   ArrowUp: 0, ArrowRight: 1, ArrowDown: 2, ArrowLeft: 3,
@@ -33,6 +34,7 @@ export function FightView({ initial, title, onEnd, onStep, side }: FightViewProp
   const selectedRef = useRef(selected);
   const [hover, setHover] = useState<Pos | null>(null);
   const ended = useRef(false);
+  const [tip, setTip] = useState<Tip | null>(() => nextTip(initial));
   selectedRef.current = selected;
 
   // Renderer lifecycle + animation loop.
@@ -69,6 +71,10 @@ export function FightView({ initial, title, onEnd, onStep, side }: FightViewProp
     renderer.current?.push(next);
     playEvents(next.events);
     onStep?.(next);
+    setTip((t) => {
+      if (t) markSeen(t.id);
+      return nextTip(next);
+    });
     if (next.status !== 'play' && !ended.current) {
       ended.current = true;
       setTimeout(() => onEnd(next), next.status === 'won' ? 350 : 1400);
@@ -187,6 +193,11 @@ export function FightView({ initial, title, onEnd, onStep, side }: FightViewProp
       </header>
       <div class="board-wrap" ref={wrapRef}>
         <canvas ref={canvasRef} onMouseMove={onMove} onMouseLeave={() => setHover(null)} onClick={onClick} />
+        {tip && (
+          <div class="tip" onClick={() => { markSeen(tip.id); setTip(nextTip(fightRef.current)); }}>
+            <span class="tip-label">Tip</span> {tip.text} <span class="dim">(click to dismiss)</span>
+          </div>
+        )}
       </div>
       <aside class="inspector">
         <Inspector f={f} hover={hover} />

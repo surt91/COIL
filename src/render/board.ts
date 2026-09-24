@@ -237,6 +237,15 @@ export class BoardRenderer {
           ctx.beginPath();
           ctx.arc(X + T / 2, Y + T / 2, Math.max(1, T * 0.035), 0, Math.PI * 2);
           ctx.fill();
+          if (f.spawns.some((q) => q.x === x && q.y === y)) {
+            ctx.fillStyle = '#0a1019';
+            ctx.beginPath();
+            ctx.ellipse(X + T / 2, Y + T / 2, T * 0.26, T * 0.18, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(141, 110, 99, 0.6)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          }
           if (t === Tile.Exit || t === Tile.Burrow) {
             const open = t === Tile.Exit && f.cleared;
             ctx.fillStyle = t === Tile.Burrow ? '#050a12' : open ? '#0a0f18' : '#1c2a3a';
@@ -278,7 +287,10 @@ export class BoardRenderer {
   }
 
   private drawCoils(f: Fight, now: number) {
-    for (const c of computeCoils(f)) this.hatch(c.tiles, PAL.coil, 0.45, now);
+    for (const c of computeCoils(f)) {
+      const occupied = c.tiles.some((t) => f.enemies.some((e) => eq(e.pos, t)));
+      this.hatch(c.tiles, PAL.coil, occupied ? 0.5 : 0.14, now);
+    }
   }
 
   private drawWebsFoodHusks(f: Fight, now: number) {

@@ -204,3 +204,11 @@ kbd {
 h1.win { color: var(--gold); }
 h1.lose { color: var(--red); }
 .mute { position: fixed; right: 12px; bottom: 12px; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; cursor: pointer; z-index: 10; }
+.tip {
+  position: absolute; left: 50%; top: 12px; transform: translateX(-50%);
+  max-width: min(640px, 90%); padding: 10px 16px; border-radius: 10px;
+  background: rgba(17, 26, 43, 0.94); border: 1px solid var(--gold);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); font-size: 14px; line-height: 1.45;
+  cursor: pointer; z-index: 5;
+}
+.tip-label { color: var(--gold); font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: 0.1em; margin-right: 6px; }

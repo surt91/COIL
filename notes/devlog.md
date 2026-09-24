@@ -88,3 +88,47 @@ Und der Schaden skaliert mit der Enge (1 Feld → 3/Zug, 9–12 Felder → nur f
 - Genom = persistentes Deck; Items kommen jeden Raum zurück, Fleisch nicht (Attrition).
 
 Designdokument → v2.
+
+## 2026-09-24 — Vom Regelwerk zum spielbaren Run
+
+**Ein Geometrie-Bug im Design, gefunden beim Coden, nicht beim Spielen:**
+Segment-Locks sollten landen, wenn das Segment "noch benachbart" ist. Aber: Die
+vier orthogonalen Nachbarn eines Feldes sind *untereinander nie* orthogonal
+benachbart. Da jedes Segment jeden Zug genau ein Feld weiterrutscht, hätte ein
+Lock mit Reichweite 1 (Manhattan) *immer* verfehlt — und mit Reichweite 2
+*immer* getroffen. Lösung: Chebyshev-Distanz (8er-Nachbarschaft). Jetzt trifft
+ein Lock, wenn der Körper an dieser Stelle um den Gegner *herumläuft*, und
+verfehlt, wenn er sich *wegbewegt*. Genau das wollte ich: Positionierung zählt.
+Nebeneffekt: Ein Lock auf den *Kopf* ist kaum ausweichbar (alle Ausweichfelder
+liegen diagonal in Reichweite) → man muss zurückbeißen. Das ist die Frage, die
+der Käfer stellen soll: "Unterbrichst du rechtzeitig?"
+
+**Diagonale Lücken im Coil:** Mein erster Test schlug fehl, weil ich eine
+diagonale Lücke für "offen" hielt. Da Gegner sich nur orthogonal bewegen, ist
+sie aber dicht. Der Test war falsch, nicht der Code.
+
+**Der pure Kern zahlt sich sofort aus:**
+- Die Zugvorschau im UI ist einfach `step(fight, move)` — sie zeigt *exakt*,
+  welche Segmente verloren gehen, ob man stirbt, welche Coils entstehen.
+- Undo = alten State behalten.
+- Speichern = `JSON.stringify(run)`, inklusive laufendem Kampf.
+- Ein ASCII-Renderer + 40-Zeilen-CLI (`scripts/play.ts`) lassen mich das Spiel
+  im Terminal spielen. (Und er wird später der "ncurses-Skin" als Nod an den
+  allerersten C-Klon des Auftraggebers.)
+
+**Erste eigene Testpartie (im Terminal):**
+```
+#...#.1@!r..#...#     Frosch telegraphiert Zunge auf (8,4),(7,4),(6,4).
+#.....2.........#     Egal wohin ich ziehe: mein Nacken rutscht auf (7,4).
+oooo++3..........     Carapace (vom gefressenen Käfer) schluckt den Treffer.
+```
+Der Frosch fragt "Bist du zu gerade?" — und die Antwort war ja.
+
+**Parallelisierung:** Zwei Subagenten bauen nebenher unabhängige Module:
+Sound-Synthese (WebAudio, keine Assets) und einen headless Balancing-Bot.
+Ich baue derweil die Run-Struktur (Karte à la Slay the Spire, Belohnungen,
+Molting Pool als Shop, der mit *Fleisch* bezahlt wird, Events, Mungo-Boss).
+
+**Tutorial-Entscheidung:** Statt geskripteter Tutorial-Räume kontextuelle
+Tipps, die genau einmal erscheinen, wenn eine Mechanik zum ersten Mal auftaucht
+(erster Lock, erste Zungenlinie, erster Coil, erster Hunger …).

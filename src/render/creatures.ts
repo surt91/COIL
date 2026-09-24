@@ -181,6 +181,49 @@ export function drawCreature(ctx: G, kind: string, T: number, color: string, t: 
       ctx.fill();
       break;
     }
+    case 'mongoose': {
+      const sw = Math.sin(t * 5) * 0.12;
+      // bushy tail
+      ctx.fillStyle = '#8c6d45';
+      ctx.beginPath();
+      ctx.moveTo(-T * 0.2, 0);
+      ctx.quadraticCurveTo(-T * 0.5, T * (0.35 + sw), -T * 0.62, T * (0.05 + sw));
+      ctx.quadraticCurveTo(-T * 0.5, -T * 0.05, -T * 0.2, -T * 0.08);
+      ctx.fill();
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.ellipse(-T * 0.02, 0, T * 0.34, T * 0.19, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // stripes
+      ctx.strokeStyle = 'rgba(60, 40, 20, 0.45)';
+      ctx.lineWidth = T * 0.03;
+      for (let i = 0; i < 4; i++) {
+        const x = -T * 0.22 + i * T * 0.1;
+        ctx.beginPath();
+        ctx.moveTo(x, -T * 0.16);
+        ctx.lineTo(x + T * 0.03, T * 0.16);
+        ctx.stroke();
+      }
+      // head + snout
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.ellipse(T * 0.33, 0, T * 0.15, T * 0.12, 0, 0, Math.PI * 2);
+      ctx.fill();
+      poly3(ctx, [T * 0.58, 0], [T * 0.4, -T * 0.08], [T * 0.4, T * 0.08]);
+      ctx.fill();
+      ctx.fillStyle = '#2b1d10';
+      ctx.beginPath();
+      ctx.arc(T * 0.58, 0, T * 0.03, 0, Math.PI * 2);
+      ctx.fill();
+      eyes(ctx, T * 0.38, T * 0.07, T * 0.028);
+      ctx.fillStyle = '#8c6d45';
+      for (const s of [-1, 1]) {
+        ctx.beginPath();
+        ctx.arc(T * 0.27, s * T * 0.12, T * 0.045, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
     default: {
       ctx.fillStyle = color;
       ctx.beginPath();

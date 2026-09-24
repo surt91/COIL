@@ -389,7 +389,10 @@ function resolveIntent(f: Fight, e: Enemy): boolean {
     case 'move': {
       if (e.held) return false;
       for (let i = 0; i < it.steps; i++) {
-        const to = stepPos(e.pos, it.dir);
+        let dir: Dir | null = it.dir;
+        if (i > 0 && it.chase) dir = ops.pathStep(f, e.pos, f.snake.body, d.flies);
+        if (dir === null) break;
+        const to = stepPos(e.pos, dir);
         if (!ops.freeForEnemy(f, to, d.flies)) break;
         ops.emit(f, { t: 'enemyMove', enemy: e.id, from: { ...e.pos }, to });
         e.pos = to;
