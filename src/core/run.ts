@@ -66,6 +66,8 @@ export interface RunState {
   screen: Screen;
   stats: RunStats;
   log: string[];
+  /** Visited node ids this act. */
+  path?: number[];
 }
 
 export const MAP_ROWS = 10; // rows 0..8 regular, row 9 boss
@@ -192,6 +194,7 @@ export function enterNode(prev: RunState, nodeId: number): RunState {
   if (!reachable(prev).includes(nodeId)) return prev;
   const run = clone(prev);
   run.at = nodeId;
+  run.path = [...(run.path ?? []), nodeId];
   const n = run.map[nodeId];
   switch (n.kind) {
     case 'fight':
@@ -249,6 +252,7 @@ export function finishFight(prev: RunState, fight: Fight): RunState {
     run.act++;
     run.map = generateMap(run.rng);
     run.at = null;
+    run.path = [];
     run.flesh = Math.min(fleshCap(run), run.flesh + ACT_HEAL);
     return run;
   }

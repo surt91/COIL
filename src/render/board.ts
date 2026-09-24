@@ -61,6 +61,7 @@ export class BoardRenderer {
   private bulges: { start: number }[] = [];
   private lastHeadAngle = 0;
   private attacks = new Map<number, { to: Pos; start: number }>();
+  private hitStop = 0;
 
   hover: Pos | null = null;
   preview: Fight | null = null;
@@ -147,12 +148,23 @@ export class BoardRenderer {
       case 'enemyDie': {
         const d = ENEMIES.get(e.kind);
         this.burst(e.at, d?.color ?? '#fff', 22, 4, 3.5);
+        if (d?.boss) {
+          this.burst(e.at, PAL.food, 80, 9, 4);
+          this.burst(e.at, '#ffffff', 40, 6, 3);
+          this.shake = 22;
+          this.float({ x: e.at.x, y: e.at.y - 1 }, `${d.name.toUpperCase()} FALLS`, PAL.food, true);
+          this.hitStop = performance.now() + 350;
+        }
         break;
       }
       case 'segLost':
         this.burst(e.at, PAL.danger, 16, 4, 3);
         this.burst(e.at, mix(PAL.snake, PAL.snake, 0), 8, 2, 3);
-        if (e.item) this.float(e.at, `${ITEMS.get(e.item)?.name ?? e.item} lost`, PAL.danger);
+        if (e.item) {
+          const d = ITEMS.get(e.item);
+          this.burst(e.at, d?.color ?? '#fff', 18, 5, 3.5);
+          this.float(e.at, `${d?.name ?? e.item} lost!`, '#ff8fa3', true);
+        }
         else if (e.cause === 'hunger') this.float(e.at, 'starving', '#f4a261');
         this.shake = Math.max(this.shake, 6);
         break;
@@ -182,7 +194,7 @@ export class BoardRenderer {
         this.burst(e.at, '#8d6e63', 12, 2);
         break;
       case 'cleared':
-        this.float({ x: f.w / 2 - 0.5, y: f.h / 2 - 0.5 }, 'Room cleared — find an exit', PAL.food, true);
+        this.float({ x: f.w / 2 - 0.5, y: 0.6 }, 'Room cleared — the exits are open', PAL.food, true);
         break;
       case 'death':
         this.shake = 16;
@@ -215,6 +227,7 @@ export class BoardRenderer {
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     if (!f) return;
     if (this.terminal) return this.drawTerminal(f, now);
+    if (now < this.hitStop) this.animStart = now; // freeze the animation for a beat
     const k = Math.max(1, f.events.filter((e) => e.t === 'move').length);
     const dur = this.animDur * (1 + (k - 1) * 0.6);
     const p = this.instant || !this.prev ? 1 : ease(Math.min(1, (now - this.animStart) / dur));
@@ -255,7 +268,7 @@ export class BoardRenderer {
     ctx.textBaseline = 'middle';
     const color = (c: string) =>
       c === '#' ? '#1f7a1f' : c === '@' ? '#b6ff9e' : /[123]/.test(c) ? '#ffe066' : c === '+' ? '#7fd1ff' : c === 'o' ? '#5fdc5f'
-      : c === '*' ? '#ff5555' : c === '!' ? '#ff3030' : c === ':' ? '#c77dff' : c === '.' ? '#133313' : /[a-zA-Z]/.test(c) ? '#ff9f40' : '#8f8';
+      : c === '*' ? '#ffd166' : c === '!' ? '#ff3030' : c === ':' ? '#c77dff' : c === '.' ? '#133313' : /[a-zA-Z]/.test(c) ? '#ff9f40' : '#8f8';
     lines.forEach((line, y) => {
       [...line].forEach((c, x) => {
         ctx.fillStyle = color(c);
@@ -315,8 +328,17 @@ export class BoardRenderer {
             ctx.ellipse(X + T / 2, Y + T / 2, T * 0.38, T * 0.3, 0, 0, Math.PI * 2);
             ctx.fill();
             if (t === Tile.Exit) {
-              ctx.strokeStyle = open ? `rgba(255, 209, 102, ${0.5 + 0.4 * Math.sin(now / 250)})` : 'rgba(120,140,160,0.4)';
-              ctx.lineWidth = 2;
+              if (open) {
+                const g = ctx.createRadialGradient(X + T / 2, Y + T / 2, 0, X + T / 2, Y + T / 2, T * 1.3);
+                g.addColorStop(0, `rgba(255, 209, 102, ${0.45 + 0.15 * Math.sin(now / 250)})`);
+                g.addColorStop(1, 'rgba(255, 209, 102, 0)');
+                ctx.fillStyle = g;
+                ctx.fillRect(X - T, Y - T, T * 3, T * 3);
+                ctx.beginPath();
+                ctx.ellipse(X + T / 2, Y + T / 2, T * 0.38, T * 0.3, 0, 0, Math.PI * 2);
+              }
+              ctx.strokeStyle = open ? PAL.food : 'rgba(120,140,160,0.4)';
+              ctx.lineWidth = open ? 3 : 2;
               ctx.stroke();
             }
           }
@@ -498,6 +520,11 @@ export class BoardRenderer {
           }
         }
       }
+      const halo = ctx.createRadialGradient(X, Y, T * 0.1, X, Y, T * 0.55);
+      halo.addColorStop(0, 'rgba(255,255,255,0.10)');
+      halo.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = halo;
+      ctx.fillRect(X - T * 0.6, Y - T * 0.6, T * 1.2, T * 1.2);
       ctx.save();
       ctx.translate(X, Y);
       ctx.rotate(Math.atan2(head.y - e.pos.y, head.x - e.pos.x));

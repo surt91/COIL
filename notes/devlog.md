@@ -185,3 +185,36 @@ Interessant: Der Bot kennt alle Telegraphen und rechnet 2 Züge voraus — das
 entspricht einem sorgfältigen Menschen, der die Zugvorschau nutzt. Aber er
 *plant keine Coils*. Ein Mensch, der das tut, dürfte also stärker sein. Deshalb
 peile ich für den Bot eher 40–60 % an und will später Schwierigkeitsstufen.
+
+## 2026-09-24 — Ein Playtester-Agent im echten Browser
+
+Ein Subagent hat das Spiel ~16 Minuten lang per Playwright gespielt (Tastatur,
+Maus, Screenshots, die er sich *angesehen* hat): einen ganzen Akt-1-Run inkl.
+Mongoose, Debug-Kämpfe gegen alle Gegner, beide Auflösungen, Terminal-Skin.
+Die besten Funde — Dinge, die weder Tests noch Bot finden konnten:
+
+- **"Bask" heilte nichts** — weil der Fleisch-Cap aktiv war, aber nirgends
+  angezeigt wurde. Die UI sagte "Regrow 5 flesh… You feel renewed."
+- **Zwei verschiedene Fleisch-Zahlen** gleichzeitig auf dem Schirm (im Raum vs.
+  mitgebracht).
+- **Die Mungo-Schleife:** Den Boss an eine Wand drücken und 12 Züge lang
+  beißen. Jeder Biss unterbricht, er kommt nie zum Zug. → Unterbrechung nur noch,
+  wenn der Rückstoß *gelingt*; eingeklemmte Gegner und Bosse behalten ihre Absicht.
+  Das macht aus einem Exploit eine Positionsfrage: *Wohin* beiße ich ihn?
+- **Der Käfer am Eingang,** der jedes auftauchende Item frisst. Nicht
+  ausweichbar, schlimmstes Erlebnis des Tests. → Die Baumündung ist sicher,
+  solange man noch herauskriecht.
+- Violette Bögen (Wrap) nirgends erklärt; Ausgänge schwer zu finden;
+  Tipps verdecken Gegner; Rot wurde doch für Gegner verwendet (Ameisen,
+  Königin) — gegen meine eigene Designregel.
+
+Der Bot hat danach die Balance der Änderungen gemessen: Die Interrupt-Änderung
+allein drückte die Bot-Siegquote von 58 % auf 23 %. Nach Nachjustieren
+(Hunger 14, Boss-HP, Schildkröte: Bisse max. 1 statt immun, Elstern entkommen
+nach 3 Zügen statt ewig zu fliehen — die Ursache fast aller Patt-Kämpfe)
+landet sie bei ~45–60 %, Crush-Anteil ~30 %.
+
+**Beobachtung zum Prozess:** Drei Arten von Tests finden drei Arten von
+Fehlern. Unit-/Fuzz-Tests: Regel-Inkonsistenzen (Überlappungen, Softlocks).
+Bot-Simulation: Balance und degenerierte Dynamiken (Tretmühlen, Patts).
+Browser-Playtester: alles, was mit *Wahrnehmung* zu tun hat.

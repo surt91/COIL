@@ -155,7 +155,7 @@ defineEnemy({
   char: 's',
   hp: 2,
   glyph: 'spider',
-  color: '#7d6b91',
+  color: '#8d7b68',
   text: 'Keeps its distance and spins webs ahead of you. A webbed head loses its move. Webs also count as walls for your coils.',
   signature: 'silk',
   think(f, e) {

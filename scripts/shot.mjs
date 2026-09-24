@@ -4,7 +4,7 @@ import { chromium } from 'playwright';
 
 const [url, out, ...actions] = process.argv.slice(2);
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium' });
-const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+const page = await browser.newPage({ viewport: { width: Number(process.env.W ?? 1400), height: Number(process.env.H ?? 900) } });
 const logs = [];
 page.on('console', (m) => logs.push(`[${m.type()}] ${m.text()}`));
 page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`));

@@ -65,6 +65,7 @@ defineItem({
   rarity: 'starter',
   activeText: 'Move: dash 2 tiles straight. The second step bites for +1.',
   active: {
+    requires: 'Needs a free tile ahead in that direction.',
     target: 'dir',
     move: true,
     canPlay: (f, a) => firstStepOk(f, a.dir),
@@ -111,6 +112,7 @@ defineItem({
     for (const e of f.enemies) if (manhattan(e.pos, p) === 1) e.poison++;
   },
   active: {
+    requires: 'Needs an enemy in a straight line (4 tiles) — pick that direction.',
     target: 'dir',
     canPlay: (f, a) => a.dir !== undefined && !!firstInLine(f, a.dir, 4),
     play(f, a) {
@@ -172,6 +174,7 @@ defineItem({
   rarity: 'common',
   activeText: 'Swap head and tail. Your hand changes!',
   active: {
+    requires: 'Needs your whole body out of the burrow and at least 3 segments.',
     target: 'none',
     canPlay: (f) => ops.pending(f) === 0 && f.snake.body.length > 3,
     play(f) {
@@ -242,6 +245,7 @@ defineItem({
   rarity: 'uncommon',
   activeText: 'Swallow an adjacent enemy with ≤2 HP whole: +2 flesh.',
   active: {
+    requires: 'Needs an adjacent enemy with 2 HP or less.',
     target: 'dir',
     canPlay(f, a) {
       if (a.dir === undefined) return false;
@@ -283,6 +287,7 @@ defineItem({
   passiveText: 'While your tail tip touches your head, your coils crush for +2.',
   activeText: 'Every coiled or wrapped enemy takes 4.',
   active: {
+    requires: 'Needs a coiled or wrapped enemy.',
     target: 'none',
     canPlay: (f) => f.enemies.some((e) => e.held || f.snake.body.filter((b) => chebyshev(b, e.pos) === 1).length >= 4),
     play(f) {
@@ -305,6 +310,7 @@ defineItem({
   rarity: 'uncommon',
   activeText: 'Move: take 3 random self-avoiding steps. (A nod to smart kinetic walks.)',
   active: {
+    requires: 'Needs a free tile next to your head.',
     target: 'none',
     move: true,
     canPlay: (f) => DIRS.some((d) => firstStepOk(f, d)),
@@ -355,6 +361,7 @@ defineItem({
   rarity: 'signature',
   activeText: 'The first enemy in line (5 tiles) takes 2.',
   active: {
+    requires: 'Needs an enemy in a straight line (5 tiles).',
     target: 'dir',
     canPlay: (f, a) => a.dir !== undefined && !!firstInLine(f, a.dir, 5),
     play(f, a) {
@@ -372,6 +379,7 @@ defineItem({
   rarity: 'signature',
   activeText: 'Deal 3 to the first enemy within 2 tiles in a direction.',
   active: {
+    requires: 'Needs an enemy within 2 tiles in a straight line.',
     target: 'dir',
     canPlay: (f, a) => a.dir !== undefined && !!firstInLine(f, a.dir, 2),
     play(f, a) {
@@ -405,11 +413,12 @@ defineItem({
 defineItem({
   id: 'strike',
   name: 'Coiled Strike',
-  glyph: 'fang',
+  glyph: 'strike',
   color: '#ff8fab',
   rarity: 'common',
   activeText: 'Bite an adjacent enemy in any direction for 2 — without moving.',
   active: {
+    requires: 'Needs an adjacent enemy.',
     target: 'dir',
     canPlay: (f, a) => a.dir !== undefined && !!ops.enemyAt(f, step(ops.head(f), a.dir)),
     play(f, a) {
@@ -425,11 +434,12 @@ defineItem({
 defineItem({
   id: 'sprint',
   name: 'Sprint',
-  glyph: 'lunge',
+  glyph: 'sprint',
   color: '#90dbf4',
   rarity: 'common',
   activeText: 'Move: slither up to 3 tiles straight ahead.',
   active: {
+    requires: 'Needs a free tile ahead in that direction.',
     target: 'dir',
     move: true,
     canPlay: (f, a) => firstStepOk(f, a.dir),
@@ -445,7 +455,7 @@ defineItem({
 defineItem({
   id: 'reserve',
   name: 'Fat Reserve',
-  glyph: 'heart',
+  glyph: 'reserve',
   color: '#ffc8dd',
   rarity: 'common',
   activeText: 'Grow 2 flesh and reset your hunger.',
@@ -463,11 +473,12 @@ defineItem({
 defineItem({
   id: 'acid',
   name: 'Digestive Acid',
-  glyph: 'venom',
+  glyph: 'acid',
   color: '#caffbf',
   rarity: 'uncommon',
   activeText: 'Every enemy in your coils takes 2 and gets 2 poison.',
   active: {
+    requires: 'Needs an enemy inside one of your coils.',
     target: 'none',
     canPlay: (f) => computeCoils(f).some((c) => c.tiles.some((t) => f.enemies.some((e) => eq(e.pos, t)))),
     play(f) {
@@ -484,7 +495,7 @@ defineItem({
 defineItem({
   id: 'hood',
   name: 'Cobra Hood',
-  glyph: 'rattle',
+  glyph: 'hood',
   color: '#ffafcc',
   rarity: 'uncommon',
   activeText: 'Flare: enemies within 2 tiles of your head are pushed back a tile and lose their intent.',
@@ -511,7 +522,7 @@ defineItem({
 defineItem({
   id: 'egg',
   name: 'Egg',
-  glyph: 'carapace',
+  glyph: 'egg',
   color: '#fefae0',
   rarity: 'uncommon',
   passiveText: 'When this segment is destroyed, it hatches: grow 3 flesh.',
@@ -527,11 +538,12 @@ defineItem({
 defineItem({
   id: 'gorge',
   name: 'Gorge',
-  glyph: 'swallow',
+  glyph: 'gorge',
   color: '#ffd166',
   rarity: 'common',
   activeText: 'Suck in all food within 3 tiles of your head: +1 flesh each.',
   active: {
+    requires: 'Needs food within 3 tiles of your head.',
     target: 'none',
     canPlay: (f) => f.food.some((p) => manhattan(p, ops.head(f)) <= 3),
     play(f) {
@@ -550,7 +562,7 @@ defineItem({
 defineItem({
   id: 'python',
   name: 'Python Coils',
-  glyph: 'muscle',
+  glyph: 'python',
   color: '#b5838d',
   rarity: 'rare',
   passiveText: 'Coils up to 20 tiles count, and they crush for +1.',

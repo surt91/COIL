@@ -4,7 +4,7 @@ import { EVENTS } from '../content/events';
 import { ITEMS, item } from '../core/registry';
 import {
   ACT_NAMES, BASK_FLESH, MAP_COLS, MOLTS, MAP_ROWS, NodeKind, RunState, Screen,
-  bask, buy, enterNode, eventChoice, reachable, removeItem, takeReward, toMap,
+  bask, buy, enterNode, eventChoice, fleshCap, reachable, removeItem, takeReward, toMap,
 } from '../core/run';
 import type { ItemId } from '../core/types';
 import { GlyphIcon } from './GlyphIcon';
@@ -29,13 +29,15 @@ export function ItemCard({ id, onClick, footer, disabled, compact }: {
   );
 }
 
-export function GenomePanel({ run }: { run: RunState }) {
+export function GenomePanel({ run, inFight }: { run: RunState; inFight?: boolean }) {
   const counts = new Map<ItemId, number>();
   for (const g of run.genome) counts.set(g, (counts.get(g) ?? 0) + 1);
   return (
     <div class="genome">
       <h3>Genome <span class="dim">({run.genome.length} items)</span></h3>
-      <div class="flesh-line"><b>{run.flesh}</b> flesh <span class="dim">— health & currency</span></div>
+      {inFight
+        ? <div class="flesh-line dim">Brought {run.flesh} flesh into this room · carry up to {fleshCap(run)} out</div>
+        : <div class="flesh-line"><b>{run.flesh}</b> / {fleshCap(run)} flesh <span class="dim">— health & currency</span></div>}
       <ul>
         {[...counts].map(([id, n]) => {
           const d = ITEMS.get(id)!;
@@ -75,16 +77,19 @@ export function MapScreen({ run, setRun }: { run: RunState; setRun: SetRun }) {
             n.next.map((m) => {
               const t = run.map[m];
               const active = run.at === n.id && reach.has(m);
-              return <line x1={px(n.col)} y1={py(n.row)} x2={px(t.col)} y2={py(t.row)} class={`edge ${active ? 'active' : ''}`} />;
+              const path = run.path ?? [];
+              const walked = path.includes(n.id) && path.includes(m) && path.indexOf(m) === path.indexOf(n.id) + 1;
+              return <line x1={px(n.col)} y1={py(n.row)} x2={px(t.col)} y2={py(t.row)} class={`edge ${active ? 'active' : ''} ${walked ? 'walked' : ''}`} />;
             }),
           )}
           {run.map.map((n) => {
             const can = reach.has(n.id);
             const here = run.at === n.id;
-            const passed = run.at !== null && n.row <= run.map[run.at].row && !here;
+            const visited = (run.path ?? []).includes(n.id) && !here;
+            const passed = run.at !== null && n.row <= run.map[run.at].row && !here && !visited;
             return (
               <g
-                class={`node k-${n.kind} ${can ? 'can' : ''} ${here ? 'here' : ''} ${passed ? 'passed' : ''}`}
+                class={`node k-${n.kind} ${can ? 'can' : ''} ${here ? 'here' : ''} ${passed ? 'passed' : ''} ${visited ? 'visited' : ''}`}
                 transform={`translate(${px(n.col)},${py(n.row)})`}
                 onClick={() => { if (can) { uiClick(); if (n.kind === 'boss') stinger('boss'); setRun(enterNode(run, n.id)); } }}
                 onMouseEnter={() => setHover(n.id)}
@@ -121,6 +126,7 @@ export function RewardScreen({ run, setRun, screen }: { run: RunState; setRun: S
     <div class="screen center-screen">
       <h2>{screen.title}</h2>
       <p class="dim">Choose an item to add to your genome. It will grow on your body in every room from now on.</p>
+      <p class="dim small">You carry <b>{run.flesh}</b> flesh (max {fleshCap(run)}; temporary items were digested into flesh, the rest was too much to carry).</p>
       <div class="choices">
         {screen.options.map((id, i) => (
           <ItemCard id={id} onClick={() => { stinger('reward'); setRun(takeReward(run, i)); }} />
@@ -144,7 +150,7 @@ export function PoolScreen({ run, setRun, screen }: { run: RunState; setRun: Set
             id={s.item}
             disabled={s.sold || run.flesh < s.price}
             onClick={() => { uiClick(); setRun(buy(run, i)); }}
-            footer={s.sold ? 'sold' : `${s.price} flesh`}
+            footer={s.sold ? 'sold' : `${s.price} flesh${run.flesh >= s.price ? ` → leaves ${run.flesh - s.price}` : ''}`}
           />
         ))}
       </div>
@@ -164,6 +170,7 @@ export function PoolScreen({ run, setRun, screen }: { run: RunState; setRun: Set
         </div>
       )}
       <button class="btn primary" onClick={() => { uiClick(); setRun(toMap(run)); }}>Leave</button>
+      <GenomePanel run={run} />
     </div>
   );
 }
@@ -176,9 +183,13 @@ export function BaskScreen({ run, setRun, screen }: { run: RunState; setRun: Set
       <p class="dim">Sunlight falls through the leaves. You could rest here — or take the time to shed something.</p>
       {!screen.done && !removing && (
         <div class="choices">
-          <button class="card big-choice" onClick={() => { uiClick(); setRun(bask(run)); }}>
+          <button class={`card big-choice ${run.flesh >= fleshCap(run) ? 'disabled' : ''}`} onClick={() => { if (run.flesh < fleshCap(run)) { uiClick(); setRun(bask(run)); } }}>
             <div class="card-name">Bask</div>
-            <div class="card-text">Regrow {BASK_FLESH} flesh.</div>
+            <div class="card-text">
+              {run.flesh >= fleshCap(run)
+                ? `You are already full (${run.flesh}/${fleshCap(run)} flesh).`
+                : `Regrow ${Math.min(BASK_FLESH, fleshCap(run) - run.flesh)} flesh (${run.flesh} → ${Math.min(fleshCap(run), run.flesh + BASK_FLESH)}).`}
+            </div>
           </button>
           <button class="card big-choice" disabled={run.genome.length <= 1} onClick={() => setRemoving(true)}>
             <div class="card-name">Molt</div>

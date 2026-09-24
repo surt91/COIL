@@ -149,7 +149,7 @@ export function drawCreature(ctx: G, kind: string, T: number, color: string, t: 
       break;
     }
     case 'spider': {
-      ctx.strokeStyle = '#3d3347';
+      ctx.strokeStyle = '#4a3f33';
       ctx.lineWidth = T * 0.035;
       for (let i = 0; i < 4; i++) {
         const a = -0.9 + i * 0.6;

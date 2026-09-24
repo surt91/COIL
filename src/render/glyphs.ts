@@ -172,6 +172,90 @@ const glyphs: Record<string, (ctx: G, r: number) => void> = {
   },
 };
 
+Object.assign(glyphs, {
+  sprint(ctx: G, r: number) {
+    ctx.beginPath();
+    for (const o of [-0.55, -0.1, 0.35]) {
+      ctx.moveTo((o - 0.22) * r, -0.5 * r);
+      ctx.lineTo((o + 0.22) * r, 0);
+      ctx.lineTo((o - 0.22) * r, 0.5 * r);
+    }
+    ctx.stroke();
+  },
+  egg(ctx: G, r: number) {
+    ctx.beginPath();
+    ctx.ellipse(0, 0.05 * r, 0.45 * r, 0.62 * r, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    for (const [x, y] of [[-0.15, -0.2], [0.18, 0.1], [-0.05, 0.35]]) {
+      ctx.beginPath();
+      ctx.arc(x * r, y * r, 0.08 * r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  },
+  python(ctx: G, r: number) {
+    ctx.beginPath();
+    for (let a = 0; a < Math.PI * 5; a += 0.2) {
+      const rr = (0.1 + (a / (Math.PI * 5)) * 0.55) * r;
+      const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
+      a ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    ctx.stroke();
+  },
+  acid(ctx: G, r: number) {
+    for (const [x, y, rr] of [[-0.25, 0.2, 0.25], [0.2, -0.05, 0.2], [0.05, -0.45, 0.12], [0.3, 0.4, 0.12]]) {
+      ctx.beginPath();
+      ctx.arc(x * r, y * r, rr * r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  },
+  strike(ctx: G, r: number) {
+    ctx.beginPath();
+    ctx.moveTo(0.15 * r, -0.7 * r);
+    ctx.lineTo(-0.3 * r, 0.05 * r);
+    ctx.lineTo(0.05 * r, 0.05 * r);
+    ctx.lineTo(-0.15 * r, 0.7 * r);
+    ctx.lineTo(0.35 * r, -0.15 * r);
+    ctx.lineTo(0, -0.15 * r);
+    ctx.closePath();
+    ctx.fill();
+  },
+  hood(ctx: G, r: number) {
+    ctx.beginPath();
+    ctx.moveTo(0, -0.65 * r);
+    ctx.bezierCurveTo(0.8 * r, -0.4 * r, 0.6 * r, 0.5 * r, 0.15 * r, 0.65 * r);
+    ctx.lineTo(-0.15 * r, 0.65 * r);
+    ctx.bezierCurveTo(-0.6 * r, 0.5 * r, -0.8 * r, -0.4 * r, 0, -0.65 * r);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, -0.1 * r, 0.12 * r, 0, Math.PI * 2);
+    ctx.fill();
+  },
+  reserve(ctx: G, r: number) {
+    ctx.beginPath();
+    ctx.arc(0, 0, 0.55 * r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-0.3 * r, 0);
+    ctx.lineTo(0.3 * r, 0);
+    ctx.moveTo(0, -0.3 * r);
+    ctx.lineTo(0, 0.3 * r);
+    ctx.stroke();
+  },
+  gorge(ctx: G, r: number) {
+    ctx.beginPath();
+    ctx.arc(0.2 * r, 0, 0.45 * r, 0.7, Math.PI * 2 - 0.7);
+    ctx.lineTo(0.2 * r, 0);
+    ctx.closePath();
+    ctx.fill();
+    for (const x of [-0.45, -0.7]) {
+      ctx.beginPath();
+      ctx.arc(x * r, 0, 0.1 * r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  },
+});
+
 export function drawGlyph(ctx: G, key: string, x: number, y: number, r: number, color: string) {
   ctx.save();
   ctx.translate(x, y);

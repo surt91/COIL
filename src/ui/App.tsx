@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { initAudio, isMuted, setMuted, startAmbient, stinger, uiClick } from '../audio/audio';
 import { LAYOUTS } from '../content/layouts';
 import { createFight } from '../core/fight';
-import { MOLTS, RunState, createRun, finishFight, recordEvents, updateFight } from '../core/run';
+import { MOLTS, RunState, createRun, fleshCap, finishFight, recordEvents, updateFight } from '../core/run';
 import { seedFromString } from '../core/rng';
 import { loadProfile, loadRun, recordRun, saveRun, todayKey } from '../save/storage';
 import { Codex } from './Codex';
@@ -74,8 +74,9 @@ export function App() {
           key={`${run.seed}-${sc.node}`}
           initial={sc.fight}
           title={`${layout?.name ?? ''}${node.kind === 'elite' ? ' · elite' : node.kind === 'boss' ? ' · BOSS' : ''}`}
-          side={<GenomePanel run={run} />}
+          side={<GenomePanel run={run} inFight />}
           act={run.act}
+          fleshCap={fleshCap(run)}
           onStep={(f, undo) => {
             let r = runRef.current!;
             if (!undo) r = recordEvents(r, f.events);

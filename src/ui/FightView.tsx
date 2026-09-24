@@ -41,6 +41,7 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
   const [hover, setHover] = useState<Pos | null>(null);
   const ended = useRef(false);
   const [tip, setTip] = useState<Tip | null>(() => nextTip(initial));
+  const tipTurn = useRef(initial.turn);
   const [hint, setHint] = useState<{ action: Action; preview: Fight } | null>(null);
   selectedRef.current = selected;
 
@@ -81,7 +82,9 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
     playEvents(next.events);
     onStep?.(next);
     setTip((t) => {
+      if (t && next.turn - tipTurn.current < 3) return t;
       if (t) markSeen(t.id);
+      tipTurn.current = next.turn;
       return nextTip(next);
     });
     if (next.status !== 'play' && !ended.current) {
@@ -241,7 +244,7 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
       </div>
       <aside class="inspector">
         {tip && (
-          <div class="tip" onClick={() => { markSeen(tip.id); setTip(nextTip(fightRef.current)); }}>
+          <div class="tip" onClick={() => { markSeen(tip.id); tipTurn.current = fightRef.current.turn; setTip(nextTip(fightRef.current)); }}>
             <span class="tip-label">Tip</span> {tip.text} <span class="dim">(click to dismiss)</span>
           </div>
         )}

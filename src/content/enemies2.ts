@@ -97,7 +97,7 @@ defineEnemy({
   char: 'a',
   hp: 1,
   glyph: 'ant',
-  color: '#c0392b',
+  color: '#b5651d',
   text: 'Weak alone, never alone. Latches onto adjacent segments. A big coil catches a whole column of them.',
   think(f, e) {
     return lockAdjacent(f, e) ?? approach(f, e, f.snake.body);
@@ -147,7 +147,7 @@ defineEnemy({
   char: 'Q',
   hp: 16,
   glyph: 'queen',
-  color: '#e74c3c',
+  color: '#d9822b',
   text: 'Boss. Huge and slow. Summons ants around herself every few turns and bites hard. Only a coil of 8 tiles or less can hold her.',
   boss: true,
   heldMaxArea: 8,

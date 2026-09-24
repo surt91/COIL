@@ -244,3 +244,7 @@ h1.lose { color: var(--red); }
 .movehint .bad { color: var(--red); }
 .hand-actions button { white-space: nowrap; }
 .genome.compact li { font-size: 13px; }
+.map .edge.walked { stroke: var(--teal); stroke-dasharray: none; stroke-width: 3; opacity: 0.8; }
+.map .node.visited circle { fill: #123b35; stroke: var(--teal); }
+.map .node.visited text { fill: var(--teal); }
+p.small { font-size: 13px; margin-top: -8px; }
