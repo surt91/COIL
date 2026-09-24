@@ -41,9 +41,22 @@ export interface RunStats {
   lostSegments: number;
 }
 
+/** Ascension-style difficulty levels, cumulative. */
+export const MOLTS = [
+  'Base game',
+  'Hungrier: you starve every 10 turns instead of 12.',
+  'Tougher Garden: Act 1 enemies have +1 HP.',
+  'Lean: you can carry 2 less flesh between rooms.',
+  'Crowded: normal fights and elites bring an extra beetle.',
+  'Thin skin: you start with 1 flesh.',
+  'Apex: bosses have 30% more HP.',
+];
+
 export interface RunState {
   version: 1;
   seed: number;
+  molt: number;
+  daily?: string;
   rng: Rng;
   act: number;
   genome: ItemId[];
@@ -63,20 +76,23 @@ export const START_FLESH = 4;
 export const ACT_HEAL = 4;
 /** Flesh beyond this is digested at room end: you can only carry so much. */
 export const FLESH_CAP = [8, 10, 12];
-export const fleshCap = (act: number) => FLESH_CAP[Math.min(act, FLESH_CAP.length - 1)];
+const capFor = (act: number) => FLESH_CAP[Math.min(act, FLESH_CAP.length - 1)];
+export const fleshCap = (run: RunState) => capFor(run.act) - (run.molt >= 3 ? 2 : 0);
 export const ACT_NAMES = ['The Garden', 'The Roots', 'The Deep'];
 
 const clone = <T>(x: T): T => structuredClone(x);
 
-export function createRun(seed: number): RunState {
+export function createRun(seed: number, molt = 0, daily?: string): RunState {
   const rng = makeRng(seed);
   const run: RunState = {
     version: 1,
     seed,
+    molt,
+    daily,
     rng,
     act: 0,
     genome: [...STARTER],
-    flesh: START_FLESH,
+    flesh: molt >= 5 ? 1 : START_FLESH,
     map: [],
     at: null,
     screen: { t: 'map' },
@@ -140,10 +156,11 @@ export function reachable(run: RunState): number[] {
 
 // ---------------------------------------------------------------- nodes
 
-function fightOpts(pool: Pool, row: number): Partial<FightOpts> {
-  if (pool === 'boss') return { escalateFrom: 20, escalateEvery: 8 };
-  if (pool === 'elite') return { escalateFrom: 30, escalateEvery: 6 };
-  return { escalateFrom: 30 - row, escalateEvery: 6 };
+function fightOpts(pool: Pool, row: number, molt: number): Partial<FightOpts> {
+  const hunger = molt >= 1 ? { hungerEvery: 10 } : {};
+  if (pool === 'boss') return { escalateFrom: 20, escalateEvery: 8, ...hunger };
+  if (pool === 'elite') return { escalateFrom: 30, escalateEvery: 6, ...hunger };
+  return { escalateFrom: 30 - row, escalateEvery: 6, ...hunger };
 }
 
 export function startFight(run: RunState, nodeId: number, pool: Pool): RunState {
@@ -157,15 +174,15 @@ export function startFight(run: RunState, nodeId: number, pool: Pool): RunState 
     genome: run.genome,
     flesh: run.flesh,
     seed: int(run.rng, 0, 2 ** 31),
-    place: enc.enemies,
-    opts: fightOpts(pool, node.row),
+    place: run.molt >= 4 && (pool === 'normal' || pool === 'elite') ? [...enc.enemies, 'beetle'] : enc.enemies,
+    opts: fightOpts(pool, node.row, run.molt),
   });
   // Later acts: tougher versions of the regulars.
   for (const e of fight.enemies) {
-    if (e.hp >= 2 && !enemyDef(e.kind).boss) {
-      e.hp += run.act;
-      e.maxHp += run.act;
-    }
+    const boss = enemyDef(e.kind).boss;
+    const bonus = boss ? (run.molt >= 6 ? Math.round(e.hp * 0.3) : 0) : e.hp >= 2 ? run.act + (run.molt >= 2 && run.act === 0 ? 1 : 0) : 0;
+    e.hp += bonus;
+    e.maxHp += bonus;
   }
   run.screen = { t: 'fight', node: nodeId, encounter: enc.id, layout: layout.id, fight };
   return run;
@@ -217,7 +234,7 @@ export function finishFight(prev: RunState, fight: Fight): RunState {
     return run;
   }
   run.stats.rooms++;
-  run.flesh = Math.min(fleshCap(run.act), fight.snake.segs.filter((s) => !s.item || s.temp).length);
+  run.flesh = Math.min(fleshCap(run), fight.snake.segs.filter((s) => !s.item || s.temp).length);
   if (node.kind === 'boss') {
     if (run.act >= ACT_NAMES.length - 1) {
       run.screen = { t: 'victory' };
@@ -232,7 +249,7 @@ export function finishFight(prev: RunState, fight: Fight): RunState {
     run.act++;
     run.map = generateMap(run.rng);
     run.at = null;
-    run.flesh = Math.min(fleshCap(run.act), run.flesh + ACT_HEAL);
+    run.flesh = Math.min(fleshCap(run), run.flesh + ACT_HEAL);
     return run;
   }
   const elite = node.kind === 'elite';
@@ -298,7 +315,7 @@ export function takeReward(prev: RunState, idx: number | null): RunState {
   if (prev.screen.t !== 'reward') return prev;
   const run = clone(prev);
   const sc = run.screen as Extract<Screen, { t: 'reward' }>;
-  if (idx === null) run.flesh = Math.max(run.flesh, Math.min(fleshCap(run.act), run.flesh + sc.skipFlesh));
+  if (idx === null) run.flesh = Math.max(run.flesh, Math.min(fleshCap(run), run.flesh + sc.skipFlesh));
   else run.genome.push(sc.options[idx]);
   run.screen = { t: 'map' };
   return run;
@@ -336,7 +353,7 @@ export const BASK_FLESH = 5;
 export function bask(prev: RunState): RunState {
   if (prev.screen.t !== 'bask' || prev.screen.done) return prev;
   const run = clone(prev);
-  run.flesh = Math.max(run.flesh, Math.min(fleshCap(run.act), run.flesh + BASK_FLESH));
+  run.flesh = Math.max(run.flesh, Math.min(fleshCap(run), run.flesh + BASK_FLESH));
   (run.screen as Extract<Screen, { t: 'bask' }>).done = true;
   return run;
 }

@@ -204,6 +204,11 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0 
       </header>
       <div class="board-wrap" ref={wrapRef}>
         <canvas ref={canvasRef} onMouseMove={onMove} onMouseLeave={() => setHover(null)} onClick={onClick} />
+        {f.status !== 'play' && (
+          <div class={`fight-end ${f.status}`}>
+            <div>{f.status === 'won' ? 'Onward…' : 'Your coil unwinds'}</div>
+          </div>
+        )}
         {tip && (
           <div class="tip" onClick={() => { markSeen(tip.id); setTip(nextTip(fightRef.current)); }}>
             <span class="tip-label">Tip</span> {tip.text} <span class="dim">(click to dismiss)</span>

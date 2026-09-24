@@ -3,7 +3,7 @@ import { stinger, uiClick } from '../audio/audio';
 import { EVENTS } from '../content/events';
 import { ITEMS, item } from '../core/registry';
 import {
-  ACT_NAMES, BASK_FLESH, MAP_COLS, MAP_ROWS, NodeKind, RunState, Screen,
+  ACT_NAMES, BASK_FLESH, MAP_COLS, MOLTS, MAP_ROWS, NodeKind, RunState, Screen,
   bask, buy, enterNode, eventChoice, reachable, removeItem, takeReward, toMap,
 } from '../core/run';
 import type { ItemId } from '../core/types';
@@ -233,7 +233,8 @@ export function EndScreen({ run, onDone }: { run: RunState; onDone: () => void }
   const won = run.screen.t === 'victory';
   return (
     <div class="screen center-screen">
-      <h1 class={won ? 'win' : 'lose'}>{won ? 'The Garden is yours' : 'Your coil unwinds'}</h1>
+      <h1 class={won ? 'win' : 'lose'}>{won ? 'The circle is complete' : 'Your coil unwinds'}</h1>
+      {won && <p>You devoured the Ouroboros. {(run.molt ?? 0) + 1 < MOLTS.length ? `Molt ${(run.molt ?? 0) + 1} unlocked: ${MOLTS[(run.molt ?? 0) + 1]}` : 'You have shed every skin.'}</p>}
       {run.screen.t === 'dead' && <p>Killed by <b>{run.screen.cause}</b> in {run.screen.where}.</p>}
       <table class="stats">
         <tbody>
@@ -244,6 +245,7 @@ export function EndScreen({ run, onDone }: { run: RunState; onDone: () => void }
           <tr><td>Segments lost</td><td>{s.lostSegments}</td></tr>
           <tr><td>Turns</td><td>{s.turns}</td></tr>
           <tr><td>Seed</td><td>{run.seed}</td></tr>
+          <tr><td>Molt</td><td>{run.molt ?? 0}</td></tr>
         </tbody>
       </table>
       <GenomePanel run={run} />

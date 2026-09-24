@@ -1,5 +1,6 @@
 import { computeCoils } from '../core/coil';
-import { Dir, Pos, eq } from '../core/geom';
+import { Dir, Pos, chebyshev, eq } from '../core/geom';
+import { WRAP_MIN } from '../core/fight';
 import * as ops from '../core/ops';
 import { ENEMIES, ITEMS } from '../core/registry';
 import type { Enemy, Fight, GameEvent } from '../core/types';
@@ -59,6 +60,7 @@ export class BoardRenderer {
   private shake = 0;
   private bulges: { start: number }[] = [];
   private lastHeadAngle = 0;
+  private attacks = new Map<number, { to: Pos; start: number }>();
 
   hover: Pos | null = null;
   preview: Fight | null = null;
@@ -187,6 +189,7 @@ export class BoardRenderer {
         break;
       case 'strike':
         this.flashes.push({ tiles: e.tiles, color: PAL.danger, life: 0, max: 350 });
+        if (e.tiles.length) this.attacks.set(e.enemy, { to: e.tiles[0], start: performance.now() });
         break;
       case 'steal':
         this.float(e.at, `${ITEMS.get(e.item)?.name ?? ''} stolen!`, PAL.food);
@@ -446,7 +449,17 @@ export class BoardRenderer {
     const head = f.snake.body[0];
     for (const e of f.enemies) {
       const d = ENEMIES.get(e.kind);
-      const q = this.enemyPos(e, p);
+      const q0 = this.enemyPos(e, p);
+      const atk = this.attacks.get(e.id);
+      let q = q0;
+      if (atk) {
+        const t = (now - atk.start) / 260;
+        if (t >= 1) this.attacks.delete(e.id);
+        else {
+          const k = Math.sin(Math.PI * t) * 0.35;
+          q = { x: q0.x + (atk.to.x - q0.x) * k, y: q0.y + (atk.to.y - q0.y) * k };
+        }
+      }
       const X = this.cx(q.x), Y = this.cy(q.y);
       if (e.under) {
         ctx.fillStyle = '#3a2e26';
@@ -468,6 +481,20 @@ export class BoardRenderer {
         ctx.beginPath();
         ctx.arc(X, Y, T * 0.44, 0, Math.PI * 2);
         ctx.stroke();
+      } else if (!e.body) {
+        // Wrap progress: how many of your tiles touch it (4 = squeezed).
+        const touching = f.snake.body.filter((b) => chebyshev(b, e.pos) === 1).length;
+        if (touching >= 2) {
+          const full = touching >= WRAP_MIN;
+          ctx.strokeStyle = PAL.coil;
+          ctx.lineWidth = full ? 3 : 2;
+          for (let i = 0; i < Math.min(touching, WRAP_MIN); i++) {
+            const a0 = -Math.PI / 2 + (i * Math.PI * 2) / WRAP_MIN + 0.12;
+            ctx.beginPath();
+            ctx.arc(X, Y, T * 0.46, a0, a0 + (Math.PI * 2) / WRAP_MIN - 0.24);
+            ctx.stroke();
+          }
+        }
       }
       ctx.save();
       ctx.translate(X, Y);

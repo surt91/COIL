@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { initAudio, isMuted, setMuted, startAmbient, stinger, uiClick } from '../audio/audio';
 import { LAYOUTS } from '../content/layouts';
 import { createFight } from '../core/fight';
-import { RunState, createRun, finishFight, recordEvents, updateFight } from '../core/run';
+import { MOLTS, RunState, createRun, finishFight, recordEvents, updateFight } from '../core/run';
 import { seedFromString } from '../core/rng';
-import { loadRun, saveRun } from '../save/storage';
+import { loadProfile, loadRun, recordRun, saveRun, todayKey } from '../save/storage';
 import { FightView } from './FightView';
 import { BaskScreen, EndScreen, EventScreen, GenomePanel, MapScreen, PoolScreen, RewardScreen } from './RunScreens';
 
@@ -14,9 +14,12 @@ export function App() {
   const [muted, setMutedState] = useState(isMuted());
 
   const setRun = (r: RunState | null) => {
+    const prev = runRef.current;
     runRef.current = r;
     setRunState(r);
     saveRun(r);
+    const ended = (x: RunState | null) => !!x && (x.screen.t === 'victory' || x.screen.t === 'dead');
+    if (r && ended(r) && !ended(prev)) recordRun(r);
   };
 
   useEffect(() => {
@@ -107,11 +110,19 @@ export function App() {
 
 function Title({ onStart }: { onStart(r: RunState): void }) {
   const saved = loadRun();
+  const profile = loadProfile();
   const [seed, setSeed] = useState('');
+  const [molt, setMolt] = useState(Math.min(profile.moltUnlocked, MOLTS.length - 1));
   const start = () => {
     uiClick();
     const s = seed.trim();
-    onStart(createRun(s ? (/^\d+$/.test(s) ? Number(s) : seedFromString(s)) : Math.floor(Math.random() * 2 ** 31)));
+    onStart(createRun(s ? (/^\d+$/.test(s) ? Number(s) : seedFromString(s)) : Math.floor(Math.random() * 2 ** 31), molt));
+  };
+  const today = todayKey();
+  const daily = profile.dailies[today];
+  const startDaily = () => {
+    uiClick();
+    onStart(createRun(seedFromString(`coil-daily-${today}`), 0, today));
   };
   return (
     <div class="screen title-screen">
@@ -121,7 +132,20 @@ function Title({ onStart }: { onStart(r: RunState): void }) {
         {saved && <button class="btn primary" onClick={() => { uiClick(); onStart(saved); }}>Continue run</button>}
         <button class={`btn ${saved ? '' : 'primary'}`} onClick={start}>New run</button>
         <input class="seed" placeholder="seed (optional)" value={seed} onInput={(e) => setSeed((e.target as HTMLInputElement).value)} />
+        <button class="btn" onClick={startDaily} disabled={!!daily} title="Everyone gets the same seed today. One attempt.">
+          {daily ? `Daily done: ${daily.won ? 'victory!' : `act ${daily.act + 1}, ${daily.rooms} rooms`}` : `Daily run ${today}`}
+        </button>
       </div>
+      {profile.moltUnlocked > 0 && (
+        <div class="molts">
+          <label>Molt </label>
+          <select value={molt} onChange={(e) => setMolt(Number((e.target as HTMLSelectElement).value))}>
+            {MOLTS.slice(0, profile.moltUnlocked + 1).map((m, i) => <option value={i}>{i}: {m}</option>)}
+          </select>
+          <span class="dim"> — each molt also includes all previous ones</span>
+        </div>
+      )}
+      {profile.runs > 0 && <div class="dim">{profile.runs} runs · {profile.victories} victories{profile.bestMolt >= 0 ? ` · best molt ${profile.bestMolt}` : ''}</div>}
       <div class="howto">
         <h3>How to play</h3>
         <ul>
