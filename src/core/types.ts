@@ -54,12 +54,13 @@ export interface Husk {
   ttl: number;
 }
 
-export const enum Tile {
-  Floor = 0,
-  Wall = 1,
-  Exit = 2,
-  Burrow = 3,
-}
+export const Tile = {
+  Floor: 0,
+  Wall: 1,
+  Exit: 2,
+  Burrow: 3,
+} as const;
+export type Tile = (typeof Tile)[keyof typeof Tile];
 
 export type FightStatus = 'play' | 'won' | 'dead';
 

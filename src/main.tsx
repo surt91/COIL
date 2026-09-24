@@ -1,3 +1,6 @@
 import { render } from 'preact';
+import './content';
+import './ui/styles.css';
+import { App } from './ui/App';
 
-render(<h1>COIL</h1>, document.getElementById('app')!);
+render(<App />, document.getElementById('app')!);
