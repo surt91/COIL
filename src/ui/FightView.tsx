@@ -9,6 +9,7 @@ import { BoardRenderer } from '../render/board';
 import { playEvents } from '../audio/audio';
 import { lookahead2Policy } from '../bot/policies';
 import { makeRng } from '../core/rng';
+import { CardArt } from './CardArt';
 import { GlyphIcon } from './GlyphIcon';
 import { Tip, markSeen, nextTip } from './tips';
 
@@ -208,6 +209,7 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
   };
 
   const handIdx = ops.hand(f);
+  const cardW = typeof window !== 'undefined' && window.innerWidth <= 1200 ? 198 : 238;
   const pend = ops.pending(f);
   const onBoard = f.snake.body.length - 1;
   const flesh = f.snake.segs.filter((s) => !s.item).length;
@@ -273,6 +275,7 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
               style={{ '--c': d.color }}
               onClick={() => selectSlot(slot)}
             >
+              <CardArt id={seg.item!} width={cardW} height={52} />
               <div class="card-top">
                 <span class="key">{slot + 1}</span>
                 <GlyphIcon glyph={d.glyph} color={d.color} size={28} />

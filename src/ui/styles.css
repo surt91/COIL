@@ -31,13 +31,13 @@ kbd {
 .fight {
   display: grid;
   grid-template-columns: 1fr 300px;
-  grid-template-rows: auto minmax(0, 1fr) 150px;
+  grid-template-rows: auto minmax(0, 1fr) 196px;
   grid-template-areas: 'hud hud' 'board side' 'hand side';
   height: 100%;
 }
 @media (max-width: 1200px) {
   .fight { grid-template-columns: 1fr 250px; }
-  .card { width: 180px !important; }
+  .card { width: 200px !important; }
   .card-text { font-size: 12px; }
   .card-passive { display: none; }
 }
@@ -95,7 +95,7 @@ kbd {
 }
 .card {
   position: relative;
-  width: 220px;
+  width: 240px;
   min-height: 108px;
   overflow: hidden;
   text-align: left;
@@ -172,7 +172,8 @@ kbd {
 .map .edge { stroke: #2a3b57; stroke-width: 2; stroke-dasharray: 4 5; }
 .map .edge.active { stroke: var(--gold); stroke-dasharray: none; }
 .map .node circle { fill: var(--panel2); stroke: #2a3b57; stroke-width: 2; }
-.map .node text { text-anchor: middle; fill: var(--dim); font-size: 16px; pointer-events: none; }
+.map .node text { text-anchor: middle; fill: var(--dim); font-size: 22px; pointer-events: none; }
+.map .k-boss text { font-size: 30px; }
 .map .node.can { cursor: pointer; }
 .map .node.can circle { stroke: var(--gold); animation: pulse 1.2s ease-in-out infinite; }
 .map .node.can text { fill: var(--text); }
@@ -268,3 +269,19 @@ p.small { font-size: 13px; margin-top: -8px; }
 .upgrade-compare { display: flex; align-items: center; gap: 12px; }
 .upgrade-compare .arrow { font-size: 28px; color: var(--gold); }
 .molted { color: var(--gold); font-size: 14px; }
+
+.card-art { display: block; margin: -10px -12px 8px; border-radius: 9px 9px 0 0; }
+.card.compact .card-art { display: none; }
+.item-card { width: 240px; }
+.card { display: flex; flex-direction: column; justify-content: flex-start; }
+.card.empty { justify-content: center; }
+
+.genome-view { position: fixed; inset: 0; background: rgba(5, 8, 16, 0.95); z-index: 20; overflow-y: auto; padding: 28px; animation: fadein 0.2s; }
+.genome-view-inner { max-width: 1320px; margin: 0 auto; }
+.genome-view h3 { margin: 18px 0 10px; }
+.genome-view .choices { justify-content: flex-start; }
+.view-genome { float: right; font-size: 12px; padding: 4px 8px; }
+.genome li { font-size: 15px; }
+.genome li:hover { color: var(--gold); }
+.map-legend { font-size: 16px; }
+.map-legend .dot { width: 28px; font-size: 20px; }

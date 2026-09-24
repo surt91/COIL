@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { stinger, uiClick } from '../audio/audio';
 import { EVENTS } from '../content/events';
 import { CHARMS, ITEMS, item } from '../core/registry';
@@ -7,6 +7,7 @@ import {
   bask, buy, buyCharm, canUpgrade, enterNode, eventChoice, fleshCap, genomeDraw, reachable, removeItem, takeCharm, takeReward, toMap, upgradeItem,
 } from '../core/run';
 import type { ItemId } from '../core/types';
+import { CardArt } from './CardArt';
 import { GlyphIcon } from './GlyphIcon';
 
 type SetRun = (r: RunState) => void;
@@ -17,6 +18,7 @@ export function ItemCard({ id, onClick, footer, disabled, compact }: {
   const d = item(id);
   return (
     <button class={`card item-card ${disabled ? 'disabled' : ''} ${compact ? 'compact' : ''}`} style={{ '--c': d.color }} onClick={disabled ? undefined : onClick}>
+      {!compact && <CardArt id={id} width={238} height={84} />}
       <div class="card-top">
         <GlyphIcon glyph={d.glyph} color={d.color} size={compact ? 22 : 30} />
         <span class="card-name">{d.name}</span>
@@ -34,6 +36,7 @@ export function CharmCard({ id, onClick, footer, disabled }: { id: string; onCli
   const c = CHARMS.get(id)!;
   return (
     <button class={`card item-card charm ${disabled ? 'disabled' : ''}`} style={{ '--c': c.color }} onClick={disabled ? undefined : onClick}>
+      <CardArt id={id} width={238} height={84} />
       <div class="card-top">
         <GlyphIcon glyph={c.glyph} color={c.color} size={30} />
         <span class="card-name">{c.name}</span>
@@ -71,11 +74,54 @@ export function UpgradePicker({ run, onPick, onCancel }: { run: RunState; onPick
   );
 }
 
+/** Full-screen overlay: every genome item as a full card, plus charms. */
+export function GenomeView({ run, onClose }: { run: RunState; onClose(): void }) {
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      // Swallow all keys while open so the fight underneath doesn't react.
+      e.stopImmediatePropagation();
+      if (e.key === 'Escape' || e.key === 'g' || e.key === 'G') onClose();
+    };
+    window.addEventListener('keydown', k, true);
+    return () => window.removeEventListener('keydown', k, true);
+  }, []);
+  const sorted = [...run.genome].sort((a, b) => item(a).name.localeCompare(item(b).name));
+  return (
+    <div class="genome-view" onClick={onClose}>
+      <div class="genome-view-inner" onClick={(e) => e.stopPropagation()}>
+        <div class="codex-head">
+          <h2>Your genome</h2>
+          <span class="dim">{run.genome.length} items · {Math.min(genomeDraw(run), run.genome.length)} random ones grow on you each room · {run.flesh}/{fleshCap(run)} flesh</span>
+          <button class="btn" onClick={onClose}>Close <kbd>G</kbd></button>
+        </div>
+        {(run.charms ?? []).length > 0 && (
+          <>
+            <h3>Charms</h3>
+            <div class="choices">{(run.charms ?? []).map((c) => <CharmCard id={c} />)}</div>
+          </>
+        )}
+        <h3>Items</h3>
+        <div class="choices">{sorted.map((id) => <ItemCard id={id} footer={item(id).upgrade ? <span class="dim">Molts into {item(item(id).upgrade!).name}</span> : item(id).base ? <span>✦ molted</span> : undefined} />)}</div>
+      </div>
+    </div>
+  );
+}
+
 export function GenomePanel({ run, inFight }: { run: RunState; inFight?: boolean }) {
   const counts = new Map<ItemId, number>();
   for (const g of run.genome) counts.set(g, (counts.get(g) ?? 0) + 1);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      if ((e.key === 'g' || e.key === 'G') && !open) setOpen(true);
+    };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [open]);
   return (
     <div class="genome">
+      {open && <GenomeView run={run} onClose={() => setOpen(false)} />}
+      <button class="btn view-genome" onClick={() => setOpen(true)}>View genome <kbd>G</kbd></button>
       <h3>Genome <span class="dim">({run.genome.length} items · {Math.min(genomeDraw(run), run.genome.length)} grow each room)</span></h3>
       {inFight
         ? <div class="flesh-line dim">Brought {run.flesh} flesh into this room · carry up to {fleshCap(run)} out</div>
@@ -84,7 +130,7 @@ export function GenomePanel({ run, inFight }: { run: RunState; inFight?: boolean
         <div class="charm-row">
           {(run.charms ?? []).map((id) => {
             const c = CHARMS.get(id);
-            return c ? <span class="charm-chip" title={`${c.name}: ${c.text}`} style={{ '--c': c.color }}><GlyphIcon glyph={c.glyph} color={c.color} size={18} /> {c.name}</span> : null;
+            return c ? <span class="charm-chip" title={`${c.name}: ${c.text}`} style={{ '--c': c.color }}><GlyphIcon glyph={c.glyph} color={c.color} size={24} /> {c.name}</span> : null;
           })}
         </div>
       )}
@@ -93,7 +139,7 @@ export function GenomePanel({ run, inFight }: { run: RunState; inFight?: boolean
           const d = ITEMS.get(id)!;
           return (
             <li title={[d.activeText, d.passiveText && `Passive: ${d.passiveText}`].filter(Boolean).join('\n')}>
-              <GlyphIcon glyph={d.glyph} color={d.color} size={20} /> {d.name}{n > 1 ? ` ×${n}` : ''}
+              <GlyphIcon glyph={d.glyph} color={d.color} size={28} /> <span>{d.name}{d.base ? ' ✦' : ''}{n > 1 ? ` ×${n}` : ''}</span>
             </li>
           );
         })}
@@ -111,7 +157,7 @@ const NODE_NAME: Record<NodeKind, string> = {
 
 export function MapScreen({ run, setRun }: { run: RunState; setRun: SetRun }) {
   const reach = new Set(reachable(run));
-  const W = 520, H = 640, padX = 60, padY = 50;
+  const W = 560, H = 760, padX = 60, padY = 50;
   const px = (col: number) => padX + (col / (MAP_COLS - 1)) * (W - 2 * padX);
   const py = (row: number) => H - padY - (row / (MAP_ROWS - 1)) * (H - 2 * padY);
   const [hover, setHover] = useState<number | null>(null);
@@ -145,7 +191,7 @@ export function MapScreen({ run, setRun }: { run: RunState; setRun: SetRun }) {
                 onMouseEnter={() => setHover(n.id)}
                 onMouseLeave={() => setHover(null)}
               >
-                <circle r={n.kind === 'boss' ? 26 : 18} />
+                <circle r={n.kind === 'boss' ? 32 : 24} />
                 <text dy="0.35em">{NODE_ICON[n.kind]}</text>
               </g>
             );
