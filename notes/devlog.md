@@ -218,3 +218,23 @@ landet sie bei ~45–60 %, Crush-Anteil ~30 %.
 Fehlern. Unit-/Fuzz-Tests: Regel-Inkonsistenzen (Überlappungen, Softlocks).
 Bot-Simulation: Balance und degenerierte Dynamiken (Tretmühlen, Patts).
 Browser-Playtester: alles, was mit *Wahrnehmung* zu tun hat.
+
+## 2026-09-24 — Charms, Spezies, und warum "+1 Bissschaden" böse ist
+
+Neu: **Charms** (passive Relikte für den ganzen Run; von Elites, Bossen, im Shop)
+und **Spezies** (Garden Snake, Viper, Python, Ouroboros — freischaltbar über
+Meilensteine), die jeweils mit eigenem Genom und einem Spezies-Charm starten.
+
+Erste Messung mit Charms: Bot-Siegquote **63 % → 93 %**. Zwei Lektionen:
+1. **Flache +1 auf Bissschaden ist dominant.** Fast alle Gegner haben 2–3 HP;
+   +1 halbiert die nötigen Bisse und damit die Zeit, in der sie telegraphieren
+   können. Der Viper mit +1 Biss gewann 97 %. Jetzt vergiften seine Bisse
+   stattdessen (2 Gift) — Schaden mit Verzögerung, der die Unterbrechung nicht
+   beschleunigt.
+2. **Ein Nachteil, der mathematisch keiner ist:** Der Python hatte "Bisse −1
+   (min 1)". Bei Basis-Biss 1 ist das… 1. Jetzt: Seine Bisse unterbrechen nie
+   (kein Rückstoß) — dafür riesige Coils. Ein echter Stilwechsel.
+3. Boss-Charms bekommen Kehrseiten ("Bisse +2, aber Hunger 4 Züge früher").
+
+Stand (lookahead2, Molt 0): Garden 67 %, Python 53 % (der Bot plant keine
+Coils — Menschen dürften den Python deutlich besser spielen), Viper 83 %.
