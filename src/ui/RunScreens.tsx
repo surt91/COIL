@@ -23,7 +23,7 @@ export function ItemCard({ id, onClick, footer, disabled, compact }: {
         <span class={`rarity r-${d.rarity}`}>{d.rarity}</span>
       </div>
       {!compact && d.activeText && <div class="card-text">{d.active?.move ? <b class="tag">MOVE </b> : null}{d.activeText}</div>}
-      {!compact && d.passiveText && <div class="card-passive">Passive: {d.passiveText}</div>}
+      {!compact && d.passiveText && <div class="card-passive">While carried: {d.passiveText}</div>}
       {footer && <div class="card-footer">{footer}</div>}
     </button>
   );
@@ -149,6 +149,12 @@ export function RewardScreen({ run, setRun, screen }: { run: RunState; setRun: S
     <div class="screen center-screen">
       <h2>{screen.title}</h2>
       <p class="dim">Choose an item to add to your genome. It will grow on your body in every room from now on.</p>
+      {run.lastRoom && (
+        <div class="ledger">
+          <span>Items played <b>{run.lastRoom.played}</b>{run.lastRoom.regrown ? ` → +${run.lastRoom.regrown} flesh regrown` : ''}</span>
+          <span class={run.lastRoom.wasted ? 'bad' : ''}>Destroyed unplayed <b>{run.lastRoom.wasted}</b>{run.lastRoom.wasted ? ' (their effects were lost — they’re back now)' : ''}</span>
+        </div>
+      )}
       <p class="dim small">You carry <b>{run.flesh}</b> of at most {fleshCap(run)} flesh (temporary items were digested into flesh{run.flesh >= fleshCap(run) ? '; anything beyond the cap was too much to carry' : ''}).</p>
       {screen.itemTaken ? <h3>Item chosen</h3> : (
         <div class="choices">

@@ -107,6 +107,10 @@ export interface Fight {
   shield?: number;
   /** Tucks used this turn. */
   tucks?: number;
+  /** Items played this room. */
+  played?: number;
+  /** Items destroyed without being played this room. */
+  wasted?: number;
 }
 
 export interface FightOpts {

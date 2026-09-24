@@ -213,15 +213,21 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
   const flesh = f.snake.segs.filter((s) => !s.item).length;
   const items = f.snake.segs.length - flesh;
   const hungerLeft = f.opts.hungerEvery - f.hunger;
-  const fleshCapNote = fleshCap !== undefined ? `, keep ≤${fleshCap}` : '';
+  const fleshCapNote = fleshCap !== undefined ? `(carry ≤${fleshCap})` : '';
+  // Hand items an enemy has latched onto: play them and the attack fizzles.
+  const targeted = new Set(f.enemies.flatMap((e) => (e.intent.t === 'lock' || e.intent.t === 'steal' ? [e.intent.seg] : [])));
 
   return (
     <div class="fight">
       <header class="hud">
         <div class="hud-title">{title}</div>
-        <div class="hud-stat" title="Segments: items + flesh. Flesh (incl. temporary items) carries to the next room, up to your cap.">
-          <b>{f.snake.segs.length}</b> segments <span class="dim">({items} items · </span><b class="flesh">{flesh}</b><span class="dim"> flesh{fleshCapNote}{pend ? ` · ${pend} in burrow` : ''})</span>
+        <div class="hud-stat" title="Flesh is your health and your currency. It carries to the next room (up to your cap). Temporary items count as flesh at room end.">
+          <b class="flesh">♥ {flesh}</b> flesh <span class="dim">{fleshCapNote}</span>
         </div>
+        <div class="hud-stat" title="Items are ammunition: every item comes back next room, played or not. Play them freely — a destroyed item is just wasted.">
+          <b class="ammo">{items}</b> items <span class="dim">↻ return next room{pend ? ` · ${pend} still in burrow` : ''}</span>
+        </div>
+        {(f.played ?? 0) > 0 && <div class="hud-stat dim" title="Every 2 items played regrow 1 flesh at room end (max 2).">played {f.played}{Math.min(2, Math.floor((f.played ?? 0) / 2)) > 0 ? ` → +${Math.min(2, Math.floor((f.played ?? 0) / 2))} flesh` : ''}</div>}
         {(f.buffs.bite > 0 || f.buffs.absorb > 0) && (
           <div class="hud-stat buffs">
             {f.buffs.bite > 0 && <span class="buff">Next bite +{f.buffs.bite}</span>}
@@ -248,7 +254,7 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
             <span class="tip-label">Tip</span> {tip.text} <span class="dim">(click to dismiss)</span>
           </div>
         )}
-        <MoveHint f={f} dir={hoverDir} preview={preview} />
+        <MoveHint f={f} dir={hoverDir} preview={preview} spent={selected !== null && ops.hand(f)[selected] !== undefined ? f.snake.segs[ops.hand(f)[selected]].uid : undefined} />
         <Inspector f={f} hover={hover} />
         {hint && <div class="autopilot">Autopilot suggests: <b>{describeAction(f, hint.action)}</b> <span class="dim">(P to let it play, Esc to dismiss)</span></div>}
         {side}
@@ -260,9 +266,10 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
           const seg = f.snake.segs[k];
           const d = item(seg.item!);
           const playable = d.active && (d.active.target === 'none' ? canPlay(f, slot) : DIRS.some((dd) => canPlay(f, slot, dd)));
+          const threatened = targeted.has(seg.uid);
           return (
             <button
-              class={`card ${selected === slot ? 'selected' : ''} ${playable ? '' : 'disabled'} ${k >= onBoard ? 'buried' : ''}`}
+              class={`card ${selected === slot ? 'selected' : ''} ${playable ? '' : 'disabled'} ${k >= onBoard ? 'buried' : ''} ${threatened ? 'threatened' : ''}`}
               style={{ '--c': d.color }}
               onClick={() => selectSlot(slot)}
             >
@@ -272,8 +279,9 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
                 <span class="card-name">{d.name}{seg.temp ? ' ·temp' : ''}</span>
               </div>
               {d.activeText && <div class="card-text">{d.activeText}</div>}
-              {d.passiveText && <div class="card-passive">Passive: {d.passiveText}</div>}
+              {d.passiveText && <div class="card-passive">While carried: {d.passiveText}</div>}
               {d.active?.move && <div class="card-tag">MOVE</div>}
+              {threatened && <div class="card-threat">Targeted! Play it — the attack fizzles.</div>}
               {!playable && d.active && <div class="card-why">{d.active.requires ?? (d.active.target === 'dir' ? 'No valid direction right now.' : 'Can’t be played right now.')}</div>}
               {!d.active && <div class="card-why">Passive only — tuck it (T) to cycle.</div>}
             </button>
@@ -370,7 +378,7 @@ function Legend({ f }: { f: Fight }) {
   return (
     <ul class="legend">
       <li><b>Move</b> arrows / WASD / click. You can never stand still.</li>
-      <li><b>Hand</b> = the first three items behind your head. <kbd>1</kbd>–<kbd>3</kbd> to play; playing consumes the segment.</li>
+      <li><b>Hand</b> = the first three items behind your head. <kbd>1</kbd>–<kbd>3</kbd> to play. Items are ammunition: they all come back next room. Only flesh carries over.</li>
       <li><b>Hits</b> destroy the segment they land on.</li>
       <li><b>Coil</b>: enclose enemies with your body (walls help). Coiled enemies can’t move or attack. Tighter = more crush (1 tile: 3/turn, 2–3: 2, 4–8: 1, 9–12: held only). To keep a coil, chase your own tail.</li>
       <li><b>Wrap</b>: the violet arcs count how many of your tiles touch an enemy. At {wrapMin(f)} (diagonals count) it is squeezed for 1 each turn.</li>
@@ -382,7 +390,7 @@ function Legend({ f }: { f: Fight }) {
   );
 }
 
-function MoveHint({ f, dir, preview }: { f: Fight; dir: Dir | null; preview: Fight | null }) {
+function MoveHint({ f, dir, preview, spent }: { f: Fight; dir: Dir | null; preview: Fight | null; spent?: number }) {
   if (dir === null || f.status !== 'play') return null;
   const legal = legalMoves(f).includes(dir);
   const o = moveOutcome(f, dir);
@@ -394,11 +402,19 @@ function MoveHint({ f, dir, preview }: { f: Fight; dir: Dir | null; preview: Fig
   const lines: string[] = [];
   if (preview) {
     const keep = new Set(preview.snake.segs.map((x) => x.uid));
-    const lost = f.snake.segs.filter((x) => !keep.has(x.uid));
+    const spentUid = spent ?? -1;
+    const lost = f.snake.segs.filter((x) => !keep.has(x.uid) && x.uid !== spentUid);
     const lostItems = lost.filter((x) => x.item).map((x) => ITEMS.get(x.item!)?.name);
+    const lostFlesh = lost.length - lostItems.length;
+    if (spent !== undefined) {
+      const sp = f.snake.segs.find((x) => x.uid === spent);
+      if (sp?.item) lines.push(`Spend: ${ITEMS.get(sp.item)?.name} (back next room)`);
+    }
     if (preview.status === 'dead') lines.push('☠ You would die.');
-    else if (lost.length) lines.push(`Lose ${lost.length} segment${lost.length > 1 ? 's' : ''}${lostItems.length ? `: ${lostItems.join(', ')}` : ''}`);
-    else lines.push('No damage taken.');
+    else if (lost.length) {
+      if (lostItems.length) lines.push(`Destroyed unplayed: ${lostItems.join(', ')}`);
+      if (lostFlesh) lines.push(`Lose ${lostFlesh} flesh`);
+    } else lines.push('No damage taken.');
     const fizzles = preview.events.filter((e) => e.t === 'fizzle').length;
     if (fizzles) lines.push(`${fizzles} attack${fizzles > 1 ? 's' : ''} will miss`);
     const kills = preview.events.filter((e) => e.t === 'enemyDie').length;
@@ -409,7 +425,7 @@ function MoveHint({ f, dir, preview }: { f: Fight; dir: Dir | null; preview: Fig
   return (
     <div class="movehint">
       <b>{text[o.k]}</b>
-      {lines.map((l) => <div class={l.startsWith('☠') || l.startsWith('Lose') ? 'bad' : ''}>{l}</div>)}
+      {lines.map((l) => <div class={l.startsWith('☠') || l.startsWith('Lose') || l.startsWith('Destroyed') ? 'bad' : l.startsWith('Spend') ? 'spend' : ''}>{l}</div>)}
     </div>
   );
 }

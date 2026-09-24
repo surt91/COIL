@@ -255,3 +255,11 @@ p.small { font-size: 13px; margin-top: -8px; }
 .charm-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
 .charm-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 2px 8px 2px 2px; border-radius: 999px; border: 1px solid var(--c); }
 .card.charm { border-top-style: double; border-top-width: 4px; }
+
+.hud-stat b.ammo { color: #7fd1ff; }
+.card.threatened { animation: threat 0.9s ease-in-out infinite; border-color: var(--red); }
+@keyframes threat { 50% { box-shadow: 0 0 0 2px var(--red), 0 0 18px rgba(239, 71, 111, 0.6); } }
+.card-threat { font-size: 12px; color: var(--red); font-weight: 700; margin-top: 4px; }
+.movehint .spend { color: #7fd1ff; }
+.ledger { display: flex; gap: 24px; padding: 8px 16px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); }
+.ledger .bad { color: #f4a261; }

@@ -344,6 +344,7 @@ export function step(prev: Fight, a: Action): Fight {
       ops.trimBody(f);
       for (let i = 0; i < (d.active!.extraCost ?? 0); i++) ops.removeTail(f, 'cost');
       ops.emit(f, { t: 'play', item: id });
+      f.played = (f.played ?? 0) + 1;
       d.active!.play(f, { dir: a.dir, seg: k });
       ops.removeDead(f);
       checkCleared(f);

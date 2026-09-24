@@ -122,6 +122,7 @@ export function removeSeg(f: Fight, k: number, cause: string) {
   const at = k + 1 < s.body.length ? s.body[k + 1] : s.body[s.body.length - 1];
   const [seg] = s.segs.splice(k, 1);
   trimBody(f);
+  if (seg.item && cause !== 'cost') f.wasted = (f.wasted ?? 0) + 1;
   emit(f, { t: 'segLost', at, item: seg.item, cause });
 }
 
@@ -131,6 +132,7 @@ export function sever(f: Fight, k: number) {
   if (k < 0 || k >= s.segs.length) return;
   const at = s.body[Math.min(k + 1, s.body.length - 1)];
   const cut = s.segs.splice(k);
+  f.wasted = (f.wasted ?? 0) + cut.filter((x, i) => x.item && k + i + 1 >= s.body.length).length;
   const positions = s.body.splice(k + 1);
   positions.forEach((pos, i) => f.husks.push({ pos, item: cut[i]?.item ?? null, ttl: 4 }));
   emit(f, { t: 'sever', at, n: cut.length });

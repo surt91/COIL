@@ -71,6 +71,8 @@ export interface RunState {
   path?: number[];
   species?: string;
   charms?: string[];
+  /** Ledger of the last cleared room (shown on the reward screen). */
+  lastRoom?: { played: number; wasted: number; regrown: number; kept: number; body: number };
 }
 
 export const MAP_ROWS = 10; // rows 0..8 regular, row 9 boss
@@ -82,6 +84,8 @@ export const ACT_HEAL = 4;
 /** Flesh beyond this is digested at room end: you can only carry so much. */
 export const FLESH_CAP = [8, 10, 12];
 const capFor = (act: number) => FLESH_CAP[Math.min(act, FLESH_CAP.length - 1)];
+/** Room-end flesh regrowth from played items. */
+export const PLAYED_REGROW_MAX = 2;
 /** How many genome items grow on you per room. */
 export const GENOME_DRAW = 8;
 export const genomeDraw = (run: RunState) => GENOME_DRAW + charmSum(run.charms, 'drawBonus');
@@ -255,7 +259,11 @@ export function finishFight(prev: RunState, fight: Fight): RunState {
     return run;
   }
   run.stats.rooms++;
-  run.flesh = Math.min(fleshCap(run), fight.snake.segs.filter((s) => !s.item || s.temp).length);
+  // Spent items nourish you: +1 flesh per 2 items played (max 2), within the cap.
+  const regrown = Math.min(PLAYED_REGROW_MAX, Math.floor((fight.played ?? 0) / 2));
+  const body = fight.snake.segs.filter((s) => !s.item || s.temp).length;
+  run.flesh = Math.min(fleshCap(run), body + regrown);
+  run.lastRoom = { played: fight.played ?? 0, wasted: fight.wasted ?? 0, regrown, kept: run.flesh, body };
   if (node.kind === 'boss') {
     if (run.act >= ACT_NAMES.length - 1) {
       run.screen = { t: 'victory' };

@@ -92,7 +92,7 @@ defineItem({
   glyph: 'scale',
   color: '#90e0ef',
   rarity: 'starter',
-  passiveText: 'Absorbs a hit on this segment (then becomes flesh).',
+  passiveText: 'Absorbs a hit on this segment (then it breaks).',
   activeText: 'Absorb the next hit anywhere this turn.',
   onHit: absorbOnHit,
   active: { target: 'none', play: (f) => void f.buffs.absorb++ },
