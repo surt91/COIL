@@ -4,7 +4,7 @@ import { EVENTS } from '../content/events';
 import { CHARMS, ITEMS, item } from '../core/registry';
 import {
   ACT_NAMES, BASK_FLESH, MAP_COLS, MOLTS, MAP_ROWS, NodeKind, RunState, Screen,
-  bask, buy, buyCharm, canUpgrade, enterNode, eventChoice, fleshCap, genomeDraw, reachable, removeItem, takeCharm, takeReward, toMap, upgradeItem,
+  bask, buy, buyCharm, canUpgrade, describeNextFight, enterNode, eventChoice, fleshCap, genomeDraw, reachable, removeItem, takeCharm, takeReward, toMap, upgradeItem,
 } from '../core/run';
 import type { ItemId } from '../core/types';
 import { CardArt } from './CardArt';
@@ -48,28 +48,33 @@ export function CharmCard({ id, onClick, footer, disabled }: { id: string; onCli
   );
 }
 
-/** Pick an item to molt; shows the current and upgraded version side by side on hover. */
-export function UpgradePicker({ run, onPick, onCancel }: { run: RunState; onPick(idx: number): void; onCancel(): void }) {
-  const [hover, setHover] = useState<number | null>(null);
+/** Pick an item to molt: select it, compare before/after, then confirm. */
+export function UpgradePicker({ run, onPick, onCancel, cost }: { run: RunState; onPick(idx: number): void; onCancel(): void; cost?: string }) {
   const opts = run.genome.map((id, i) => [id, i] as const).filter(([id]) => canUpgrade(id));
-  const h = hover !== null ? run.genome[hover] : opts[0]?.[0];
+  const [sel, setSel] = useState<number | null>(opts[0]?.[1] ?? null);
+  const h = sel !== null ? run.genome[sel] : null;
   return (
     <div class="upgrade-pick">
       <p>Choose an item to molt. It grows back stronger — for the rest of the run.</p>
-      <div class="choices small">
-        {opts.map(([id, i]) => (
-          <div onMouseEnter={() => setHover(i)}><ItemCard id={id} compact onClick={() => onPick(i)} /></div>
-        ))}
-        {opts.length === 0 && <p class="dim">Nothing left to molt.</p>}
-      </div>
-      {h && canUpgrade(h) && (
-        <div class="upgrade-compare">
-          <ItemCard id={h} />
-          <span class="arrow">→</span>
-          <ItemCard id={item(h).upgrade!} />
+      <div class="upgrade-layout">
+        <div class="choices small upgrade-list">
+          {opts.map(([id, i]) => (
+            <div class={sel === i ? 'picked' : ''}><ItemCard id={id} compact onClick={() => setSel(i)} /></div>
+          ))}
+          {opts.length === 0 && <p class="dim">Nothing left to molt.</p>}
         </div>
-      )}
-      <button class="btn" onClick={onCancel}>Cancel</button>
+        {h && canUpgrade(h) && (
+          <div class="upgrade-compare">
+            <ItemCard id={h} />
+            <span class="arrow">→</span>
+            <ItemCard id={item(h).upgrade!} />
+          </div>
+        )}
+      </div>
+      <div class="title-buttons">
+        <button class="btn" onClick={onCancel}>Cancel</button>
+        <button class="btn primary" disabled={sel === null} onClick={() => sel !== null && onPick(sel)}>Molt {h ? item(h).name : ''}{cost ? ` (${cost})` : ''}</button>
+      </div>
     </div>
   );
 }
@@ -101,7 +106,7 @@ export function GenomeView({ run, onClose }: { run: RunState; onClose(): void })
           </>
         )}
         <h3>Items</h3>
-        <div class="choices">{sorted.map((id) => <ItemCard id={id} footer={item(id).upgrade ? <span class="dim">Molts into {item(item(id).upgrade!).name}</span> : item(id).base ? <span>✦ molted</span> : undefined} />)}</div>
+        <div class="choices">{sorted.map((id) => <ItemCard id={id} footer={item(id).upgrade ? <span class="dim small-footer">Molts into <b>{item(item(id).upgrade!).name}</b>: {item(item(id).upgrade!).activeText ?? item(item(id).upgrade!).passiveText}</span> : item(id).base ? <span>✦ molted</span> : undefined} />)}</div>
       </div>
     </div>
   );
@@ -198,6 +203,9 @@ export function MapScreen({ run, setRun }: { run: RunState; setRun: SetRun }) {
           })}
         </svg>
         <div class="map-hint">{hover !== null ? NODE_NAME[run.map[hover].kind] : 'Choose your path. Paths only go upward.'}</div>
+        {run.nextFight && describeNextFight(run.nextFight).length > 0 && (
+          <div class="mods">Next fight: {describeNextFight(run.nextFight).map((m) => <span class="mod-chip">{m}</span>)}</div>
+        )}
       </div>
       <aside class="side">
         <GenomePanel run={run} />
@@ -226,6 +234,7 @@ export function RewardScreen({ run, setRun, screen }: { run: RunState; setRun: S
         <div class="ledger">
           <span>Items played <b>{run.lastRoom.played}</b>{run.lastRoom.regrown ? ` → +${run.lastRoom.regrown} flesh regrown` : ''}</span>
           <span class={run.lastRoom.wasted ? 'bad' : ''}>Destroyed unplayed <b>{run.lastRoom.wasted}</b>{run.lastRoom.wasted ? ' (their effects were lost — they’re back now)' : ''}</span>
+          {(run.lastRoom.fleshLost ?? 0) > 0 && <span class="bad">Flesh lost to hits and hunger <b>{run.lastRoom.fleshLost}</b></span>}
         </div>
       )}
       <p class="dim small">You carry <b>{run.flesh}</b> of at most {fleshCap(run)} flesh (temporary items were digested into flesh{run.flesh >= fleshCap(run) ? '; anything beyond the cap was too much to carry' : ''}).</p>
@@ -284,7 +293,7 @@ export function PoolScreen({ run, setRun: setRun0, screen }: { run: RunState; se
           {screen.molted ? 'Already molted here' : `Molt an item (${screen.moltPrice} flesh)`}
         </button>
       )}
-      {molting && <UpgradePicker run={run} onPick={(i) => { stinger('reward'); setRun(upgradeItem(run, i)); setMolting(false); }} onCancel={() => setMolting(false)} />}
+      {molting && <UpgradePicker run={run} cost={`${screen.moltPrice} flesh`} onPick={(i) => { stinger('reward'); setRun(upgradeItem(run, i)); setMolting(false); }} onCancel={() => setMolting(false)} />}
       {!removing ? (
         <button class="btn" disabled={screen.removed || run.flesh < screen.removePrice || run.genome.length <= 1} onClick={() => setRemoving(true)}>
           {screen.removed ? 'Already shed an item here' : `Shed an item (${screen.removePrice} flesh)`}
@@ -389,7 +398,7 @@ export function EndScreen({ run, onDone }: { run: RunState; onDone: () => void }
   return (
     <div class="screen center-screen">
       <h1 class={won ? 'win' : 'lose'}>{won ? 'The circle is complete' : 'Your coil unwinds'}</h1>
-      {won && <p>You devoured the Ouroboros. {(run.molt ?? 0) + 1 < MOLTS.length ? `Molt ${(run.molt ?? 0) + 1} unlocked: ${MOLTS[(run.molt ?? 0) + 1]}` : 'You have shed every skin.'}</p>}
+      {won && <p>You devoured the Ouroboros. {(run.molt ?? 0) + 1 < MOLTS.length ? `Depth ${(run.molt ?? 0) + 1} unlocked: ${MOLTS[(run.molt ?? 0) + 1]}` : 'You have reached the bottom.'}</p>}
       {run.screen.t === 'dead' && <p>Killed by <b>{run.screen.cause}</b> in {run.screen.where}.</p>}
       <table class="stats">
         <tbody>
@@ -400,7 +409,7 @@ export function EndScreen({ run, onDone }: { run: RunState; onDone: () => void }
           <tr><td>Segments lost</td><td>{s.lostSegments}</td></tr>
           <tr><td>Turns</td><td>{s.turns}</td></tr>
           <tr><td>Seed</td><td>{run.seed}</td></tr>
-          <tr><td>Molt</td><td>{run.molt ?? 0}</td></tr>
+          <tr><td>Depth</td><td>{run.molt ?? 0}</td></tr>
         </tbody>
       </table>
       <GenomePanel run={run} />

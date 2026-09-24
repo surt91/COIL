@@ -265,7 +265,7 @@ defineItem({
 
 defineItem({
   id: 'molt',
-  name: 'Molt',
+  name: 'Ghost Skin',
   glyph: 'molt',
   color: '#dee2e6',
   rarity: 'rare',
@@ -771,7 +771,7 @@ defineUpgrade('swallow', {
 });
 
 defineUpgrade('molt', {
-  name: 'Full Molt',
+  name: 'Phantom Skin',
   activeText: 'Leave your shape behind as a husk-skin for 3 turns. Every bite locked onto you fizzles.',
   active: {
     target: 'none',

@@ -149,7 +149,7 @@ export class BoardRenderer {
   private float(p: Pos, text: string, color: string, big = false) {
     // Stack texts that appear near each other at the same time.
     const near = this.floats.filter((f) => f.life < 500 && Math.abs(f.x - p.x) < 2 && Math.abs(f.y - p.y) < 1.5).length;
-    this.floats.push({ x: p.x, y: p.y - near * 0.55, text, color, life: 0, max: big ? 2200 : 1000, big });
+    this.floats.push({ x: p.x, y: p.y - near * 0.75, text, color, life: 0, max: big ? 2200 : 1000, big });
   }
 
   private burst(p: Pos, color: string, n: number, speed = 3, size = 3) {
@@ -831,7 +831,7 @@ export class BoardRenderer {
     ctx.globalAlpha = 1;
     // pending segments count at the burrow
     const pend = ops.pending(f);
-    if (pend > 0 && n > 0) {
+    if (pend > 0 && n > 1) {
       const t = P(n - 1);
       ctx.fillStyle = 'rgba(232,241,242,0.8)';
       ctx.font = `bold ${Math.round(T * 0.24)}px system-ui, sans-serif`;

@@ -28,9 +28,11 @@ export interface FightViewProps {
   act?: number;
   /** Max flesh carried to the next room (shown in the HUD). */
   fleshCap?: number;
+  /** Event modifiers active in this fight. */
+  mods?: string[];
 }
 
-export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0, fleshCap }: FightViewProps) {
+export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0, fleshCap, mods }: FightViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const renderer = useRef<BoardRenderer | null>(null);
@@ -225,10 +227,10 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
         <div class="hud-stat" title="Flesh is your health and your currency. It carries to the next room (up to your cap). Temporary items count as flesh at room end.">
           <b class="flesh">♥ {flesh}</b> flesh <span class="dim">{fleshCapNote}</span>
         </div>
-        <div class="hud-stat" title="Items are ammunition: every item comes back next room, played or not. Play them freely — a destroyed item is just wasted.">
-          <b class="ammo">{items}</b> items <span class="dim">↻ return next room{pend ? ` · ${pend} still in burrow` : ''}</span>
+        <div class="hud-stat" title="Items are ammunition: every item comes back next room, played or not. Play them freely — a destroyed item is just wasted. Every 2 played regrow 1 flesh at room end (max 2).">
+          <b class="ammo">{items}</b> item{items === 1 ? '' : 's'} left <span class="dim">↻ all return next room{(f.played ?? 0) > 0 ? ` · ${f.played} spent${Math.min(2, Math.floor((f.played ?? 0) / 2)) > 0 ? ` (+${Math.min(2, Math.floor((f.played ?? 0) / 2))} flesh)` : ''}` : ''}{pend ? ` · ${pend} in burrow` : ''}</span>
         </div>
-        {(f.played ?? 0) > 0 && <div class="hud-stat dim" title="Every 2 items played regrow 1 flesh at room end (max 2).">played {f.played}{Math.min(2, Math.floor((f.played ?? 0) / 2)) > 0 ? ` → +${Math.min(2, Math.floor((f.played ?? 0) / 2))} flesh` : ''}</div>}
+        {mods && mods.length > 0 && <div class="hud-stat mods" title="From an event">{mods.map((m) => <span class="mod-chip">{m}</span>)}</div>}
         {(f.buffs.bite > 0 || f.buffs.absorb > 0) && (
           <div class="hud-stat buffs">
             {f.buffs.bite > 0 && <span class="buff">Next bite +{f.buffs.bite}</span>}

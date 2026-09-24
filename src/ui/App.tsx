@@ -4,7 +4,7 @@ import { LAYOUTS } from '../content/layouts';
 import { createFight } from '../core/fight';
 import { MOLTS, RunState, createRun, fleshCap, finishFight, recordEvents, updateFight } from '../core/run';
 import { seedFromString } from '../core/rng';
-import { loadProfile, loadRun, recordRun, saveRun, todayKey } from '../save/storage';
+import { loadProfile, loadRun, recordRun, saveRun, todayKey, unlock } from '../save/storage';
 import { Codex } from './Codex';
 import { SPECIES } from '../content/species';
 import { GlyphIcon } from './GlyphIcon';
@@ -24,6 +24,7 @@ export function App() {
     saveRun(r);
     const ended = (x: RunState | null) => !!x && (x.screen.t === 'victory' || x.screen.t === 'dead');
     if (r && ended(r) && !ended(prev)) recordRun(r);
+    else if (r && prev && r.act > prev.act) unlock(r.act >= 2 ? 'act2' : 'act1');
   };
 
   useEffect(() => {
@@ -77,6 +78,7 @@ export function App() {
           key={`${run.seed}-${sc.node}`}
           initial={sc.fight}
           title={`${layout?.name ?? ''}${node.kind === 'elite' ? ' · elite' : node.kind === 'boss' ? ' · BOSS' : ''}`}
+          mods={sc.mods}
           side={<GenomePanel run={run} inFight />}
           act={run.act}
           fleshCap={fleshCap(run)}
@@ -161,19 +163,19 @@ function Title({ onStart }: { onStart(r: RunState): void }) {
       </div>
       {profile.moltUnlocked > 0 && (
         <div class="molts">
-          <label>Molt </label>
+          <label>Depth </label>
           <select value={molt} onChange={(e) => setMolt(Number((e.target as HTMLSelectElement).value))}>
             {MOLTS.slice(0, profile.moltUnlocked + 1).map((m, i) => <option value={i}>{i}: {m}</option>)}
           </select>
-          <span class="dim"> — each molt also includes all previous ones</span>
+          <span class="dim"> — each depth also includes all shallower ones</span>
         </div>
       )}
-      {profile.runs > 0 && <div class="dim">{profile.runs} runs · {profile.victories} victories{profile.bestMolt >= 0 ? ` · best molt ${profile.bestMolt}` : ''}</div>}
+      {profile.runs > 0 && <div class="dim">{profile.runs} runs · {profile.victories} victories{profile.bestMolt >= 0 ? ` · deepest win: depth ${profile.bestMolt}` : ''}</div>}
       <div class="howto">
         <h3>How to play</h3>
         <ul>
           <li>Turn-based. Every turn your head moves one tile — you can never stand still. Your body follows.</li>
-          <li>Every segment is <b>flesh</b> or carries an <b>item</b>. The first three items behind your head are your <b>hand</b>: press <kbd>1</kbd>–<kbd>3</kbd> to play one. Playing consumes that segment.</li>
+          <li>Every segment is <b>flesh</b> or carries an <b>item</b>. The first three items behind your head are your <b>hand</b>: press <kbd>1</kbd>–<kbd>3</kbd> to play one. <b>Items are ammunition</b>: they all come back next room — spend them freely. Only flesh carries over.</li>
           <li>Enemies telegraph everything. A hit destroys the segment it lands on — and its item. A red reticle means a bite locked on a segment: move so that segment slides out of the attacker's reach, or bite the attacker first to knock it back.</li>
           <li><b>Coil</b>: enclose enemies with your body (walls help). Tighter coils crush harder. Touching an enemy with 4 of your tiles <b>wraps</b> it — it gets squeezed too.</li>
           <li>Hover a tile next to your head to preview the whole turn. <kbd>Z</kbd> undoes card plays, <kbd>T</kbd> tucks an item to your tail.</li>

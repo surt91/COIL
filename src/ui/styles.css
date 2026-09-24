@@ -293,3 +293,10 @@ p.small { font-size: 13px; margin-top: -8px; }
 .hand .card { min-height: 150px; }
 .rarity { white-space: nowrap; font-size: 9px; }
 .card-top { flex-wrap: wrap; }
+
+.upgrade-layout { display: flex; gap: 20px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
+.upgrade-list { max-width: 400px; }
+.upgrade-list .picked .card { box-shadow: 0 0 0 2px var(--gold); }
+.small-footer { font-weight: 400; font-size: 12px; color: var(--dim); }
+.mods { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
+.mod-chip { padding: 2px 8px; border-radius: 999px; border: 1px solid #f4a261; color: #f4a261; font-size: 12px; }

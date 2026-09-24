@@ -27,7 +27,7 @@ export interface ShopSlot { item: ItemId; price: number; sold: boolean }
 
 export type Screen =
   | { t: 'map' }
-  | { t: 'fight'; node: number; encounter: string; layout: string; fight: Fight }
+  | { t: 'fight'; node: number; encounter: string; layout: string; fight: Fight; mods?: string[] }
   | { t: 'reward'; options: ItemId[]; skipFlesh: number; title: string; charms?: string[]; charmTaken?: boolean; itemTaken?: boolean }
   | { t: 'pool'; stock: ShopSlot[]; removePrice: number; removed: boolean; charm?: { id: string; price: number; sold: boolean }; moltPrice?: number; molted?: boolean }
   | { t: 'bask'; done: boolean }
@@ -44,7 +44,7 @@ export interface RunStats {
   lostSegments: number;
 }
 
-/** Ascension-style difficulty levels, cumulative. */
+/** Ascension-style difficulty levels ("Depths"), cumulative. */
 export const MOLTS = [
   'Base game',
   'Hungrier: you starve every 10 turns instead of 12.',
@@ -84,10 +84,11 @@ export interface RunState {
   charms?: string[];
   /** Modifiers for the next fight, set by events. */
   nextFight?: NextFight;
+  seenEvents?: string[];
   /** Extra HP for the next boss (events). */
   bossBonus?: number;
   /** Ledger of the last cleared room (shown on the reward screen). */
-  lastRoom?: { played: number; wasted: number; regrown: number; kept: number; body: number };
+  lastRoom?: { played: number; wasted: number; regrown: number; kept: number; body: number; fleshLost?: number };
 }
 
 export const MAP_ROWS = 10; // rows 0..8 regular, row 9 boss
@@ -176,6 +177,11 @@ export function generateMap(r: Rng): MapNode[] {
       n.kind = weighted(r, opts);
     }
   }
+  // Every act gets at least one Molting Pool.
+  if (!all.some((n) => n.kind === 'pool')) {
+    const mid = all.filter((n) => n.row >= 3 && n.row <= MAP_ROWS - 4 && n.kind !== 'elite');
+    if (mid.length) pick(r, mid).kind = 'pool';
+  }
   return all.sort((a, b) => a.id - b.id);
 }
 
@@ -238,8 +244,22 @@ export function startFight(run: RunState, nodeId: number, pool: Pool): RunState 
     e.hp += bonus;
     e.maxHp += bonus;
   }
-  run.screen = { t: 'fight', node: nodeId, encounter: enc.id, layout: layout.id, fight };
+  run.screen = { t: 'fight', node: nodeId, encounter: enc.id, layout: layout.id, fight, mods: nf ? describeNextFight(nf) : undefined };
   return run;
+}
+
+/** Human-readable list of pending next-fight modifiers. */
+export function describeNextFight(nf: NextFight): string[] {
+  const out: string[] = [];
+  const count = new Map<string, number>();
+  for (const k of nf.extraEnemies ?? []) count.set(k, (count.get(k) ?? 0) + 1);
+  for (const [k, n] of count) out.push(`+${n} ${enemyDef(k).name}${n > 1 ? 's' : ''}`);
+  if (nf.tempItems?.length) out.push(`start with ${nf.tempItems.map((i) => ITEMS.get(i)?.name ?? i).join(', ')}`);
+  if (nf.hungerEvery) out.push(`hunger every ${nf.hungerEvery} turns`);
+  if (nf.enemyPoison) out.push(`enemies start with ${nf.enemyPoison} poison`);
+  if (nf.shield) out.push(`${nf.shield} shield`);
+  if (nf.fleshDelta) out.push(`${nf.fleshDelta} flesh`);
+  return out;
 }
 
 export function enterNode(prev: RunState, nodeId: number): RunState {
@@ -247,6 +267,7 @@ export function enterNode(prev: RunState, nodeId: number): RunState {
   const run = clone(prev);
   run.at = nodeId;
   run.path = [...(run.path ?? []), nodeId];
+  run.lastRoom = undefined;
   const n = run.map[nodeId];
   switch (n.kind) {
     case 'fight':
@@ -269,7 +290,13 @@ export function enterNode(prev: RunState, nodeId: number): RunState {
       run.screen = { t: 'bask', done: false };
       return run;
     case 'event':
-      run.screen = { t: 'event', id: pick(run.rng, EVENTS.filter((e) => !e.acts || e.acts.includes(run.act))).id, result: null };
+      {
+        const fits = EVENTS.filter((e) => !e.acts || e.acts.includes(run.act));
+        const fresh = fits.filter((e) => !(run.seenEvents ?? []).includes(e.id));
+        const ev = pick(run.rng, fresh.length ? fresh : fits);
+        run.seenEvents = [...(run.seenEvents ?? []), ev.id];
+        run.screen = { t: 'event', id: ev.id, result: null };
+      }
       return run;
   }
 }
@@ -298,7 +325,7 @@ export function finishFight(prev: RunState, fight: Fight): RunState {
   const regrown = Math.min(PLAYED_REGROW_MAX, Math.floor((fight.played ?? 0) / 2));
   const body = fight.snake.segs.filter((s) => !s.item || s.temp).length;
   run.flesh = Math.min(fleshCap(run), body + regrown);
-  run.lastRoom = { played: fight.played ?? 0, wasted: fight.wasted ?? 0, regrown, kept: run.flesh, body };
+  run.lastRoom = { played: fight.played ?? 0, wasted: fight.wasted ?? 0, regrown, kept: run.flesh, body, fleshLost: fight.fleshLost ?? 0 };
   if (node.kind === 'boss') {
     if (run.act >= ACT_NAMES.length - 1) {
       run.screen = { t: 'victory' };
@@ -485,8 +512,12 @@ export function eventChoice(prev: RunState, choice: number): RunState {
   const run = clone(prev);
   const before = run.flesh;
   const result = c.apply(run, run.rng);
-  if (run.flesh > before) run.flesh = Math.max(before, Math.min(run.flesh, fleshCap(run)));
-  if (run.screen.t === 'event') run.screen.result = result;
+  let note = '';
+  if (run.flesh > fleshCap(run) && run.flesh > before) {
+    note = ` (You can only carry ${fleshCap(run)} flesh — the rest is wasted.)`;
+    run.flesh = Math.max(before, fleshCap(run));
+  }
+  if (run.screen.t === 'event') run.screen.result = result + note;
   return run;
 }
 

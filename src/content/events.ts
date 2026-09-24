@@ -122,12 +122,12 @@ export const EVENTS: EventDef[] = [
     text: 'A snakeskin, shed by something much, much larger than you. It still holds its shape.',
     choices: [
       {
-        label: `Wear it (3 flesh): gain ${'Molt'}.`,
+        label: 'Wear it (3 flesh): gain Ghost Skin.',
         canChoose: (run) => run.flesh >= 3,
         apply(run) {
           run.flesh -= 3;
           run.genome.push('molt');
-          return 'It fits. Sort of. You gain Molt.';
+          return 'It fits. Sort of. You gain Ghost Skin.';
         },
       },
       {
@@ -202,7 +202,7 @@ export const EVENTS: EventDef[] = [
     text: 'A wooden arcade cabinet hums in a clearing. Two blocky lines chase each other across the screen, each trying to trap the other. The coin slot has been gnawed into a mouth.',
     choices: [
       {
-        label: 'Feed it 3 flesh. (60%: a random charm. 40%: GAME OVER.)',
+        label: 'Feed it 3 flesh. (60%: a random charm. 40%: it just flashes GAME OVER and keeps the flesh.)',
         canChoose: (run) => run.flesh >= 3,
         apply(run, r) {
           run.flesh -= 3;
@@ -213,7 +213,7 @@ export const EVENTS: EventDef[] = [
             run.charms = [...(run.charms ?? []), c.id];
             return `The cabinet rattles and spits out ${c.name}.`;
           }
-          return 'GAME OVER. INSERT COIN.';
+          return 'GAME OVER. INSERT COIN. (The machine keeps your 3 flesh.)';
         },
       },
       {

@@ -111,6 +111,8 @@ export interface Fight {
   played?: number;
   /** Items destroyed without being played this room. */
   wasted?: number;
+  /** Flesh segments destroyed this room. */
+  fleshLost?: number;
 }
 
 export interface FightOpts {

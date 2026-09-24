@@ -123,6 +123,7 @@ export function removeSeg(f: Fight, k: number, cause: string) {
   const [seg] = s.segs.splice(k, 1);
   trimBody(f);
   if (seg.item && cause !== 'cost') f.wasted = (f.wasted ?? 0) + 1;
+  if (!seg.item && cause !== 'cost') f.fleshLost = (f.fleshLost ?? 0) + 1;
   emit(f, { t: 'segLost', at, item: seg.item, cause });
 }
 

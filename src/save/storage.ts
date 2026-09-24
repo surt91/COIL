@@ -73,3 +73,12 @@ export function recordRun(run: RunState): Profile {
 }
 
 export const todayKey = () => new Date().toISOString().slice(0, 10);
+
+/** Record a milestone unlock immediately (mid-run). */
+export function unlock(u: string) {
+  const p = loadProfile();
+  if (!p.unlocks.includes(u)) {
+    p.unlocks.push(u);
+    saveProfile(p);
+  }
+}
