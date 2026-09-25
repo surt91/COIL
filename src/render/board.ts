@@ -12,6 +12,9 @@ import { drawGlyph, glyphOpts } from './glyphs';
 import { renderAscii } from './ascii';
 import { OUROBOROS_STYLE, RIVAL_STYLE, SPECIES_STYLES, SerpentStyle, drawBody, drawHead, sampleBody } from './serpent';
 
+/** An attack the hovered move makes miss: grey, not red (red is damage that will land). */
+const MISS = 'rgba(173, 181, 189, 0.8)';
+
 export const PAL = {
   bg: '#0d1321',
   floorDot: 'rgba(120, 180, 140, 0.16)',
@@ -597,8 +600,9 @@ export class BoardRenderer {
       if (rp) this.hatch([rp], PAL.danger, pulse * 0.55, now);
       const it = e.intent;
       if (it.t === 'strike') {
-        this.hatch(it.tiles, PAL.danger, pulse * 0.7, now);
-        ctx.strokeStyle = PAL.danger;
+        const col = this.willMiss(f, e) ? MISS : PAL.danger;
+        this.hatch(it.tiles, col, pulse * 0.7, now);
+        ctx.strokeStyle = col;
         ctx.lineWidth = 2;
         for (const t of it.tiles) ctx.strokeRect(this.ox + t.x * T + 2, this.oy + t.y * T + 2, T - 4, T - 4);
         if (it.lunge) {
@@ -608,7 +612,7 @@ export class BoardRenderer {
           const mx = (ax + bx) / 2, my = (ay + by) / 2, ux = (bx - ax) / T, uy = (by - ay) / T;
           ctx.save();
           ctx.globalAlpha = pulse + 0.1;
-          ctx.fillStyle = PAL.danger;
+          ctx.fillStyle = col;
           ctx.beginPath();
           ctx.moveTo(mx + ux * T * 0.14, my + uy * T * 0.14);
           ctx.lineTo(mx - ux * T * 0.08 - uy * T * 0.13, my - uy * T * 0.08 + ux * T * 0.13);
@@ -841,6 +845,15 @@ export class BoardRenderer {
     drawBody(this.ctx, samples, n, enemySnakeStyle(color, e.kind));
   }
 
+  /** Under the hovered move, this enemy's attack comes to nothing (the preview has resolved the turn). */
+  private willMiss(f: Fight, e: Enemy): boolean {
+    const g = this.preview;
+    if (!g || g.turn <= f.turn) return false;
+    if (e.intent.t === 'lock') return g.events.some((ev) => ev.t === 'fizzle' && ev.enemy === e.id);
+    if (e.intent.t === 'strike' && e.intent.lunge) return !g.events.some((ev) => ev.t === 'strike' && ev.enemy === e.id);
+    return false;
+  }
+
   private drawLocks(f: Fight, pts: { x: number; y: number }[], now: number) {
     const ctx = this.ctx, T = this.T;
     for (const e of f.enemies) {
@@ -891,7 +904,10 @@ export class BoardRenderer {
       const tp = pts[idx];
       const X = this.cx(tp.x), Y = this.cy(tp.y);
       const E = this.cx(e.pos.x), F = this.cy(e.pos.y);
-      ctx.strokeStyle = PAL.danger;
+      // Grey when the hovered move slides the segment out of reach: the preview answers "will it land?".
+      const miss = this.willMiss(f, e);
+      const col = miss ? MISS : PAL.danger;
+      ctx.strokeStyle = col;
       ctx.lineWidth = 2;
       ctx.setLineDash([5, 4]);
       ctx.lineDashOffset = -now / 40;
@@ -908,8 +924,9 @@ export class BoardRenderer {
       // reticle
       // Around the head it has to clear the head sprite, or it hides underneath.
       const rr = T * ((idx === 0 ? 0.62 : 0.42) + 0.05 * Math.sin(now / 120));
-      ctx.strokeStyle = PAL.danger;
+      ctx.strokeStyle = col;
       ctx.lineWidth = 2.5;
+      if (miss) ctx.setLineDash([4, 4]);
       ctx.beginPath();
       ctx.arc(X, Y, rr, 0, Math.PI * 2);
       for (let i = 0; i < 4; i++) {
@@ -918,8 +935,9 @@ export class BoardRenderer {
         ctx.lineTo(X + Math.cos(a) * rr * 1.2, Y + Math.sin(a) * rr * 1.2);
       }
       ctx.stroke();
+      ctx.setLineDash([]);
       if (it.sever || it.windup > 1) {
-        ctx.fillStyle = PAL.danger;
+        ctx.fillStyle = col;
         ctx.font = `bold ${Math.round(T * 0.28)}px system-ui, sans-serif`;
         ctx.textAlign = 'center';
         ctx.fillText(`${it.sever ? '✂' : ''}${it.windup > 1 ? it.windup : ''}`, E, F - T * 0.55);
