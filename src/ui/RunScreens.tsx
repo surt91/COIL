@@ -15,9 +15,9 @@ import { GlyphIcon } from './GlyphIcon';
 type SetRun = (r: RunState) => void;
 
 const SPECIES_GOALS = [
-  { unlock: 'act1', species: 'Viper', goal: 'defeat the Mongoose to wake the Viper', stirs: 'A new species stirs: the Viper. Short and venomous — pick it on the title screen next run.' },
-  { unlock: 'act2', species: 'Python', goal: 'defeat the Ant Queen to wake the Python', stirs: 'A new species stirs: the Python. Long and heavy — pick it on the title screen next run.' },
-  { unlock: 'victory', species: 'Ouroboros', goal: 'win a run to wake the Ouroboros', stirs: 'The Ouroboros wakes. It feeds on its own husks — pick it on the title screen next run.' },
+  { unlock: 'act1', id: 'viper', species: 'Viper', goal: 'defeat the Mongoose to wake the Viper', stirs: 'A new species stirs: the Viper. Short and venomous — pick it on the title screen next run.' },
+  { unlock: 'act2', id: 'python', species: 'Python', goal: 'defeat the Ant Queen to wake the Python', stirs: 'A new species stirs: the Python. Long and heavy — pick it on the title screen next run.' },
+  { unlock: 'victory', id: 'ouro', species: 'Ouroboros', goal: 'win a run to wake the Ouroboros', stirs: 'The Ouroboros wakes. It feeds on its own husks — pick it on the title screen next run.' },
 ];
 
 export function ItemCard({ id, onClick, footer, disabled, compact }: {
@@ -458,7 +458,7 @@ export function EventScreen({ run, setRun, screen }: { run: RunState; setRun: Se
 
 const placeText = (p: number) => (p >= 30 ? 'victory' : `Act ${Math.floor(p / MAP_ROWS) + 1}, ${p % MAP_ROWS === MAP_ROWS - 1 ? 'the boss' : `room ${(p % MAP_ROWS) + 1}`}`);
 
-export function EndScreen({ run, onDone, onAgain, onDaily }: { run: RunState; onDone: () => void; onAgain: () => void; onDaily?: () => void }) {
+export function EndScreen({ run, onDone, onAgain, onDaily }: { run: RunState; onDone: () => void; onAgain: (species?: string) => void; onDaily?: () => void }) {
   const s = run.stats;
   const won = run.screen.t === 'victory';
   const profile = loadProfile();
@@ -479,7 +479,8 @@ export function EndScreen({ run, onDone, onAgain, onDaily }: { run: RunState; on
   const ep = epithetOf(run);
   const node = run.at !== null ? run.map[run.at] : null;
   const where = node ? `Act ${run.act + 1} · ${ACT_NAMES[run.act]}, ${node.row === MAP_ROWS - 1 ? 'the boss' : `room ${node.row + 1}`}` : '';
-  const again = () => { uiClick(); onAgain(); };
+  const fresh = newUnlocks[newUnlocks.length - 1];
+  const again = () => { uiClick(); onAgain(fresh?.id); };
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === 'Enter') again(); };
     window.addEventListener('keydown', k);
@@ -518,7 +519,8 @@ export function EndScreen({ run, onDone, onAgain, onDaily }: { run: RunState; on
       <p class="next-goal">{next}</p>
       {ep && <p class="epithet">You fought like <b>{ep.name}</b> — {ep.why}.</p>}
       <div class="title-buttons">
-        <button class="btn primary" onClick={again}>Shed your skin and go again <kbd>Enter</kbd></button>
+        <button class="btn primary" onClick={again}>{fresh ? `Try the ${fresh.species}` : 'Shed your skin and go again'} <kbd>Enter</kbd></button>
+        {fresh && <button class="btn" onClick={() => { uiClick(); onAgain(); }}>Go again as before</button>}
         {onDaily && <button class="btn" onClick={() => { uiClick(); onDaily(); }}>Try today’s Daily</button>}
         <button class="btn" onClick={() => { uiClick(); onDone(); }}>Back to title</button>
       </div>

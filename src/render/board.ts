@@ -1,6 +1,6 @@
 import { computeCoils, occupiedCoils, touchCount } from '../core/coil';
 import { Dir, Pos, eq } from '../core/geom';
-import { riposteTile, wrapMin } from '../core/fight';
+import { bossExposed, riposteTile, wrapMin } from '../core/fight';
 import * as ops from '../core/ops';
 import { ENEMIES, ITEMS } from '../core/registry';
 import type { Enemy, Fight, GameEvent } from '../core/types';
@@ -215,7 +215,7 @@ export class BoardRenderer {
           this.burst(e.at, PAL.food, 80, 9, 4);
           this.burst(e.at, '#ffffff', 40, 6, 3);
           this.shake = 22;
-          this.float({ x: e.at.x, y: e.at.y - 1 }, `${d.name.toUpperCase()} FALLS`, PAL.food, true);
+          this.float({ x: this.rotated ? e.at.x : f.w / 2 - 0.5, y: this.rotated ? f.h / 2 - 0.5 : e.at.y - 1 }, `${d.name.toUpperCase()} FALLS`, PAL.food, true);
           this.hitStop = performance.now() + 350;
         }
         break;
@@ -626,6 +626,26 @@ export class BoardRenderer {
           }
         }
       }
+      if (d?.boss && bossExposed(f, e)) {
+        // Exposed (wrapped or inside a coil): violet, like coils — bite it now.
+        const pl = 0.6 + 0.4 * Math.sin(now / 180);
+        ctx.save();
+        ctx.strokeStyle = PAL.coil;
+        ctx.globalAlpha = pl;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(X, Y, T * 0.72, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = PAL.coil;
+        ctx.font = `bold ${Math.round(T * 0.24)}px system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+        ctx.lineWidth = 3;
+        ctx.strokeText('EXPOSED', X, Y + T * 0.95);
+        ctx.fillText('EXPOSED', X, Y + T * 0.95);
+        ctx.restore();
+      }
       const halo = ctx.createRadialGradient(X, Y, T * 0.1, X, Y, T * 0.55);
       halo.addColorStop(0, 'rgba(255,255,255,0.10)');
       halo.addColorStop(1, 'rgba(255,255,255,0)');
@@ -750,7 +770,9 @@ export class BoardRenderer {
         continue;
       }
       if (it0.t === 'summon') {
-        ctx.strokeStyle = 'rgba(239, 71, 111, 0.6)';
+        // Summons are not damage: earth-toned, in the summoner's colour.
+        ctx.strokeStyle = ENEMIES.get(e.kind)?.color ?? '#d9822b';
+        ctx.globalAlpha = 0.75;
         ctx.setLineDash([2, 3]);
         ctx.lineWidth = 2;
         for (const t of it0.tiles) {
@@ -759,6 +781,7 @@ export class BoardRenderer {
           ctx.stroke();
         }
         ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
         continue;
       }
       const it = it0;

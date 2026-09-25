@@ -6,7 +6,7 @@ import type { Fight } from '../core/types';
 
 export interface Tip { id: string; text: string }
 
-const TIPS: { id: string; when(f: Fight): boolean; text: string }[] = [
+const TIPS: { id: string; when(f: Fight): boolean; text: string; urgent?: boolean }[] = [
   { id: 'start', when: (f) => f.turn === 0, text: typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
     ? 'Tap next to your head or swipe to preview a move — it shows exactly what will happen. Tap or swipe the same way again to do it. You can never stand still: every turn, you move.'
     : 'Move with the arrow keys, WASD or by clicking next to your head. You can never stand still — every turn, you move. Hover a tile next to your head to preview the whole turn.' },
@@ -16,8 +16,8 @@ const TIPS: { id: string; when(f: Fight): boolean; text: string }[] = [
   { id: 'strike', when: (f) => f.enemies.some((e) => e.intent.t === 'strike'), text: 'Red tiles will be struck after your move. Your head can step out of the way — but your body follows into the tiles your head just left.' },
   { id: 'sever', when: (f) => f.enemies.some((e) => e.intent.t === 'lock' && !!e.intent.sever), text: 'A mantis is winding up to SEVER you. Everything behind the cut falls off as husks. Get that segment out of reach (2 tiles), or kill the mantis first. You can eat husks to reattach them.' },
   { id: 'ring', when: (f) => f.snake.segs.some((x) => x.item && ITEMS.get(x.item)?.ringCrush) && occupiedCoils(f).length > 0, text: 'Ring items (like Muscle) only strengthen coils that their own segment borders — wrap your prey with that part of your body. Between rooms you can reorder your genome ring: items that sit next to each other there grow next to each other on you.' },
-  { id: 'grub', when: (f) => f.enemies.some((e) => e.kind === 'grub'), text: 'A Brood Grub: kill it with a bite, poison or anything but a coil and it bursts into two Grublings — which are too small to feed you. Crush it in a coil instead and you swallow it whole.' },
-  { id: 'riposte', when: (f) => f.enemies.some((e) => !!riposteTile(e)), text: 'Bosses riposte: the tile your head just bit from is marked red. Still standing there after your next move, and it strikes your head. Keep circling it — and wrap it or close any coil around it to expose it: an exposed boss can be knocked back and interrupted, takes +1 from bites and can’t riposte.' },
+  { id: 'grub', urgent: true, when: (f) => f.enemies.some((e) => e.kind === 'grub'), text: 'A Brood Grub: kill it with a bite, poison or anything but a coil and it bursts into two Grublings — which are too small to feed you. Crush it in a coil instead and you swallow it whole.' },
+  { id: 'riposte', urgent: true, when: (f) => f.enemies.some((e) => !!riposteTile(e)), text: 'Bosses riposte: the tile your head just bit from is marked red. Still standing there after your next move, and it strikes your head. Keep circling it — and wrap it or close any coil around it to expose it: an exposed boss can be knocked back and interrupted, takes +1 from bites and can’t riposte.' },
   { id: 'spiky', when: (f) => f.enemies.some((e) => e.kind === 'hedgehog'), text: 'Hedgehogs are spiny: biting one costs you your neck segment, and it curls up. Coil it instead — enclose it with your body.' },
   { id: 'coil', when: (f) => coiledEnemies(f).size > 0, text: 'Coiled! Enemies enclosed by your body (walls help) can’t move or attack and are crushed every turn — and what you crush, you eat. The tighter the coil, the harder the crush: 1 tile = 3 damage, 2–3 = 2, 4–8 = 1, 9–12 = held only. You must keep moving — to keep a coil closed, chase your own tail.' },
   { id: 'wrap', when: (f) => f.enemies.some((e) => !e.under && touchCount(f, e) >= 2), text: 'The violet arcs around an enemy count how many of your tiles touch it (diagonals count). At 4 it is wrapped and squeezed for 1 damage every turn. A fully closed coil is much stronger: coiled enemies can’t move or attack at all.' },
@@ -40,6 +40,13 @@ function seen(): Set<string> {
 export function nextTip(f: Fight): Tip | null {
   const s = seen();
   for (const t of TIPS) if (!s.has(t.id) && t.when(f)) return { id: t.id, text: t.text };
+  return null;
+}
+
+/** A tip that must be shown right now (it explains what is about to hit you), jumping the queue. */
+export function urgentTip(f: Fight): Tip | null {
+  const s = seen();
+  for (const t of TIPS) if (t.urgent && !s.has(t.id) && t.when(f)) return { id: t.id, text: t.text };
   return null;
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { coilDamage, computeCoils, occupiedCoils } from '../core/coil';
-import { canPlay, legalMoves, moveOutcome, riposteTile, step, wrapMin } from '../core/fight';
+import { bossExposed, canPlay, legalMoves, moveOutcome, riposteTile, step, wrapMin } from '../core/fight';
 import { DIRS, Dir, Pos, eq, step as stepPos } from '../core/geom';
 import * as ops from '../core/ops';
 import { ENEMIES, ITEMS, item } from '../core/registry';
@@ -12,7 +12,7 @@ import { lookahead2Policy } from '../bot/policies';
 import { makeRng } from '../core/rng';
 import { CardArt } from './CardArt';
 import { GlyphIcon } from './GlyphIcon';
-import { Tip, markSeen, nextTip } from './tips';
+import { Tip, markSeen, nextTip, urgentTip } from './tips';
 
 const isTouch = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 
@@ -99,6 +99,11 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
     playEvents(next.events);
     onStep?.(next);
     setTip((t) => {
+      const u = urgentTip(next);
+      if (u && u.id !== t?.id) {
+        tipTurn.current = next.turn;
+        return u; // the old tip isn't marked seen: it comes back later
+      }
       if (t && next.turn - tipTurn.current < 3) return t;
       if (t) markSeen(t.id);
       tipTurn.current = next.turn;
@@ -448,7 +453,14 @@ function Inspector({ f, hover }: { f: Fight; hover: Pos | null }) {
         <h3 style={{ color: d.color }}>{d.name}</h3>
         <div>HP {e.hp}/{e.maxHp}{e.poison ? ` · ☠ ${e.poison}` : ''}{e.held ? ' · held' : ''}</div>
         <div class="intent">{describeIntent(f, e)}</div>
-        {d.boss && <div class="dim">Boss: bites don’t interrupt it.</div>}
+        {d.boss && (
+          <div class="dim">
+            {bossExposed(f, e)
+              ? <b style={{ color: 'var(--coil, #c77dff)' }}>Exposed: </b>
+              : <>Boss: bites don’t interrupt it, and it <b>ripostes</b> — the tile you bit it from gets struck if you’re still on it next turn. </>}
+            {bossExposed(f, e) ? 'wrapped or coiled — bites deal +1, knock it back and interrupt it, and it can’t riposte.' : 'Wrap it or coil it to expose it.'}
+          </div>
+        )}
         <p>{d.text}</p>
       </div>
     );

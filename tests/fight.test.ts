@@ -229,9 +229,17 @@ describe('body is the deck', () => {
   });
 
   test('hunger eats the tail', () => {
-    let f = createFight({ rows: open(12, 8), genome: [], flesh: 0, seed: 1, snake: { body: [P(2, 3), P(1, 3)], items: [null], dir: R }, opts: { minFood: 0, hungerEvery: 3 } });
+    // A far-away enemy keeps the room uncleared (hunger stands still in cleared rooms).
+    let f = createFight({ rows: open(12, 8), genome: [], flesh: 0, seed: 1, place: ['tortoise'], snake: { body: [P(2, 3), P(1, 3)], items: [null], dir: R }, opts: { minFood: 0, hungerEvery: 3 } });
+    for (const e of f.enemies) { e.pos = P(10, 6); e.intent = { t: 'wait' }; }
     for (let i = 0; i < 3; i++) f = step(f, { t: 'move', dir: i < 2 ? R : D });
     expect(f.snake.segs.length).toBe(0);
+  });
+
+  test('hunger stands still once the room is cleared', () => {
+    let f = createFight({ rows: open(12, 8), genome: [], flesh: 0, seed: 1, snake: { body: [P(2, 3), P(1, 3)], items: [null], dir: R }, opts: { minFood: 0, hungerEvery: 3 } });
+    for (let i = 0; i < 3; i++) f = step(f, { t: 'move', dir: i < 2 ? R : D });
+    expect(f.snake.segs.length).toBe(1);
   });
 });
 

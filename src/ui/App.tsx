@@ -122,7 +122,10 @@ export function App() {
         <EndScreen
           run={run}
           onDone={() => setRun(null)}
-          onAgain={() => setRun(createRun(Math.floor(Math.random() * 2 ** 31), run.daily ? 0 : run.molt, undefined, run.daily ? 'garden' : run.species))}
+          onAgain={(sp) => {
+            if (sp) markSpeciesSeen(sp);
+            setRun(createRun(Math.floor(Math.random() * 2 ** 31), run.daily ? 0 : run.molt, undefined, sp ?? (run.daily ? 'garden' : run.species)));
+          }}
           onDaily={loadProfile().dailies[todayKey()] ? undefined : () => setRun(createRun(seedFromString(`coil-daily-${todayKey()}`), 0, todayKey()))}
         />
       );

@@ -457,3 +457,48 @@ Kleinere Funde des Playtesters, gleich mit behoben: Coiled Strike unterbrach
 Bosse, Fleisch konnte über der Obergrenze liegen, nach dem Säubern eines Raums
 wuchs endlos Futter nach (man konnte sich vollfressen — jetzt: gesäubert heißt
 gehen), und Event-Entscheidungen erklären jetzt die Items, die sie nennen.
+
+## 2026-09-25 — Zweite Runde: Räume, Karte, und was man nicht sieht
+
+**Eigene Räume pro Akt.** Der Playtester hatte "Open Lawn" in allen drei Akten
+gesehen. Jetzt hat jeder Akt mindestens fünf eigene Räume: die Wurzeln verschlungen
+und voller Engstellen (Taproot, Warren, Root Knot), die Tiefe mit Säulenhallen,
+einer Schlucht mit nur einer Brücke und einer Grotte, deren Innenhöhle nur einen
+Eingang hat (ein Coil wartet darauf, geschlossen zu werden). Ein neuer Test prüft,
+dass jeder Raum zusammenhängend ist und einen erreichbaren Ausgang hat — er fand
+sofort einen Ausgang hinter einer Wand.
+
+**Die Karte.** Gemessen über 500 Karten: An **83 %** der Knoten gab es genau einen
+Weg weiter. Jetzt sechs Pfade ohne Kreuzungen plus Querverbindungen, und kein
+Spezialknoten folgt auf denselben (kein "Bask → Bask → Elite" mehr): 55 %.
+
+**Ein Bug, den der Bot fand, indem er ihn ausnutzte.** Nach den Boss-Kontern
+endete ein Ouroboros-Kampf mit 136 Fleisch. Die Spur: Ein Kopftreffer zerstört die
+zwei Segmente hinter dem Kopf. War eines davon ein *Clutch* (gehäutetes Ei), schlüpfte
+es — und setzte dabei eine temporäre Fang *vor* sich. Der Treffer entfernte dann den
+Index, nicht das getroffene Segment: die frische Fang starb, das Clutch blieb. Jeder
+Konter: +6 Fleisch. Der Bot hatte gelernt, sich absichtlich kontern zu lassen.
+Fix: das getroffene Segment per Identität entfernen, plus Regeltest, der ohne Fix rot ist.
+
+**Zwei Playtests, eine Botschaft: Die Regeln sind gut, aber unsichtbar.**
+Der Handy-Tester: "Tipps sind auf dem Handy unsichtbar" — sie lebten im geschlossenen
+Info-Sheet, der Konter wurde einem Handy-Spieler also *nie* erklärt. Der Desktop-
+Tester: "Die Boss-Regeln sind gut, aber man sieht sie nicht, also fühlen sich
+Bosskämpfe wie unerklärte Zermürbung an." Sein bester Moment dagegen:
+
+> Um den Mungo kreisen. Mein Körper umwickelte ihn (die violetten Bögen), er nahm
+> Quetschschaden, und der entblößte Biss stieß ihn für 2 zurück. Das ist die
+> beabsichtigte Schleife, und wenn sie klickt, ist sie großartig.
+
+Also: Tipps schweben auf dem Handy über dem Brett, dringende Tipps (Konter, Brut)
+drängeln sich in der Warteschlange vor, die Konter-Markierung pulsiert *über* dem
+Kopf statt darunter, die Vorschau sagt "The boss marks this tile", ein entblößter
+Boss trägt einen violetten Ring mit "EXPOSED", und die Inspektion erklärt beides.
+
+Kleinere Funde: Die Genom-Übersicht öffnete sich auf dem Handy außerhalb des
+Bildschirms (ein `position: fixed` in einem transformierten Eltern-Element — Portal),
+schwebende Texte stiegen auf dem gedrehten Brett *seitwärts* auf und überlagerten
+sich, und nachdem nach dem Säubern kein Futter mehr wächst, verhungerte der Autopilot
+einen Schritt vor dem Ausgang. Jetzt steht in gesäuberten Räumen auch der Hunger still.
+
+Balance nach allem: 48 / 53 % (zwei Seeds), Tode an den drei Bossen.

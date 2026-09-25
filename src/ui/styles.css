@@ -424,3 +424,8 @@ p.small { font-size: 13px; margin-top: -8px; }
   .screen { padding-bottom: 64px; }
 }
 .milestones .ms-label { font-size: 12px; margin-left: 6px; }
+/* Desktop: a fixed-height hand, so the board never rescales when a card slot empties. */
+@media (min-width: 821px) and (min-height: 521px) {
+  .hand { height: 198px; box-sizing: border-box; }
+  .hand .card { overflow: hidden; }
+}

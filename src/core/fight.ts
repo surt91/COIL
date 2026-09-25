@@ -637,7 +637,8 @@ function upkeep(f: Fight) {
   for (const hk of f.husks) hk.ttl--;
   f.husks = f.husks.filter((hk) => hk.ttl > 0);
 
-  f.hunger++;
+  // A cleared room grows no food, so hunger stands still there: leave in peace.
+  if (!f.cleared) f.hunger++;
   if (f.hunger >= f.opts.hungerEvery) {
     f.hunger = 0;
     const s = f.snake;
