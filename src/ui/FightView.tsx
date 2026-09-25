@@ -6,6 +6,7 @@ import * as ops from '../core/ops';
 import { ENEMIES, ITEMS, item } from '../core/registry';
 import type { Action, Enemy, Fight } from '../core/types';
 import { BoardRenderer } from '../render/board';
+import { SPECIES_STYLES } from '../render/serpent';
 import { playEvents } from '../audio/audio';
 import { lookahead2Policy } from '../bot/policies';
 import { makeRng } from '../core/rng';
@@ -30,9 +31,10 @@ export interface FightViewProps {
   fleshCap?: number;
   /** Event modifiers active in this fight. */
   mods?: string[];
+  species?: string;
 }
 
-export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0, fleshCap, mods }: FightViewProps) {
+export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0, fleshCap, mods, species = 'garden' }: FightViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const renderer = useRef<BoardRenderer | null>(null);
@@ -52,6 +54,7 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
   useEffect(() => {
     const r = new BoardRenderer(canvasRef.current!);
     r.act = actNo;
+    r.style = SPECIES_STYLES[species] ?? SPECIES_STYLES.garden;
     renderer.current = r;
     (window as any).__coil = { get fight() { return fightRef.current; }, dispatch, renderer: r };
     r.instant = new URLSearchParams(location.search).has('instant');

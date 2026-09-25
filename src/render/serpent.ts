@@ -13,7 +13,24 @@ export interface SerpentStyle {
   outline: string;
   pattern: string;
   stripe: string;
+  /** Dorsal markings. Default: diamonds. */
+  markings?: 'diamond' | 'zigzag' | 'blotch' | 'bands' | 'none';
+  /** Head silhouette. Default: wedge. */
+  headShape?: 'wedge' | 'arrow' | 'blunt' | 'round';
+  /** Body thickness multiplier (callers apply it to widths). */
+  girth?: number;
+  eye?: string;
+  /** Second marking colour (bands, blotch rims). */
+  accent?: string;
 }
+
+/** Player snake styles per species. */
+export const SPECIES_STYLES: Record<string, SerpentStyle> = {
+  garden: { head: [72, 226, 186], tail: [22, 110, 96], outline: '#06100e', pattern: 'rgba(6, 46, 38, 0.7)', stripe: 'rgba(200, 255, 235, 0.18)', markings: 'diamond', headShape: 'wedge', girth: 1, eye: '#f7e36b' },
+  viper: { head: [196, 72, 78], tail: [70, 26, 34], outline: '#12050a', pattern: 'rgba(25, 4, 10, 0.85)', stripe: 'rgba(255, 190, 150, 0.12)', markings: 'zigzag', headShape: 'arrow', girth: 0.88, eye: '#ffb703', accent: '#f4a261' },
+  python: { head: [196, 168, 110], tail: [110, 88, 52], outline: '#140e05', pattern: 'rgba(62, 40, 18, 0.85)', stripe: 'rgba(255, 240, 200, 0.10)', markings: 'blotch', headShape: 'blunt', girth: 1.22, eye: '#e9c46a', accent: 'rgba(235, 215, 170, 0.8)' },
+  ouro: { head: [250, 196, 60], tail: [150, 96, 18], outline: '#140c02', pattern: 'rgba(30, 18, 0, 0.9)', stripe: 'rgba(255, 250, 220, 0.2)', markings: 'bands', headShape: 'round', girth: 1, eye: '#e63946', accent: 'rgba(255, 240, 190, 0.7)' },
+};
 
 interface Sample extends V {
   /** Fractional segment index (0 = head). */
@@ -127,36 +144,122 @@ export function drawBody(ctx: G, ss: Sample[], n: number, st: SerpentStyle) {
   ctx.beginPath();
   ss.forEach((s, i) => (i ? ctx.lineTo(s.x, s.y) : ctx.moveTo(s.x, s.y)));
   ctx.stroke();
-  // Diamond markings between segment centres.
+  drawMarkings(ctx, ss, n, st);
+  ctx.restore();
+}
+
+function drawMarkings(ctx: G, ss: Sample[], n: number, st: SerpentStyle) {
+  const kind = st.markings ?? 'diamond';
   ctx.fillStyle = st.pattern;
+  if (kind === 'zigzag') {
+    // A continuous dorsal zigzag, the classic viper band.
+    ctx.strokeStyle = st.pattern;
+    ctx.lineJoin = 'miter';
+    ctx.lineWidth = Math.max(1.5, ss[0].w * 0.13);
+    ctx.beginPath();
+    let first = true;
+    for (let i = 0; i < ss.length; i += 2) {
+      const s = ss[i];
+      if (s.t < 0.4 || s.t > n - 1) continue;
+      const side = (Math.floor(i / 2) % 2 ? 1 : -1) * s.w * 0.24;
+      const x = s.x + s.nx * side, y = s.y + s.ny * side;
+      first ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      first = false;
+    }
+    ctx.stroke();
+    if (st.accent) {
+      ctx.strokeStyle = st.accent;
+      ctx.lineWidth = Math.max(1, ss[0].w * 0.04);
+      ctx.stroke();
+    }
+    return;
+  }
   for (const s of ss) {
     const frac = s.t % 1;
     if (Math.abs(frac - 0.5) > 0.08 || s.t < 0.6 || s.t > n - 1) continue;
-    const big = Math.floor(s.t) % 2 === 0;
-    const L = s.w * (big ? 0.36 : 0.24), W = s.w * (big ? 0.26 : 0.16);
+    const k = Math.floor(s.t);
     const tx = s.ny, ty = -s.nx;
-    ctx.beginPath();
-    ctx.moveTo(s.x + tx * L, s.y + ty * L);
-    ctx.lineTo(s.x + s.nx * W, s.y + s.ny * W);
-    ctx.lineTo(s.x - tx * L, s.y - ty * L);
-    ctx.lineTo(s.x - s.nx * W, s.y - s.ny * W);
-    ctx.closePath();
-    ctx.fill();
+    if (kind === 'diamond') {
+      const big = k % 2 === 0;
+      const L = s.w * (big ? 0.36 : 0.24), W = s.w * (big ? 0.26 : 0.16);
+      ctx.beginPath();
+      ctx.moveTo(s.x + tx * L, s.y + ty * L);
+      ctx.lineTo(s.x + s.nx * W, s.y + s.ny * W);
+      ctx.lineTo(s.x - tx * L, s.y - ty * L);
+      ctx.lineTo(s.x - s.nx * W, s.y - s.ny * W);
+      ctx.closePath();
+      ctx.fill();
+    } else if (kind === 'blotch') {
+      // Irregular saddles with pale rims (python).
+      const off = ((k * 37) % 7) / 7 - 0.5;
+      const cx = s.x + s.nx * off * s.w * 0.2, cy = s.y + s.ny * off * s.w * 0.2;
+      const a = Math.atan2(ty, tx);
+      if (st.accent) {
+        ctx.fillStyle = st.accent;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, s.w * 0.36, s.w * 0.3, a, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = st.pattern;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, s.w * 0.3, s.w * 0.24, a, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (kind === 'bands') {
+      // Rings across the body.
+      const W = s.w * 0.5;
+      ctx.lineCap = 'butt';
+      ctx.strokeStyle = st.pattern;
+      ctx.lineWidth = Math.max(2, s.w * 0.22);
+      ctx.beginPath();
+      ctx.moveTo(s.x + s.nx * W, s.y + s.ny * W);
+      ctx.lineTo(s.x - s.nx * W, s.y - s.ny * W);
+      ctx.stroke();
+      if (st.accent) {
+        ctx.strokeStyle = st.accent;
+        ctx.lineWidth = Math.max(1, s.w * 0.05);
+        for (const o of [-0.16, 0.16]) {
+          ctx.beginPath();
+          ctx.moveTo(s.x + s.nx * W + tx * s.w * o, s.y + s.ny * W + ty * s.w * o);
+          ctx.lineTo(s.x - s.nx * W + tx * s.w * o, s.y - s.ny * W + ty * s.w * o);
+          ctx.stroke();
+        }
+      }
+    }
   }
-  ctx.restore();
 }
 
 /** Head facing +x in local coordinates; T = tile size. */
 export function drawHead(ctx: G, T0: number, st: SerpentStyle, now: number, opts: { tongue?: boolean; eye?: string; crown?: boolean } = {}) {
   const T = T0 * 1.18;
-  // Wedge-shaped head, wider than the neck, rounded snout.
+  const hs = st.headShape ?? 'wedge';
   const shape = (g: number) => {
     ctx.beginPath();
-    ctx.moveTo(-0.3 * T, -0.24 * T - g);
-    ctx.bezierCurveTo(-0.1 * T, -0.42 * T - g, 0.3 * T, -0.36 * T - g, 0.46 * T + g, -0.12 * T);
-    ctx.quadraticCurveTo(0.55 * T + g, 0, 0.46 * T + g, 0.12 * T);
-    ctx.bezierCurveTo(0.3 * T, 0.36 * T + g, -0.1 * T, 0.42 * T + g, -0.3 * T, 0.24 * T + g);
-    ctx.quadraticCurveTo(-0.4 * T - g, 0, -0.3 * T, -0.24 * T - g);
+    if (hs === 'arrow') {
+      // Viper: broad triangular jaw, narrow snout.
+      ctx.moveTo(-0.3 * T, -0.2 * T - g);
+      ctx.lineTo(-0.12 * T, -0.44 * T - g);
+      ctx.quadraticCurveTo(0.25 * T, -0.3 * T - g, 0.5 * T + g, -0.07 * T);
+      ctx.quadraticCurveTo(0.56 * T + g, 0, 0.5 * T + g, 0.07 * T);
+      ctx.quadraticCurveTo(0.25 * T, 0.3 * T + g, -0.12 * T, 0.44 * T + g);
+      ctx.lineTo(-0.3 * T, 0.2 * T + g);
+      ctx.quadraticCurveTo(-0.38 * T - g, 0, -0.3 * T, -0.2 * T - g);
+    } else if (hs === 'blunt') {
+      // Python: long, heavy, square-ish snout.
+      ctx.moveTo(-0.32 * T, -0.26 * T - g);
+      ctx.bezierCurveTo(0, -0.36 * T - g, 0.4 * T, -0.32 * T - g, 0.52 * T + g, -0.16 * T);
+      ctx.quadraticCurveTo(0.58 * T + g, 0, 0.52 * T + g, 0.16 * T);
+      ctx.bezierCurveTo(0.4 * T, 0.32 * T + g, 0, 0.36 * T + g, -0.32 * T, 0.26 * T + g);
+      ctx.quadraticCurveTo(-0.42 * T - g, 0, -0.32 * T, -0.26 * T - g);
+    } else if (hs === 'round') {
+      ctx.ellipse(0.08 * T, 0, 0.44 * T + g, 0.36 * T + g, 0, 0, Math.PI * 2);
+    } else {
+      // Wedge-shaped head, wider than the neck, rounded snout.
+      ctx.moveTo(-0.3 * T, -0.24 * T - g);
+      ctx.bezierCurveTo(-0.1 * T, -0.42 * T - g, 0.3 * T, -0.36 * T - g, 0.46 * T + g, -0.12 * T);
+      ctx.quadraticCurveTo(0.55 * T + g, 0, 0.46 * T + g, 0.12 * T);
+      ctx.bezierCurveTo(0.3 * T, 0.36 * T + g, -0.1 * T, 0.42 * T + g, -0.3 * T, 0.24 * T + g);
+      ctx.quadraticCurveTo(-0.4 * T - g, 0, -0.3 * T, -0.24 * T - g);
+    }
     ctx.closePath();
   };
   // Tongue first (under the head).
@@ -182,6 +285,15 @@ export function drawHead(ctx: G, T0: number, st: SerpentStyle, now: number, opts
   ctx.fillStyle = g;
   shape(0);
   ctx.fill();
+  if (hs === 'blunt') {
+    // Heat pits along the lip.
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    for (const s2 of [-1, 1]) for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.arc((0.3 + i * 0.07) * T, s2 * (0.25 - i * 0.03) * T, 0.014 * T, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
   // V-shaped crown marking behind the eyes (top-down view).
   ctx.strokeStyle = st.pattern;
   ctx.lineWidth = Math.max(1.5, T * 0.05);
@@ -194,7 +306,7 @@ export function drawHead(ctx: G, T0: number, st: SerpentStyle, now: number, opts
   // Eyes with slit pupils; occasional blink.
   const blink = Math.sin(now / 1700) > 0.985;
   for (const s of [-1, 1]) {
-    ctx.fillStyle = opts.eye ?? '#f7e36b';
+    ctx.fillStyle = opts.eye ?? st.eye ?? '#f7e36b';
     ctx.beginPath();
     ctx.ellipse(0.2 * T, s * 0.24 * T, 0.09 * T, blink ? 0.012 * T : 0.065 * T, s * 0.35, 0, Math.PI * 2);
     ctx.fill();

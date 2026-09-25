@@ -8,7 +8,7 @@ import { Tile } from '../core/types';
 import { drawCreature } from './creatures';
 import { drawGlyph } from './glyphs';
 import { renderAscii } from './ascii';
-import { SerpentStyle, drawBody, drawHead, sampleBody } from './serpent';
+import { SPECIES_STYLES, SerpentStyle, drawBody, drawHead, sampleBody } from './serpent';
 
 export const PAL = {
   bg: '#0d1321',
@@ -33,23 +33,20 @@ function hexRgb(h: string): number[] {
 }
 
 const styleCache = new Map<string, SerpentStyle>();
-function enemySnakeStyle(color: string): SerpentStyle {
-  let st = styleCache.get(color);
+function enemySnakeStyle(color: string, kind = ''): SerpentStyle {
+  const k = `${kind}:${color}`;
+  let st = styleCache.get(k);
   if (!st) {
     const c = hexRgb(color);
-    st = { head: c, tail: c.map((v) => v * 0.45), outline: '#0a0610', pattern: 'rgba(20, 0, 30, 0.45)', stripe: 'rgba(255,255,255,0.12)' };
-    styleCache.set(color, st);
+    st = kind === 'ouroboros'
+      ? { head: c, tail: c.map((v) => v * 0.5), outline: '#140c02', pattern: 'rgba(20, 8, 0, 0.9)', stripe: 'rgba(255,255,255,0.15)', markings: 'bands', headShape: 'round', girth: 1.15, eye: '#e63946', accent: 'rgba(255, 90, 60, 0.6)' }
+      : { head: c, tail: c.map((v) => v * 0.45), outline: '#0a0610', pattern: 'rgba(30, 0, 40, 0.7)', stripe: 'rgba(255,255,255,0.12)', markings: 'zigzag', headShape: 'arrow', girth: 0.95, eye: '#ff5d73', accent: 'rgba(255, 200, 255, 0.5)' };
+    styleCache.set(k, st);
   }
   return st;
 }
 
-const SNAKE_STYLE: SerpentStyle = {
-  head: [72, 226, 186],
-  tail: [22, 110, 96],
-  outline: '#06100e',
-  pattern: 'rgba(6, 46, 38, 0.7)',
-  stripe: 'rgba(200, 255, 235, 0.18)',
-};
+const SNAKE_STYLE: SerpentStyle = SPECIES_STYLES.garden;
 
 /** Per-act terrain themes. */
 export const THEMES = [
@@ -94,6 +91,8 @@ export class BoardRenderer {
   targetDirs: Dir[] | null = null;
   instant = false;
   act = 0;
+  /** Player snake look (species). */
+  style: SerpentStyle = SNAKE_STYLE;
   /** ncurses-style ASCII skin. */
   terminal = false;
 
@@ -569,7 +568,7 @@ export class BoardRenderer {
         // Snakes face along their own body, away from the neck.
         const nb = e.body[0];
         ctx.rotate(nb ? Math.atan2(e.pos.y - nb.y, e.pos.x - nb.x) : Math.atan2(head.y - e.pos.y, head.x - e.pos.x));
-        drawHead(ctx, T, enemySnakeStyle(d?.color ?? '#e056fd'), now + e.id * 777, { crown: e.kind === 'ouroboros', eye: '#ff5d73' });
+        drawHead(ctx, T, enemySnakeStyle(d?.color ?? '#e056fd', e.kind), now + e.id * 777, { crown: e.kind === 'ouroboros' });
         ctx.restore();
         this.drawEnemyHud(e, X, Y, d, now);
         continue;
@@ -641,8 +640,9 @@ export class BoardRenderer {
       return { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) };
     })].map((q) => ({ x: this.cx(q.x), y: this.cy(q.y) }));
     const n = pts.length;
-    const samples = sampleBody(pts, (u) => lerp(0.56, 0.32, n > 1 ? u / (n - 1) : 0) * T, T * 0.03, now + e.id * 777, T * 0.2);
-    drawBody(this.ctx, samples, n, enemySnakeStyle(color));
+    const girth = enemySnakeStyle(color, e.kind).girth ?? 1;
+    const samples = sampleBody(pts, (u) => lerp(0.56, 0.32, n > 1 ? u / (n - 1) : 0) * T * girth, T * 0.03, now + e.id * 777, T * 0.2);
+    drawBody(this.ctx, samples, n, enemySnakeStyle(color, e.kind));
   }
 
   private drawLocks(f: Fight, pts: { x: number; y: number }[], now: number) {
@@ -761,7 +761,7 @@ export class BoardRenderer {
       // Narrow neck, thickest around a third of the way back, tapering tail.
       const u = n > 1 ? t / (n - 1) : 0;
       const neck = Math.min(1, t / 1.2);
-      let w = (lerp(0.46, 0.64, neck) * (1 - u) + 0.36 * u) * T;
+      let w = (lerp(0.46, 0.64, neck) * (1 - u) + 0.36 * u) * T * (this.style.girth ?? 1);
       for (const b of this.bulges) {
         const d = Math.abs(t - (now - b.start) / 70);
         if (d < 1.5) w *= 1 + 0.35 * (1 - d / 1.5);
@@ -778,7 +778,7 @@ export class BoardRenderer {
     };
     const P = (i: number) => (i === 0 || !samples.length ? px[i] : onBody(i));
     if (f.status === 'dead') ctx.globalAlpha = 0.5;
-    drawBody(ctx, samples, n, SNAKE_STYLE);
+    drawBody(ctx, samples, n, this.style);
     // items
     const handIdx = ops.hand(f);
     f.snake.segs.forEach((s, k) => {
@@ -826,7 +826,7 @@ export class BoardRenderer {
     ctx.save();
     ctx.translate(h.x, h.y);
     ctx.rotate(ang);
-    drawHead(ctx, T, SNAKE_STYLE, now);
+    drawHead(ctx, T, this.style, now);
     ctx.restore();
     ctx.globalAlpha = 1;
     // pending segments count at the burrow

@@ -6,12 +6,12 @@
 import { CHARMS, ITEMS } from '../core/registry';
 import { drawCreature } from './creatures';
 import { drawGlyph } from './glyphs';
-import { SerpentStyle, drawBody, drawHead, sampleBody } from './serpent';
+import { SPECIES_STYLES, SerpentStyle, drawBody, drawHead, sampleBody } from './serpent';
 
 type G = CanvasRenderingContext2D;
 type V = { x: number; y: number };
 
-const SNAKE: SerpentStyle = { head: [72, 226, 186], tail: [22, 110, 96], outline: '#06100e', pattern: 'rgba(6, 46, 38, 0.7)', stripe: 'rgba(200,255,235,0.18)' };
+const SNAKE: SerpentStyle = SPECIES_STYLES.garden;
 
 function hexRgb(h: string): number[] {
   const v = parseInt(h.slice(1), 16);
@@ -25,7 +25,7 @@ function snake(ctx: G, pts: V[], T: number, opts: { head?: boolean; alpha?: numb
   ctx.save();
   ctx.globalAlpha = opts.alpha ?? 1;
   const n = pts.length;
-  const ss = sampleBody(pts, (t) => (0.62 - 0.3 * (t / Math.max(1, n - 1))) * T, 0, 0, T * 0.5);
+  const ss = sampleBody(pts, (t) => (0.62 - 0.3 * (t / Math.max(1, n - 1))) * T * (st.girth ?? 1), 0, 0, T * 0.5);
   drawBody(ctx, ss, n, st);
   if (opts.head !== false && n > 1) {
     ctx.translate(pts[0].x, pts[0].y);
@@ -467,7 +467,7 @@ export function drawCardArt(ctx: G, id: string, w: number, h: number) {
     drawCreature(ctx, kind, h * 0.95, col, 0.3);
   } else if (charm && ['garden', 'viper', 'python', 'ouro'].includes(id)) {
     // Species: a portrait of the snake.
-    const st: SerpentStyle = { head: c, tail: c.map((v) => v * 0.45), outline: '#06100e', pattern: 'rgba(0,0,0,0.35)', stripe: 'rgba(255,255,255,0.15)' };
+    const st: SerpentStyle = SPECIES_STYLES[id] ?? SNAKE;
     snake(ctx, wave(w * 0.72, w * 0.08, h * 0.62, h * 0.12, 7), h * 0.3, { style: st, tongue: true });
   } else {
     // Charms and anything else: a big glyph in a frame that varies per charm.

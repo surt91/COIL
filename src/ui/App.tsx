@@ -6,6 +6,7 @@ import { MOLTS, RunState, createRun, fleshCap, finishFight, recordEvents, update
 import { seedFromString } from '../core/rng';
 import { loadProfile, loadRun, recordRun, saveRun, todayKey, unlock } from '../save/storage';
 import { Codex } from './Codex';
+import { Gallery } from './Gallery';
 import { SPECIES } from '../content/species';
 import { GlyphIcon } from './GlyphIcon';
 import { CHARMS } from '../core/registry';
@@ -36,6 +37,7 @@ export function App() {
       // Debug: ?fight=<layout>&enemies=beetle,frog&seed=N
       const r = createRun(Number(params.get('seed') ?? 1));
       r.act = Number(params.get('act') ?? 0);
+      if (params.get('species')) r.species = params.get('species')!;
       const layout = LAYOUTS.find((l) => l.id === params.get('fight')) ?? LAYOUTS[0];
       r.at = r.map.find((n) => n.row === 0)!.id;
       r.screen = {
@@ -63,6 +65,7 @@ export function App() {
     </button>
   );
 
+  if (new URLSearchParams(location.search).has('gallery')) return <Gallery />;
   if (!run) return <><Title onStart={(r) => setRun(r)} />{muteBtn}</>;
   const sc = run.screen;
   let body;
@@ -79,6 +82,7 @@ export function App() {
           initial={sc.fight}
           title={`${layout?.name ?? ''}${node.kind === 'elite' ? ' · elite' : node.kind === 'boss' ? ' · BOSS' : ''}`}
           mods={sc.mods}
+          species={run.species}
           side={<GenomePanel run={run} inFight />}
           act={run.act}
           fleshCap={fleshCap(run)}
