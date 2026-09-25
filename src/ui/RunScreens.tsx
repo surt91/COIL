@@ -210,7 +210,8 @@ export function MapScreen({ run, setRun }: { run: RunState; setRun: SetRun }) {
   useEffect(() => {
     // Bring the next choices into view (the map is taller than a phone screen).
     const el = document.querySelector('.map .node.can');
-    el?.scrollIntoView({ block: 'center', behavior: 'instant' as ScrollBehavior });
+    // 'nearest': scroll only as far as needed, so a map that almost fits keeps its title and boss in view.
+    el?.scrollIntoView({ block: 'nearest', behavior: 'instant' as ScrollBehavior });
   }, [run.at]);
   const reach = new Set(reachable(run));
   const W = 560, H = 760, padX = 60, padY = 50;
