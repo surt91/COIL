@@ -115,7 +115,7 @@ defineEnemy({
   hp: 18,
   glyph: 'queen',
   color: '#d9822b',
-  text: 'Boss. Huge and slow. Lays ants anywhere within 2 tiles every few turns and bites hard. Only a coil of 8 tiles or less can hold her — and a ring around her walls in her brood.',
+  text: 'Boss. Huge and slow. Lays ants anywhere within 2 tiles every few turns and bites hard. Only a coil of 8 tiles or less can hold her — and a ring around her walls in her brood. After turn 40 her ants are too small to feed you.',
   boss: true,
   heldMaxArea: 8,
   think(f, e) {

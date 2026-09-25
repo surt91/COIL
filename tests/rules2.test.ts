@@ -7,7 +7,7 @@ import { coilDamage, coiledEnemies, computeCoils } from '../src/core/coil';
 import { arcIndices, createRun, drawArc, enterNode, genomeDraw, moveGenome } from '../src/core/run';
 import { createFight, legalMoves, step } from '../src/core/fight';
 import { Dir, Pos } from '../src/core/geom';
-import { hand, spawnEnemy } from '../src/core/ops';
+import { damageEnemy, hand, spawnEnemy } from '../src/core/ops';
 import { CHARMS, ITEMS } from '../src/core/registry';
 import { makeRng, pick } from '../src/core/rng';
 import type { Action, Fight, ItemId } from '../src/core/types';
@@ -389,4 +389,14 @@ describe('enemy snakes play by your rules', () => {
       }
     expect(moved).toBeGreaterThan(100);
   });
+});
+
+test('a boss takes its brood with it: the room is won, not a mop-up', () => {
+  const f = fight([P(2, 2), P(2, 3)], [null]);
+  const queen = spawnEnemy(f, 'queen', P(6, 5));
+  const ant = spawnEnemy(f, 'ant', P(9, 5));
+  ant.minion = true;
+  damageEnemy(f, queen, queen.hp, 'test');
+  expect(ant.hp).toBe(0);
+  expect(f.events.filter((e) => e.t === 'enemyDie').length).toBe(2);
 });

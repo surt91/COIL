@@ -628,7 +628,8 @@ function resolveIntent(f: Fight, e: Enemy): boolean {
         if (!ops.isEmpty(f, t)) continue;
         const n = ops.spawnEnemy(f, it.kind, t);
         n.minion = true;
-        if (d.meagreBrood) n.meagre = true;
+        // A long boss fight stops feeding you: late brood is too small to swallow.
+        if (d.meagreBrood || (d.boss && f.turn > 40)) n.meagre = true;
         n.intent = think(f, n);
         ops.emit(f, { t: 'spawn', enemy: n.id, at: { ...t } });
       }

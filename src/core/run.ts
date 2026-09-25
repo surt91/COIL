@@ -52,7 +52,7 @@ export interface RunStats {
 /** Ascension-style difficulty levels ("Depths"), cumulative. */
 export const MOLTS = [
   'Base game',
-  'Hungrier: you starve every 10 turns instead of 12.',
+  'Hungrier: you starve every 9 turns instead of 12.',
   'Tougher Garden: Act 1 enemies have +1 HP.',
   'Lean: you can carry 2 less flesh between rooms.',
   'Crowded: normal fights and elites bring an extra beetle.',
@@ -268,7 +268,7 @@ export function reachable(run: RunState): number[] {
 // ---------------------------------------------------------------- nodes
 
 function fightOpts(pool: Pool, row: number, molt: number): Partial<FightOpts> {
-  const hunger = molt >= 1 ? { hungerEvery: 10 } : {};
+  const hunger = molt >= 1 ? { hungerEvery: 9 } : {};
   if (pool === 'boss') return { escalateFrom: 20, escalateEvery: 8, ...hunger };
   if (pool === 'elite') return { escalateFrom: 30, escalateEvery: 6, ...hunger };
   return { escalateFrom: 30 - row, escalateEvery: 6, ...hunger };

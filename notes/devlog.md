@@ -718,3 +718,28 @@ wieder bei den Bossen. Außerdem:
 - Die Karte passt auf den Bildschirm.
 - Der Fuzz-Test hat einen alten Fehler aufgedeckt: Maulwürfe konnten in einen
   anderen, eingegrabenen Maulwurf hinein auftauchen.
+
+**Nachtrag, zwei Berichte später.** Der Handy-Tester fand die Ouroboros am
+Eingang lauernd. Solange der Körper noch aus dem Bau kam, schnitt ihr
+Sever-Lunge alles ab, was noch drinsteckte: 10 Segmente auf 2, ohne jede
+Ausweichmöglichkeit. Neue Regel: **Solange du noch auftauchst, beißt ein Sever
+nur.** Den Lunge-Marker sah man auf dem Handy kaum, weil das rote Feld unter dem
+eigenen Körper verschwand. Jetzt liegen Eckklammern über dem Segment, dazu ein
+großer Pfeil. Außerdem färbt die Vorschau jeden Angriff grau, dem der angezeigte
+Zug ausweicht. Das war die Antwort auf "wird es treffen?", die dem Fleischwolf
+gefehlt hatte.
+
+Der Balance-Analyst hat 680 Runs über fünf Tiefen gerechnet und den schönsten
+Fund des Tages gemacht: **Man konnte nach dem Sieg über den Endboss noch
+sterben.** In 5 von 13 Bossraum-Niederlagen war die Ouroboros schon tot. Der Raum
+galt als geräumt, also wuchs kein Futter mehr, ihre Glühwürmchen blieben, und der
+nackte Kopf erstickte oder wurde zu Tode gespuckt. Alle 8 Stalls bei Tiefe 0 waren
+genau das. Jetzt stirbt die Brut mit ihrem Boss.
+
+Weitere Änderungen:
+- Die Königin legte Ameisen, die satt machten. Verlorene Kämpfe zogen sich so bis
+  zu 196 Züge hin. Ab Zug 40 ist ihre Brut zu klein zum Fressen.
+- Tiefe 1 ("Hungrier") bewirkte gar nichts: 51 % gegen 50 %. Jedes Futter, jeder
+  Biss-Kill und jeder Crush setzt den Hunger zurück, deshalb gab es nur 0,2–2
+  Hunger-Ereignisse pro Kampf. Mit Hunger alle 9 statt alle 10 Züge liegt Tiefe 0
+  bei 52 % und Tiefe 1 bei 42 %.

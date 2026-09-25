@@ -206,6 +206,13 @@ export function damageEnemy(f: Fight, e: Enemy, dmg: number, cause: string): boo
   }
   if (e.hp <= 0) {
     emit(f, { t: 'enemyDie', enemy: e.id, at: { ...e.pos }, kind: e.kind });
+    // A boss's brood dies with it: no mopping up (or starving) in a room that is already won.
+    if (enemyDef(e.kind).boss)
+      for (const m of f.enemies)
+        if (m.minion && m.hp > 0) {
+          m.hp = 0;
+          emit(f, { t: 'enemyDie', enemy: m.id, at: { ...m.pos }, kind: m.kind });
+        }
     for (const c of f.charms ?? []) CHARMS.get(c)?.onKill?.(f, e, cause);
     for (const { id, seg } of itemsOnBody(f)) ITEMS.get(id)?.onEnemyDie?.(f, seg, e, cause);
     enemyDef(e.kind).onDie?.(f, e, cause);
