@@ -35,7 +35,7 @@ defineCharm({
 });
 defineCharm({
   id: 'constrictor', name: "Constrictor's Ring", pool: 'common', glyph: 'ring', color: '#c77dff',
-  text: 'Crushing an enemy to death grows 1 flesh.',
+  text: 'Crushing an enemy to death grows 1 extra flesh.',
   onKill: (f, _e, cause) => {
     if (cause === 'crush') ops.addSeg(f, null, 'tail');
   },

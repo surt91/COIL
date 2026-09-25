@@ -203,6 +203,12 @@ export function damageEnemy(f: Fight, e: Enemy, dmg: number, cause: string): boo
   if (e.hp <= 0) {
     emit(f, { t: 'enemyDie', enemy: e.id, at: { ...e.pos }, kind: e.kind });
     for (const c of f.charms ?? []) CHARMS.get(c)?.onKill?.(f, e, cause);
+    if (cause === 'crush') {
+      // You swallow what you crush — the coil's kill feeds like a killing bite.
+      addSeg(f, null, 'tail');
+      f.hunger = 0;
+      emit(f, { t: 'eat', at: { ...e.pos }, what: 'enemy' });
+    }
     if (e.carry) {
       addSeg(f, e.carry, 'neck');
       emit(f, { t: 'msg', text: `${item(e.carry).name} recovered` });

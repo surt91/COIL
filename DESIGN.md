@@ -85,6 +85,7 @@ Every decision — play a card, eat, fight, coil, buy — spends the same thing.
   (a) is separated from the room's main open area, (b) touches the snake body,
   and (c) has area ≤ 12. Diagonal gaps count as sealed (enemies move orthogonally).
 - Crush damage by tightness: area 1 → 3/turn, 2–3 → 2, 4–8 → 1, 9–12 → *held* only.
+- An enemy crushed to death is swallowed like a bite kill: +1 flesh, hunger resets.
 - Coiled enemies are *held*: they cannot move, but they can still attack the ring.
 - Bosses are only held by tight coils (Mongoose ≤3 tiles, Queen ≤8, Ouroboros ≤6).
 - **Wrap:** an enemy touching 4+ snake tiles (8-neighbourhood) is squeezed for

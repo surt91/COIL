@@ -66,9 +66,21 @@ describe('coil holding rules', () => {
   test('coiled enemies lose their intent and cannot attack', () => {
     const f = fight(RING, new Array(7).fill(null));
     const b = enemy(f, 'beetle', P(3, 3));
+    b.hp = b.maxHp = 10; // survives the crush, so only the attack could change the length
     b.intent = { t: 'lock', seg: f.snake.segs[0].uid, dmg: 1, windup: 1, reach: 1 };
     const g = step(f, { t: 'move', dir: U });
     expect(g.snake.segs.length).toBe(7);
+  });
+
+  test('crushing an enemy to death swallows it: +1 flesh, hunger resets', () => {
+    const f = fight(RING, new Array(7).fill(null));
+    const b = enemy(f, 'beetle', P(3, 3));
+    b.hp = 1;
+    f.hunger = 9;
+    const g = step(f, { t: 'move', dir: U });
+    expect(g.enemies.some((e) => e.id === b.id)).toBe(false);
+    expect(g.snake.segs.length).toBe(8);
+    expect(g.hunger).toBeLessThanOrEqual(1);
   });
 });
 
