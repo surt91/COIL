@@ -408,6 +408,13 @@ export function BaskScreen({ run, setRun, screen }: { run: RunState; setRun: Set
   );
 }
 
+/** Items named in an event choice, so the choice can explain them (longest names win: "Keeled Scale" over "Scale"). */
+function mentionedItems(label: string) {
+  const hits = [...ITEMS.values()].filter((d) => d.rarity !== 'signature' && label.includes(d.name));
+  const uniq = hits.filter((d, i) => hits.findIndex((x) => x.name === d.name) === i);
+  return uniq.filter((d) => !uniq.some((o) => o !== d && o.name.includes(d.name)));
+}
+
 export function EventScreen({ run, setRun, screen }: { run: RunState; setRun: SetRun; screen: Extract<Screen, { t: 'event' }> }) {
   const ev = EVENTS.find((e) => e.id === screen.id)!;
   return (
@@ -421,6 +428,9 @@ export function EventScreen({ run, setRun, screen }: { run: RunState; setRun: Se
             return (
               <button class="btn choice" disabled={!ok} onClick={() => { uiClick(); setRun(eventChoice(run, i)); }}>
                 {c.label}
+                {mentionedItems(c.label).map((d) => (
+                  <span class="choice-item"><GlyphIcon glyph={d.glyph} color={d.color} size={18} /> <b>{d.name}</b>: {[d.activeText, d.passiveText && `While carried: ${d.passiveText}`].filter(Boolean).join(' ')}</span>
+                ))}
               </button>
             );
           })}

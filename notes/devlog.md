@@ -344,3 +344,116 @@ Tippen/Wischen zeigt die Vorschau, nochmal bestätigt; Infos als Bottom-Sheet;
 und im Hochformat wird das 17×13-Brett um 90° gedreht dargestellt (Kacheln
 ~40 % größer). Texte und Glyphen werden dabei per gepatchtem `fillText`
 zurückgedreht, Wischrichtungen umgerechnet — die Spiellogik merkt nichts davon.
+
+## 2026-09-25 — Der Körper bekommt eine Reihenfolge
+
+"Setze die Entwicklung fort" — ohne Vorgabe. Also zuerst drei Agenten parallel
+losgeschickt, jeder mit einer anderen Frage: ein **Playtester** (spiel einen
+ganzen Run, wo ist Mid- und Late-Game langweilig?), ein **Systemdesigner**
+(was ist die größte Schwäche an Tiefe und Wiederspielwert?) und eine
+**Spielerpsychologin** (warum sollte jemand nach dem dritten Run einen vierten
+starten?). Dazu eine Bot-Baseline: 50 % Siege, Crush-Anteil 26 %, und — das
+war der auffälligste Befund des Systemdesigners — *kein einziger* der 20 Tode
+ging auf einen Akt-3-Gegner. Die Hälfte waren Hunger und Stalls.
+
+**Die Diagnose des Systemdesigners war unbequem:** Die Kernidee "der Körper ist
+das Deck" hat keine *Anordnung*. Jeder Raum mischte die Items neu; übrig blieb
+ein gewöhnliches Zufallsdeck mit Handgröße 3. Der Beweis: Der Bot wählt
+Belohnungen nach einer starren Tier-Liste und gewinnt trotzdem die Hälfte.
+
+### Das Ring-Genom
+
+Das Genom ist jetzt ein **geordneter Ring**, den man zwischen den Kämpfen frei
+umsortiert (Klick, Klick — auf Desktop auch Drag & Drop). Jeder Raum beginnt an
+einem zufälligen Punkt des Rings und zieht die nächsten 8 Items *in Reihenfolge*.
+
+Beim Testen fiel mir ein Denkfehler auf, der auch im Vorschlag steckte: Weil der
+Startpunkt zufällig ist, kontrolliert man nicht, *wo* ein Item im Körper landet —
+nur, *was neben was* liegt. Ich habe das so gelassen. Ein fester Startpunkt hätte
+heißen: die besten 8 nach vorn, fertig. So entstehen stattdessen Nachbarschafts-
+Entscheidungen: Fang direkt vor Lunge (eine Hand, ein Kombo), starke Items
+gleichmäßig verteilen, damit jede Hand etwas taugt. Dafür gibt es jetzt Items,
+die genau darauf zielen (entworfen von der Content-Designerin):
+
+- **Knot** ist an das Item *hinter* ihm geknüpft: ausgespielt zieht er es in die
+  Hand, und stirbt ein Gegner in einem Coil, den der Knot berührt, wächst eine
+  Kopie des geknüpften Items nach.
+- **Scute** schützt seine beiden Nachbarsegmente vor Bissen, Schnitten und Diebstahl.
+- **Heat Pit**: Bisse +2 gegen Beute im Coil, den das Segment berührt.
+- **Muscle** wurde zum "Ring"-Item: +1 Crush nur noch für Coils, die sein Segment berührt.
+
+### Was du zerquetschst, frisst du
+
+Die kleinste Änderung mit der größten Wirkung: Ein im Coil zerquetschter Gegner
+wird verschluckt, wie beim tödlichen Biss (+1 Fleisch, Hunger zurückgesetzt).
+Vorher war der Coil — die Signatur-Waffe — die einzige Tötungsart, die *hungrig*
+machte. Crush-Anteil: 26 % → 34 %.
+
+Dazu ein Akt-3-Gegner, der die Frage "Coilst du ihn?" wirklich stellt: die
+**Brood Grub**. Tötet man sie anders als durch Zerquetschen, platzt sie in zwei
+Grublinge, die zu klein sind, um satt zu machen.
+
+### Bosse, die man nicht "anparken" kann
+
+Der Playtester gewann einen ganzen Run und schrieb als Problem Nr. 1:
+
+> Bosse gewinnt man, indem man neben ihnen parkt und beißt. "Du kannst nie
+> stillstehen" verschwindet, weil ein Biss dich nicht bewegt.
+
+Stimmt — ein Biss auf etwas Überlebendes ist die einzige Aktion, bei der der
+Kopf stehen bleibt, und Bosse werden nie zurückgestoßen. Zwei Agenten
+(Systemdesign gegen Spielerpsychologie) schlugen unterschiedliche Lösungen vor:
+der eine eine allgemeine Regel, die andere pro Boss eine eigene Lektion
+("Mungo: ködern und umwickeln"). Ich habe die allgemeine Regel genommen, weil sie
+genau das Heiligtum repariert, das kaputt war:
+
+- **Konter:** Überlebt ein Boss deinen Biss, markiert er dein Kopffeld rot. Stehst
+  du nach dem nächsten Zug noch dort, schlägt er zu. → Man muss um den Boss kreisen.
+- **Entblößt:** Wer um einen Boss kreist, umwickelt ihn fast von selbst. Ein
+  umwickelter oder eingekreister Boss wird zurückgestoßen, unterbrochen, nimmt +1
+  und kontert nicht. So zahlen sich auch lockere Coils aus.
+
+Die Boss-Ideen der Psychologin liegen auf Halde, bis ein Playtest zeigt, ob die
+allgemeine Regel reicht.
+
+Ein Bug im Test der Konter-Regel war lehrreich: Der zweite Biss überschrieb die
+ausstehende Markierung, bevor sie zuschlagen konnte — die Regel feuerte also
+genau im Parkfall *nie*. Die erste Bot-Messung (59 %) war damit wertlos; erst der
+Regeltest hat es gezeigt.
+
+### Balance
+
+Die **Balance-Analystin** fand den Grund, warum Akt 3 plötzlich trivial war:
+
+> Die Ouroboros stirbt an einem Biss. Ein Biss knapp hinter den Kopf trennt
+> 17–21 von 22 HP ab. Mehr als die Hälfte der Kämpfe wurde von einem einzigen
+> Biss entschieden. hp 26 statt 22 änderte gar nichts.
+
+Außerdem fütterten ihre beschworenen Glühwürmer den Spieler durch den Kampf.
+Meine eigene Idee (mehr HP für Akt-2/3-Gegner) hatte sie ebenfalls gemessen:
+kein Effekt, weil die Crush-Fütterung die längeren Kämpfe wieder bezahlt.
+Verworfen. Jetzt: Ein Biss trennt einem Boss höchstens 5 Segmente ab, die Brut
+der Ouroboros macht nicht satt, und die Ameisenkönigin legt ihre Ameisen im
+Umkreis 2 — wer daneben parkt, blockiert sie nicht mehr.
+
+| | Siege | Crush-Anteil | Tode nach Akt |
+|---|---|---|---|
+| Morgens | 50 % | 26 % | 9 / 5 / 6 |
+| + Crush frisst, Ring-Genom, neue Items | 65–70 % | 37–41 % | 8 / 3 / 2 |
+| + Boss-Paket | **48 / 53 / 58 %** | 37–41 % | 7 / 5 / 7 |
+
+### Der Endbildschirm schaut nach vorn
+
+Die Psychologin: Der Endbildschirm zeigte nur Statistiken und "Back to title".
+Freischaltungen passierten still. Jetzt: Todesursache mit Akt und Raum,
+persönlicher Rekord ("Deepest yet: Act 2, room 5"), was dieser Run freigeschaltet
+hat, eine Meilenstein-Leiste mit dem *nächsten* Ziel ("Next: defeat the Ant Queen
+to wake the Python"), ein Beiname für den Spielstil ("You fought like a
+Constrictor — 22 of 40 kills crushed in coils") und ein großer Knopf "Shed your
+skin and go again" auf Enter. Nach einem Boss kündigt ein Banner die neue Spezies
+an, auf dem Titelbildschirm trägt sie ein NEW-Band.
+
+Kleinere Funde des Playtesters, gleich mit behoben: Coiled Strike unterbrach
+Bosse, Fleisch konnte über der Obergrenze liegen, nach dem Säubern eines Raums
+wuchs endlos Futter nach (man konnte sich vollfressen — jetzt: gesäubert heißt
+gehen), und Event-Entscheidungen erklären jetzt die Items, die sie nennen.

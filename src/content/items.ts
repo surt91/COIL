@@ -1,5 +1,5 @@
 import { coilDamage, coiledEnemies, computeCoils, isWrapped, segBorders } from '../core/coil';
-import { doMove, legalMoves, moveOutcome, wrapMin } from '../core/fight';
+import { bossExposed, doMove, legalMoves, moveOutcome, wrapMin } from '../core/fight';
 import { DIRS, Dir, Pos, chebyshev, dirTo, key, manhattan, neighbors4, step } from '../core/geom';
 import * as ops from '../core/ops';
 import { ENEMIES, defineItem, defineUpgrade, item } from '../core/registry';
@@ -422,10 +422,13 @@ defineItem({
     canPlay: (f, a) => a.dir !== undefined && !!ops.enemyAt(f, step(ops.head(f), a.dir)),
     play(f, a) {
       const e = ops.enemyAt(f, step(ops.head(f), a.dir!))!;
-      ops.damageEnemy(f, e, 2 + f.buffs.bite, 'bite');
+      const d = ENEMIES.get(e.kind)!;
+      const dmg = Math.min(2 + f.buffs.bite, d.biteCap ?? Infinity);
+      ops.damageEnemy(f, e, dmg, 'bite');
       f.buffs.bite = 0;
-      ops.emit(f, { t: 'bite', enemy: e.id, at: { ...e.pos }, dmg: 2, killed: e.hp <= 0 });
-      if (e.hp > 0) e.intent = { t: 'wait' };
+      ops.emit(f, { t: 'bite', enemy: e.id, at: { ...e.pos }, dmg, killed: e.hp <= 0 });
+      // It interrupts like a bite: never snakes, and bosses only while exposed.
+      if (e.hp > 0 && !e.body && (!d.boss || bossExposed(f, e))) e.intent = { t: 'wait' };
     },
   },
 });

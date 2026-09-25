@@ -307,3 +307,50 @@ describe('arrangement items and the brood grub', () => {
     expect(g.snake.segs.length).toBe(2);
   });
 });
+
+describe('boss rules', () => {
+  const line = [P(3, 2), P(2, 2), P(1, 2)];
+  test('riposte: biting a boss twice from the same tile gets your head struck', () => {
+    const f = fight(line, [null, null, null, null], [], 12, 9);
+    const m = enemy(f, 'mongoose', P(4, 2));
+    m.hp = m.maxHp = 30;
+    const think0 = (g: Fight) => { for (const e of g.enemies) e.intent = { t: 'wait' }; return g; };
+    const a = think0(step(f, { t: 'move', dir: R })); // bite 1: marks (3,2)
+    expect(a.enemies[0].mem.rx).toBe(3);
+    const before = a.snake.segs.length;
+    const b = step(a, { t: 'move', dir: R }); // bite 2 from the same tile: riposte lands on the head
+    expect(b.events.some((e) => e.t === 'msg' && e.text === 'riposte!')).toBe(true);
+    expect(b.snake.segs.length).toBeLessThan(before);
+  });
+
+  test('stepping off the marked tile avoids the riposte', () => {
+    const f = fight(line, [null, null, null, null], [], 12, 9);
+    const m = enemy(f, 'mongoose', P(4, 2));
+    m.hp = m.maxHp = 30;
+    const a = step(f, { t: 'move', dir: R });
+    for (const e of a.enemies) e.intent = { t: 'wait' };
+    const b = step(a, { t: 'move', dir: D });
+    expect(b.events.some((e) => e.t === 'msg' && e.text === 'riposte!')).toBe(false);
+  });
+
+  test('a boss inside a coil is exposed: bites deal +1, knock it back and set no riposte', () => {
+    const f = fight(RING, new Array(7).fill(null));
+    const q = enemy(f, 'queen', P(3, 3));
+    q.hp = q.maxHp = 30;
+    const g = step(f, { t: 'move', dir: D });
+    const bite = g.events.find((e) => e.t === 'bite');
+    expect(bite && bite.t === 'bite' && bite.dmg).toBe(2);
+    expect(g.enemies.find((e) => e.kind === 'queen')!.mem.rx).toBeUndefined();
+  });
+
+  test('a bite tears at most 5 segments off a boss snake', () => {
+    const h = fight([P(5, 3), P(4, 3), P(3, 3)], [null, null, null], [], 17, 9);
+    const o2 = enemy(h, 'ouroboros', P(4, 2));
+    o2.body = [P(5, 2), P(6, 2), P(7, 2), P(8, 2), P(9, 2), P(10, 2), P(11, 2), P(12, 2), P(13, 2), P(14, 2)];
+    o2.mem.pending = 5;
+    o2.hp = o2.maxHp = 16;
+    const k = step(h, { t: 'move', dir: U }); // bite its body right behind the head
+    const after = k.enemies.find((e) => e.kind === 'ouroboros')!;
+    expect(o2.hp - after.hp).toBe(5);
+  });
+});

@@ -115,7 +115,7 @@ defineEnemy({
   hp: 18,
   glyph: 'queen',
   color: '#d9822b',
-  text: 'Boss. Huge and slow. Summons ants around herself every few turns and bites hard. Only a coil of 8 tiles or less can hold her.',
+  text: 'Boss. Huge and slow. Lays ants anywhere within 2 tiles every few turns and bites hard. Only a coil of 8 tiles or less can hold her — and a ring around her walls in her brood.',
   boss: true,
   heldMaxArea: 8,
   think(f, e) {
@@ -124,7 +124,11 @@ defineEnemy({
     if (l) return l;
     const ants = f.enemies.filter((x) => x.kind === 'ant').length;
     if (e.mem.t % 4 === 1 && ants < 5) {
-      const tiles = DIRS.map((d) => step(e.pos, d)).filter((p) => ops.isEmpty(f, p)).slice(0, e.hp < 9 ? 3 : 2);
+      // Anywhere within 2 tiles: parking next to her doesn't block the brood — only a ring does.
+      const near: Pos[] = [];
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (dx || dy) near.push({ x: e.pos.x + dx, y: e.pos.y + dy });
+      const reach = new Set(ops.floodFrom(f, e.pos, 2).map((p) => p.y * f.w + p.x));
+      const tiles = shuffle(f.rng, near.filter((p) => ops.isEmpty(f, p) && reach.has(p.y * f.w + p.x))).slice(0, e.hp < 9 ? 3 : 2);
       if (tiles.length) return { t: 'summon', kind: 'ant', tiles };
     }
     return e.mem.t % 2 === 0 ? approach(f, e, f.snake.body) : { t: 'wait' };
@@ -196,9 +200,10 @@ defineEnemy({
   hp: 22,
   glyph: 'ouroboros',
   color: '#d9d2c3',
-  text: 'Final boss. An ancient serpent that hunts your tail and severs what it bites. Its length is its health — cut it down, eat what falls, and do not let it close its circle around you.',
+  text: 'Final boss. An ancient serpent that hunts your tail and severs what it bites. Its length is its health — but its ancient hide tears at most 5 segments per bite. Cut it down, eat what falls, and do not let it close its circle around you. The glowworms it calls are too small to feed you.',
   snake: true,
   boss: true,
+  meagreBrood: true,
   heldMaxArea: 6,
   think(f, e) {
     e.mem.t = (e.mem.t ?? 0) + 1;

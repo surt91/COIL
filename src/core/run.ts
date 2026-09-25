@@ -454,6 +454,7 @@ export function takeCharm(prev: RunState, idx: number): RunState {
   const run = clone(prev);
   const s2 = run.screen as Extract<Screen, { t: 'reward' }>;
   run.charms = [...(run.charms ?? []), sc.charms[idx]];
+  run.flesh = Math.min(run.flesh, fleshCap(run));
   s2.charmTaken = true;
   if (s2.itemTaken) run.screen = { t: 'map' };
   return run;
@@ -467,6 +468,7 @@ export function buyCharm(prev: RunState): RunState {
   s2.charm!.sold = true;
   run.flesh -= sc.charm.price;
   run.charms = [...(run.charms ?? []), sc.charm.id];
+  run.flesh = Math.min(run.flesh, fleshCap(run));
   return run;
 }
 

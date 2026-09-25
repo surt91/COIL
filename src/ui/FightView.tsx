@@ -486,7 +486,7 @@ function Legend({ f }: { f: Fight }) {
       <li><b>Hits</b> destroy the segment they land on.</li>
       <li><b>Coil</b>: enclose enemies with your body (walls help). Coiled enemies can’t move or attack. Tighter = more crush (1 tile: 3/turn, 2–3: 2, 4–8: 1, 9–12: held only). To keep a coil, chase your own tail.</li>
       <li><b>Wrap</b>: the violet arcs count how many of your tiles touch an enemy. At {wrapMin(f)} (diagonals count) it is squeezed for 1 each turn.</li>
-      <li><b>Bites interrupt</b> by knocking the enemy back — not if it is pinned against something, and never bosses.</li>
+      <li><b>Bites interrupt</b> by knocking the enemy back — not if it is pinned against something. Bosses only while wrapped or inside your coil; otherwise they <b>riposte</b>: don't bite twice from the same tile.</li>
       <li><kbd>H</kbd> asks the autopilot for a hint, <kbd>P</kbd> lets it play a turn. (Every snake needs an autopilot.)</li>
       <li><kbd>F2</kbd> toggles the terminal skin — a nod to where all this started: C and ncurses.</li>
       <li><b>Red</b> = incoming damage. A red reticle = a bite locked on that segment: it lands only if the segment is still inside the faint red box after your move.</li>

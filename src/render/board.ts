@@ -1,6 +1,6 @@
 import { computeCoils, occupiedCoils, touchCount } from '../core/coil';
 import { Dir, Pos, eq } from '../core/geom';
-import { wrapMin } from '../core/fight';
+import { riposteTile, wrapMin } from '../core/fight';
 import * as ops from '../core/ops';
 import { ENEMIES, ITEMS } from '../core/registry';
 import type { Enemy, Fight, GameEvent } from '../core/types';
@@ -527,6 +527,16 @@ export class BoardRenderer {
     const ctx = this.ctx, T = this.T;
     const pulse = 0.6 + 0.3 * Math.sin(now / 160);
     for (const e of f.enemies) {
+      const rp = riposteTile(e);
+      if (rp) {
+        // Riposte: the boss will strike this tile if your head is still on it after your move.
+        this.hatch([rp], PAL.danger, pulse * 0.55, now);
+        ctx.strokeStyle = PAL.danger;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 3]);
+        ctx.strokeRect(this.ox + rp.x * T + 2, this.oy + rp.y * T + 2, T - 4, T - 4);
+        ctx.setLineDash([]);
+      }
       const it = e.intent;
       if (it.t === 'strike') {
         this.hatch(it.tiles, PAL.danger, pulse * 0.7, now);

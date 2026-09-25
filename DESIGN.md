@@ -88,6 +88,13 @@ Every decision — play a card, eat, fight, coil, buy — spends the same thing.
 - An enemy crushed to death is swallowed like a bite kill: +1 flesh, hunger resets.
 - Coiled enemies are *held*: they cannot move, but they can still attack the ring.
 - Bosses are only held by tight coils (Mongoose ≤3 tiles, Queen ≤8, Ouroboros ≤6).
+- **Bosses riposte:** after a bite it survives, a boss marks the tile your head
+  bit from (red). If your head is still there after your next move, it strikes
+  the head. Biting a boss twice from the same tile is punished — circle it.
+- **Exposed:** a boss that is wrapped or inside *any* coil of yours (held or
+  not) is knocked back and interrupted like a normal enemy, takes +1 from
+  bites and can't riposte. Loose coils pay before they hold.
+- A bite tears at most 5 segments off a boss snake (the Ouroboros).
 - **Wrap:** an enemy touching 4+ snake tiles (8-neighbourhood) is squeezed for
   1/turn even without a closed coil. This makes constriction incremental.
 - To keep a coil, the snake chases its own tail (the tail tip vacates each turn).
@@ -96,6 +103,7 @@ Every decision — play a card, eat, fight, coil, buy — spends the same thing.
 ### Pressure (anti-stall)
 
 - **Hunger:** every 12 turns without eating, lose the tail segment.
+- **No farming:** once a room is cleared, no new food grows.
 - **Escalation:** from turn ~25, a beetle crawls out of a spawn hole every 6 turns.
   Escalation spawns and summons are *minions*: not required to clear the room.
 - There is always ≥1 food on the board (2 from Act 2).

@@ -262,6 +262,8 @@ function bite(f: Fight, e: Enemy, dir: Dir, extraBite: number): boolean {
   }
   let vs = 0;
   for (const { id, seg } of ops.itemsOnBody(f)) vs += item(id).biteBonusVs?.(f, seg, e) ?? 0;
+  const exposed = d.boss && bossExposed(f, e);
+  if (exposed) vs += 1;
   let dmg = Math.max(1, 1 + f.buffs.bite + ops.bodyBonus(f, 'biteBonus') + extraBite + vs + (e.hp >= 3 ? charmSum(f.charms, 'toughBite') : 0));
   f.buffs.bite = 0;
   const pierce = (f.buffs.pierce ?? 0) > 0;
@@ -282,7 +284,7 @@ function bite(f: Fight, e: Enemy, dir: Dir, extraBite: number): boolean {
   if (killed) {
     ops.removeDead(f);
     if (d.signature) ops.addSeg(f, d.signature, 'neck', true);
-    else if (!d.meagre) ops.addSeg(f, null, 'tail');
+    else if (!ops.isMeagre(e)) ops.addSeg(f, null, 'tail');
     const fi = ops.foodAt(f, at);
     if (fi >= 0) {
       f.food.splice(fi, 1);
@@ -291,7 +293,7 @@ function bite(f: Fight, e: Enemy, dir: Dir, extraBite: number): boolean {
     const wi = ops.webAt(f, at);
     if (wi >= 0) f.webs.splice(wi, 1);
     ops.moveHeadTo(f, at, dir);
-    if (!d.meagre) f.hunger = 0;
+    f.hunger = 0;
     ops.emit(f, { t: 'eat', at, what: 'enemy' });
     return true;
   }
@@ -299,13 +301,20 @@ function bite(f: Fight, e: Enemy, dir: Dir, extraBite: number): boolean {
   // to be knocked to), snakes and bosses keep their intent.
   const back = stepPos(e.pos, dir);
   const noInterrupt = (f.charms ?? []).some((c) => CHARMS.get(c)?.noInterrupt);
-  if (!e.body && !d.boss && !noInterrupt && ops.freeForEnemy(f, back, d.flies)) {
+  if (!e.body && (!d.boss || exposed) && !noInterrupt && ops.freeForEnemy(f, back, d.flies)) {
     ops.emit(f, { t: 'knockback', enemy: e.id, from: { ...e.pos }, to: back });
     e.pos = back;
     e.intent = { t: 'wait' };
     e.mem.interrupted = 1;
   } else {
-    ops.emit(f, { t: 'msg', text: d.boss ? 'unstoppable' : noInterrupt ? 'not interrupted' : 'pinned — not interrupted' });
+    ops.emit(f, { t: 'msg', text: d.boss && !exposed ? 'unstoppable' : noInterrupt ? 'not interrupted' : 'pinned — not interrupted' });
+  }
+  if (d.boss && !exposed && e.hp > 0) {
+    // Riposte: the boss marks the tile your head bit from. Still there after your next move? It strikes.
+    // (It arms at the end of this enemy phase — see riposte().)
+    const h = f.snake.body[0];
+    e.mem.nx = h.x;
+    e.mem.ny = h.y;
   }
   d.afterBitten?.(f, e);
   return false;
@@ -426,6 +435,8 @@ function enemyPhase(f: Fight) {
   const keep = new Set<number>();
   for (const e of order) {
     if (e.hp <= 0) continue;
+    riposte(f, e);
+    if (f.status !== 'play') return;
     if (resolveIntent(f, e)) keep.add(e.id);
     if (f.status !== 'play') return;
   }
@@ -446,6 +457,39 @@ function enemyPhase(f: Fight) {
   }
   ops.removeDead(f);
   checkCleared(f);
+}
+
+/**
+ * Bosses are exposed while wrapped or inside any coil of yours, held or not:
+ * they can be knocked back and interrupted, bites deal +1, and they can't riposte.
+ */
+export function bossExposed(f: Fight, e: Enemy): boolean {
+  if (isWrapped(f, e, wrapMin(f))) return true;
+  return computeCoils(f).some((c) => c.tiles.some((t) => eq(t, e.pos)));
+}
+
+/** The tile a boss marked after surviving a bite (if the riposte is still pending). */
+export function riposteTile(e: Enemy): Pos | null {
+  return e.mem.rt !== undefined && e.mem.rx !== undefined && e.mem.ry !== undefined ? { x: e.mem.rx, y: e.mem.ry } : null;
+}
+
+/** Resolve the armed riposte (from the previous turn's bite), then arm this turn's. */
+function riposte(f: Fight, e: Enemy) {
+  const p = riposteTile(e);
+  delete e.mem.rx;
+  delete e.mem.ry;
+  delete e.mem.rt;
+  if (e.mem.nx !== undefined && e.mem.ny !== undefined) {
+    e.mem.rx = e.mem.nx;
+    e.mem.ry = e.mem.ny;
+    e.mem.rt = f.turn;
+    delete e.mem.nx;
+    delete e.mem.ny;
+  }
+  if (!p || e.held || bossExposed(f, e) || !eq(f.snake.body[0], p)) return;
+  ops.emit(f, { t: 'strike', enemy: e.id, tiles: [p] });
+  ops.emit(f, { t: 'msg', text: 'riposte!' });
+  ops.hitSnake(f, 0, 1, e);
 }
 
 export function think(f: Fight, e: Enemy): Intent {
@@ -572,6 +616,7 @@ function resolveIntent(f: Fight, e: Enemy): boolean {
         if (!ops.isEmpty(f, t)) continue;
         const n = ops.spawnEnemy(f, it.kind, t);
         n.minion = true;
+        if (d.meagreBrood) n.meagre = true;
         n.intent = think(f, n);
         ops.emit(f, { t: 'spawn', enemy: n.id, at: { ...t } });
       }
@@ -622,6 +667,8 @@ function upkeep(f: Fight) {
 }
 
 export function ensureFood(f: Fight) {
+  // Once the room is cleared nothing new grows: leave, don't farm.
+  if (f.cleared) return;
   let guard = 0;
   while (f.food.length < f.opts.minFood && guard++ < 200) {
     const p = randomEmpty(f.rng, f);

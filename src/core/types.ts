@@ -54,6 +54,8 @@ export interface Enemy {
   carry?: ItemId;
   /** Escalation spawns and summons: not required to clear the room. */
   minion?: boolean;
+  /** Boss brood: too small to feed you (no flesh when killed). */
+  meagre?: boolean;
   /** Enemy snakes: body tiles behind the head (e.pos). hp = 1 + body.length. */
   body?: Pos[];
 }

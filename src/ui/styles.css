@@ -46,13 +46,15 @@ kbd {
 .hud {
   grid-area: hud;
   display: flex;
+  flex-wrap: wrap;
+  row-gap: 6px;
   gap: 24px;
   align-items: center;
   padding: 10px 18px;
   border-bottom: 1px solid var(--line);
   background: linear-gradient(var(--panel), var(--bg));
 }
-.hud-title { font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--teal); }
+.hud-title { white-space: nowrap; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--teal); }
 .hud-stat b { font-size: 1.15em; }
 .hud-stat.warn b { color: #f4a261; }
 .hud-stat.good { color: var(--gold); }
@@ -406,3 +408,6 @@ p.small { font-size: 13px; margin-top: -8px; }
 .new-ribbon { position: absolute; top: 8px; right: 8px; background: var(--gold); color: #1a1405; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 999px; letter-spacing: 0.05em; }
 .btn.primary kbd { background: rgba(7, 35, 28, 0.25); color: #07231c; border-color: rgba(7, 35, 28, 0.4); }
 @media (pointer: coarse) { .end-screen .btn kbd { display: none; } }
+.btn.choice .choice-item { display: block; margin-top: 6px; font-size: 12.5px; color: var(--dim); font-weight: 400; line-height: 1.35; }
+.btn.choice .choice-item b { color: var(--text, #e6edf3); }
+.btn.choice .choice-item canvas.glyph { display: inline-block; vertical-align: middle; margin-right: 2px; }
