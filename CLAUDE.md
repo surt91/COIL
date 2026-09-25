@@ -26,8 +26,19 @@ Explain the reasoning when doing so.
 ## How we work
 
 - **Design questions → subagents.** For non-trivial design decisions, launch
-  2–3 subagents with *different* perspectives in parallel (e.g. systems
-  designer vs. player psychologist vs. engineer), then synthesize and decide.
+  2–3 subagents with *different* perspectives in parallel, then synthesize and
+  decide. Claude has the final word.
+- **Standing roles** (`.claude/agents/`, all read-only; new definitions load at
+  the next session — until then run a general-purpose agent told to follow the file):
+  | Role | Use when |
+  |---|---|
+  | `playtester` | after UX-relevant changes; "mobile" for phones |
+  | `systems-designer` + `player-psychologist` | mechanic or behaviour problems — run as an opposing pair |
+  | `balance-analyst` | after balance-relevant changes, or to find outliers |
+  | `content-designer` | when adding items, events, enemies, charms |
+  | `art-critic` | after visual changes (uses `?gallery`) |
+  | `code-guardian` | every few larger features, or before refactors |
+  Keep the roster small: every role answers one distinct question.
 - **Three kinds of testing, three kinds of bugs:**
   - `npm test` (Vitest): rule tests, fuzzing over all encounters/events,
     invariants. Must stay green.
