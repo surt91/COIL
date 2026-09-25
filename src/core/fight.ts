@@ -2,7 +2,7 @@
  * The fight reducer: (Fight, Action) -> Fight (+ events in fight.events).
  * Pure with respect to its input: `step` clones before mutating.
  */
-import { coiledEnemies, computeCoils, enemyCoilsHead, isWrapped } from './coil';
+import { coilDamage, coiledEnemies, computeCoils, enemyCoilsHead, isWrapped } from './coil';
 import { DIRS, Dir, Pos, chebyshev, eq, manhattan, step as stepPos } from './geom';
 import * as ops from './ops';
 import { CHARMS, ENEMIES, charmSum, enemyDef, item } from './registry';
@@ -389,7 +389,6 @@ function bodyPhase(f: Fight) {
 
 function constrictPhase(f: Fight) {
   const coils = computeCoils(f);
-  const bonus = ops.bodyBonus(f, 'crushBonus') + (f.buffs.crush ?? 0);
   const held = coiledEnemies(f, coils);
   for (const e of f.enemies) {
     const c = held.get(e);
@@ -397,7 +396,7 @@ function constrictPhase(f: Fight) {
     if (!c) continue;
     // Coiled enemies are helpless: no moving, no attacking out of the ring.
     e.intent = { t: 'wait' };
-    const dmg = c.crush > 0 ? c.crush + bonus : 0;
+    const dmg = coilDamage(f, c);
     if (dmg > 0) ops.damageEnemy(f, e, dmg, 'crush');
   }
   // Wrap: an enemy touching enough of your tiles (diagonals count) is squeezed even without a closed coil.

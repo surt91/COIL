@@ -1,4 +1,4 @@
-import { coiledEnemies, isWrapped } from '../core/coil';
+import { coilDamage, coiledEnemies, isWrapped } from '../core/coil';
 import { doMove, legalMoves, moveOutcome, wrapMin } from '../core/fight';
 import { DIRS, Dir, Pos, chebyshev, dirTo, key, manhattan, neighbors4, step } from '../core/geom';
 import * as ops from '../core/ops';
@@ -47,9 +47,8 @@ function spineBurst(f: Fight) {
 
 /** Crush every coiled enemy right now (same holding rules as the constrict phase). */
 function crushNow(f: Fight, extra = 0) {
-  const bonus = ops.bodyBonus(f, 'crushBonus') + (f.buffs.crush ?? 0);
   const held = coiledEnemies(f);
-  for (const [e, c] of held) ops.damageEnemy(f, e, Math.max(c.crush, 1) + bonus + extra, 'crush');
+  for (const [e, c] of held) ops.damageEnemy(f, e, coilDamage(f, { ...c, crush: Math.max(c.crush, 1) }) + extra, 'crush');
   for (const c of new Set(held.values())) ops.emit(f, { t: 'coil', tiles: c.tiles });
 }
 
@@ -161,9 +160,9 @@ defineItem({
   glyph: 'muscle',
   color: '#c77dff',
   rarity: 'common',
-  passiveText: 'Your coils crush for +1.',
+  passiveText: 'Ring: coils this segment borders crush +1.',
   activeText: 'Crush every coiled enemy right now.',
-  crushBonus: 1,
+  ringCrush: 1,
   active: { target: 'none', play: (f) => crushNow(f) },
 });
 
@@ -672,7 +671,7 @@ defineUpgrade('heart', {
 
 defineUpgrade('muscle', {
   name: 'Sinew',
-  passiveText: 'Your coils crush for +1, and wrapping needs one tile less.',
+  passiveText: 'Ring: coils this segment borders crush +1. Wrapping needs one tile less.',
   wrapBonus: 1,
   activeText: 'Crush every coiled or wrapped enemy right now.',
   active: {

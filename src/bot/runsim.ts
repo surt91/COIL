@@ -32,6 +32,20 @@ const TIER: Record<string, number> = {
 };
 const tier = (id: ItemId) => (TIER[id.replace('+', '')] ?? 3) + (id.endsWith('+') ? 1 : 0);
 
+/**
+ * Arrange the genome ring so strong items are spread evenly (tier-sorted into
+ * every other slot): any arc, and so every opening hand, gets some of them.
+ */
+function arrangeGenome(run: RunState): RunState {
+  if (process.env.NOORDER) return run;
+  const sorted = [...run.genome].sort((a, b) => tier(b) - tier(a));
+  const n = sorted.length;
+  const slots = [...Array(n).keys()].filter((i) => i % 2 === 0).concat([...Array(n).keys()].filter((i) => i % 2 === 1));
+  const genome: ItemId[] = new Array(n);
+  sorted.forEach((id, i) => (genome[slots[i]] = id));
+  return { ...run, genome };
+}
+
 function chooseNode(run: RunState, r: Rng): number {
   const opts = reachable(run).map((id) => run.map[id]);
   const want = (k: NodeKind) => {
@@ -57,7 +71,7 @@ export function simulateRun(seed: number, policy: Policy, turnCap = 300, species
     if (sc.t === 'victory' || sc.t === 'dead') break;
     if (sc.t === 'map') {
       if (fleshAtAct.length <= run.act) fleshAtAct.push(run.flesh);
-      run = enterNode(run, chooseNode(run, r));
+      run = enterNode(arrangeGenome(run), chooseNode(run, r));
     } else if (sc.t === 'fight') {
       let f: Fight = sc.fight;
       fights++;

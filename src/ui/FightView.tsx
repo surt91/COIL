@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { computeCoils, occupiedCoils } from '../core/coil';
+import { coilDamage, computeCoils, occupiedCoils } from '../core/coil';
 import { canPlay, legalMoves, moveOutcome, step, wrapMin } from '../core/fight';
 import { DIRS, Dir, Pos, eq, step as stepPos } from '../core/geom';
 import * as ops from '../core/ops';
@@ -472,7 +472,7 @@ function Inspector({ f, hover }: { f: Fight; hover: Pos | null }) {
   if (tile === 2) return <div class="inspect"><h3>Exit</h3><p>{f.cleared ? 'Open! Move into it to leave the room.' : 'Closed until every enemy is dead (escalation spawns don’t count).'}</p></div>;
   if (tile === 3) return <div class="inspect"><h3>Burrow</h3><p>{f.entry && eq(f.entry, hover) ? 'Where you came in. While you are still emerging, segments at its mouth are safe.' : 'Late in a fight, beetles crawl out of holes like this.'} Your head can’t go back in.</p></div>;
   const coil = computeCoils(f).find((c) => c.tiles.some((t) => eq(t, hover)));
-  if (coil) return <div class="inspect"><h3>Inside your coil</h3><p>{coil.area} enclosed tile{coil.area > 1 ? 's' : ''}: {coil.crush ? `enemies here take ${coil.crush} crush per turn` : 'enemies here are held, but not crushed'}. Coiled enemies can’t move or attack.</p></div>;
+  if (coil) return <div class="inspect"><h3>Inside your coil</h3><p>{coil.area} enclosed tile{coil.area > 1 ? 's' : ''}: {coil.crush ? `enemies here take ${coilDamage(f, coil)} crush per turn${coil.ring ? ` (${coil.ring} from ring items)` : ''}` : 'enemies here are held, but not crushed'}. Coiled enemies can’t move or attack.</p></div>;
   if (ops.foodAt(f, hover) >= 0) return <div class="inspect"><h3>Food</h3><p>+1 flesh at the tail. Resets hunger.</p></div>;
   if (ops.webAt(f, hover) >= 0) return <div class="inspect"><h3>Web</h3><p>Moving into it costs your move. Counts as a coil wall.</p></div>;
   return <div class="inspect dim">Empty.<Legend f={f} /></div>;
@@ -524,7 +524,7 @@ function MoveHint({ f, dir, preview, spent, card }: { f: Fight; dir: Dir | null;
     const kills = preview.events.filter((e) => e.t === 'enemyDie').length;
     if (kills) lines.push(`${kills} kill${kills > 1 ? 's' : ''}`);
     const coils = occupiedCoils(preview);
-    for (const c of coils) lines.push(`Coil: ${c.area} tile${c.area > 1 ? 's' : ''} → ${c.crush ? `${c.crush} crush/turn` : 'held only'}`);
+    for (const c of coils) lines.push(`Coil: ${c.area} tile${c.area > 1 ? 's' : ''} → ${c.crush ? `${coilDamage(preview, c)} crush/turn` : 'held only'}`);
   }
   return (
     <div class="movehint">

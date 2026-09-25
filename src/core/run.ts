@@ -27,7 +27,7 @@ export interface ShopSlot { item: ItemId; price: number; sold: boolean }
 
 export type Screen =
   | { t: 'map' }
-  | { t: 'fight'; node: number; encounter: string; layout: string; fight: Fight; mods?: string[] }
+  | { t: 'fight'; node: number; encounter: string; layout: string; fight: Fight; mods?: string[]; arcStart?: number }
   | { t: 'reward'; options: ItemId[]; skipFlesh: number; title: string; charms?: string[]; charmTaken?: boolean; itemTaken?: boolean }
   | { t: 'pool'; stock: ShopSlot[]; removePrice: number; removed: boolean; charm?: { id: string; price: number; sold: boolean }; moltPrice?: number; molted?: boolean }
   | { t: 'bask'; done: boolean }
@@ -105,6 +105,32 @@ export const PLAYED_REGROW_MAX = 2;
 /** How many genome items grow on you per room. */
 export const GENOME_DRAW = 8;
 export const genomeDraw = (run: RunState) => GENOME_DRAW + charmSum(run.charms, 'drawBonus');
+
+/**
+ * Your genome is a ring: each room you emerge somewhere on it, and a
+ * contiguous arc of it grows on you in order (the first three are your hand).
+ */
+export function drawArc(run: RunState): { items: ItemId[]; start: number } {
+  const n = run.genome.length;
+  if (n === 0) return { items: [], start: 0 };
+  const d = Math.min(genomeDraw(run), n);
+  const start = int(run.rng, 0, n - 1);
+  return { items: Array.from({ length: d }, (_, i) => run.genome[(start + i) % n]), start };
+}
+
+/** Genome indices of the arc that grew on you this room (in body order). */
+export const arcIndices = (run: RunState, start: number) =>
+  Array.from({ length: Math.min(genomeDraw(run), run.genome.length) }, (_, i) => (start + i) % run.genome.length);
+
+/** Reorder the genome ring (free, any time outside a fight). */
+export function moveGenome(prev: RunState, from: number, to: number): RunState {
+  const n = prev.genome.length;
+  if (prev.screen.t === 'fight' || from === to || from < 0 || to < 0 || from >= n || to >= n) return prev;
+  const run = clone(prev);
+  const [it] = run.genome.splice(from, 1);
+  run.genome.splice(to, 0, it);
+  return run;
+}
 export const fleshCap = (run: RunState) => Math.max(2, capFor(run.act) - (run.molt >= 3 ? 2 : 0) + charmSum(run.charms, 'fleshCapBonus'));
 export const ACT_NAMES = ['The Garden', 'The Roots', 'The Deep'];
 
@@ -205,11 +231,11 @@ export function startFight(run: RunState, nodeId: number, pool: Pool): RunState 
   const layouts = LAYOUTS.filter((l) => (enc.layouts ? enc.layouts.includes(l.id) : !l.boss));
   const layout = pick(run.rng, layouts);
   const node = run.map[nodeId];
-  // Your genome is a deck: each room only some of it grows on you.
-  const drawn = shuffle(run.rng, [...run.genome]).slice(0, genomeDraw(run));
+  const arc = drawArc(run);
   const fight = createFight({
     rows: layout.rows,
-    genome: drawn,
+    genome: arc.items,
+    shuffleGenome: false,
     flesh: run.flesh,
     seed: int(run.rng, 0, 2 ** 31),
     charms: run.charms,
@@ -244,7 +270,7 @@ export function startFight(run: RunState, nodeId: number, pool: Pool): RunState 
     e.hp += bonus;
     e.maxHp += bonus;
   }
-  run.screen = { t: 'fight', node: nodeId, encounter: enc.id, layout: layout.id, fight, mods: nf ? describeNextFight(nf) : undefined };
+  run.screen = { t: 'fight', node: nodeId, encounter: enc.id, layout: layout.id, fight, mods: nf ? describeNextFight(nf) : undefined, arcStart: arc.start };
   return run;
 }
 

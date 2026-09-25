@@ -3,7 +3,8 @@ import '../src/content';
 import { checkInvariants } from '../src/bot/invariants';
 import { ENCOUNTERS } from '../src/content/encounters';
 import { LAYOUTS } from '../src/content/layouts';
-import { coiledEnemies } from '../src/core/coil';
+import { coilDamage, coiledEnemies, computeCoils } from '../src/core/coil';
+import { arcIndices, createRun, drawArc, enterNode, genomeDraw, moveGenome } from '../src/core/run';
 import { createFight, legalMoves, step } from '../src/core/fight';
 import { Dir, Pos } from '../src/core/geom';
 import { hand, spawnEnemy } from '../src/core/ops';
@@ -185,5 +186,47 @@ describe('engine contract', () => {
         f = g;
       }
     }
+  });
+});
+
+describe('genome ring', () => {
+  test('Muscle is a ring item: only coils its own segment borders get +1', () => {
+    // Segment 1 sits at (4,3), orthogonally next to the coil tile (3,3); segment 0 at (4,2) only diagonally.
+    const bordering = fight(RING, [null, 'muscle', null, null, null, null, null]);
+    const diagonal = fight(RING, ['muscle', null, null, null, null, null, null]);
+    expect(computeCoils(bordering)[0].ring).toBe(1);
+    expect(computeCoils(diagonal)[0].ring).toBe(0);
+    expect(coilDamage(bordering, computeCoils(bordering)[0])).toBe(4);
+    expect(coilDamage(diagonal, computeCoils(diagonal)[0])).toBe(3);
+  });
+
+  test('each room draws a contiguous arc of the ring, in order', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const run = createRun(seed);
+      run.genome = ['lunge', 'fang', 'scale', 'venom', 'spine', 'heart', 'muscle', 'reverse', 'rattle', 'tailwhip'];
+      const { items, start } = drawArc(run);
+      expect(items.length).toBe(Math.min(genomeDraw(run), run.genome.length));
+      items.forEach((it, i) => expect(it).toBe(run.genome[(start + i) % run.genome.length]));
+    }
+  });
+
+  test('the fight body is the arc in order, then flesh', () => {
+    const run = createRun(7);
+    const node = run.map.find((n) => n.row === 0)!;
+    const r = enterNode(run, node.id);
+    if (r.screen.t !== 'fight') return;
+    const idx = arcIndices(r, r.screen.arcStart!);
+    const items = r.screen.fight.snake.segs.filter((x) => x.item && !x.temp).map((x) => x.item);
+    expect(items).toEqual(idx.map((i) => r.genome[i]));
+  });
+
+  test('reordering moves one item and is refused during fights', () => {
+    const run = createRun(3);
+    const g = [...run.genome];
+    const moved = moveGenome(run, 0, 2);
+    expect(moved.genome).toEqual([g[1], g[2], g[0], ...g.slice(3)]);
+    expect(run.genome).toEqual(g); // pure
+    const r = enterNode(run, run.map.find((n) => n.row === 0)!.id);
+    if (r.screen.t === 'fight') expect(moveGenome(r, 0, 2)).toBe(r);
   });
 });

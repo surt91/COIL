@@ -4,7 +4,7 @@ import { EVENTS } from '../content/events';
 import { CHARMS, ITEMS, item } from '../core/registry';
 import {
   ACT_NAMES, BASK_FLESH, MAP_COLS, MOLTS, MAP_ROWS, NodeKind, RunState, Screen,
-  bask, buy, buyCharm, canUpgrade, describeNextFight, enterNode, eventChoice, fleshCap, genomeDraw, reachable, removeItem, takeCharm, takeReward, toMap, upgradeItem,
+  bask, buy, buyCharm, canUpgrade, arcIndices, describeNextFight, enterNode, eventChoice, fleshCap, genomeDraw, moveGenome, reachable, removeItem, takeCharm, takeReward, toMap, upgradeItem,
 } from '../core/run';
 import type { ItemId } from '../core/types';
 import { CardArt } from './CardArt';
@@ -96,7 +96,7 @@ export function GenomeView({ run, onClose }: { run: RunState; onClose(): void })
       <div class="genome-view-inner" onClick={(e) => e.stopPropagation()}>
         <div class="codex-head">
           <h2>Your genome</h2>
-          <span class="dim">{run.genome.length} items · {Math.min(genomeDraw(run), run.genome.length)} random ones grow on you each room · {run.flesh}/{fleshCap(run)} flesh</span>
+          <span class="dim">{run.genome.length} items · {Math.min(genomeDraw(run), run.genome.length)} grow on you each room, in ring order · {run.flesh}/{fleshCap(run)} flesh</span>
           <button class="btn" onClick={onClose}>Close <kbd>G</kbd></button>
         </div>
         {(run.charms ?? []).length > 0 && (
@@ -112,21 +112,39 @@ export function GenomeView({ run, onClose }: { run: RunState; onClose(): void })
   );
 }
 
-export function GenomePanel({ run, inFight }: { run: RunState; inFight?: boolean }) {
-  const counts = new Map<ItemId, number>();
-  for (const g of run.genome) counts.set(g, (counts.get(g) ?? 0) + 1);
+export function GenomePanel({ run, inFight, setRun }: { run: RunState; inFight?: boolean; setRun?: SetRun }) {
   const [open, setOpen] = useState(false);
+  const [sel, setSel] = useState<number | null>(null);
+  const [drag, setDrag] = useState<number | null>(null);
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if ((e.key === 'g' || e.key === 'G') && !open) setOpen(true);
+      if (e.key === 'Escape') setSel(null);
     };
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
   }, [open]);
+  const sc = run.screen;
+  const arcStart = sc.t === 'fight' ? sc.arcStart : undefined;
+  const arc = arcStart !== undefined ? new Set(arcIndices(run, arcStart)) : null;
+  const canOrder = !!setRun && sc.t !== 'fight' && run.genome.length > 1;
+  const draw = Math.min(genomeDraw(run), run.genome.length);
+  const move = (from: number, to: number) => {
+    setSel(null);
+    setDrag(null);
+    if (from !== to && setRun) { uiClick(); setRun(moveGenome(run, from, to)); }
+  };
+  const hint = canOrder
+    ? sel !== null
+      ? `Now click where ${item(run.genome[sel]).name} should go.`
+      : draw < run.genome.length
+        ? `Your genome is a ring. Each room you emerge at a random point on it, and the next ${draw} items grow on you in this order — the first three are your hand. Click an item, then a place, to reorder it (free).`
+        : `Your genome is a ring. Each room all of it grows on you in this order, starting at a random point — the first three are your hand. Click an item, then a place, to reorder it (free).`
+    : arc && arc.size < run.genome.length ? 'Dimmed items stayed in the burrow this room.' : null;
   return (
     <div class="genome">
       {open && <GenomeView run={run} onClose={() => setOpen(false)} />}
-      <h3>Genome <span class="dim">({run.genome.length} items · {Math.min(genomeDraw(run), run.genome.length)} grow each room)</span></h3>
+      <h3>Genome <span class="dim">({run.genome.length} items · {draw} grow each room)</span></h3>
       {inFight
         ? <div class="flesh-line dim">Brought {run.flesh} flesh into this room · carry up to {fleshCap(run)} out</div>
         : <div class="flesh-line"><b>{run.flesh}</b> / {fleshCap(run)} flesh <span class="dim">— health & currency</span></div>}
@@ -138,16 +156,29 @@ export function GenomePanel({ run, inFight }: { run: RunState; inFight?: boolean
           })}
         </div>
       )}
-      <ul>
-        {[...counts].map(([id, n]) => {
+      <ol class={`ring ${canOrder ? 'orderable' : ''} ${sel !== null ? 'placing' : ''}`}>
+        {run.genome.map((id, i) => {
           const d = ITEMS.get(id)!;
+          const cls = [sel === i && 'sel', drag === i && 'sel', arc && !arc.has(i) && 'out', arcStart === i && 'first'].filter(Boolean).join(' ');
           return (
-            <li title={[d.activeText, d.passiveText && `Passive: ${d.passiveText}`].filter(Boolean).join('\n')}>
-              <GlyphIcon glyph={d.glyph} color={d.color} size={28} /> <span>{d.name}{d.base ? ' ✦' : ''}{n > 1 ? ` ×${n}` : ''}</span>
+            <li
+              class={cls}
+              draggable={canOrder}
+              onDragStart={(e) => { setDrag(i); e.dataTransfer?.setData('text/plain', String(i)); }}
+              onDragEnd={() => setDrag(null)}
+              onDragOver={(e) => canOrder && e.preventDefault()}
+              onDrop={(e) => { e.preventDefault(); if (drag !== null) move(drag, i); }}
+              onClick={canOrder ? () => (sel === null ? setSel(i) : move(sel, i)) : undefined}
+              title={[d.activeText, d.passiveText && `While carried: ${d.passiveText}`].filter(Boolean).join('\n')}
+            >
+              <span class="ring-i">{arcStart === i ? '▶' : i + 1}</span>
+              <GlyphIcon glyph={d.glyph} color={d.color} size={26} /> <span>{d.name}{d.base ? ' ✦' : ''}</span>
             </li>
           );
         })}
-      </ul>
+        <li class="ring-wrap dim" aria-hidden>↻ back to 1</li>
+      </ol>
+      {hint && <div class="ring-hint dim">{hint}</div>}
       <button class="btn view-genome" onClick={() => setOpen(true)}>View all cards <kbd>G</kbd></button>
     </div>
   );
@@ -213,7 +244,7 @@ export function MapScreen({ run, setRun }: { run: RunState; setRun: SetRun }) {
         )}
       </div>
       <aside class="side">
-        <GenomePanel run={run} />
+        <GenomePanel run={run} setRun={setRun} />
         <Legend />
       </aside>
     </div>
@@ -258,7 +289,7 @@ export function RewardScreen({ run, setRun, screen }: { run: RunState; setRun: S
       )}
       {!screen.itemTaken && <button class="btn" onClick={() => { uiClick(); setRun(takeReward(run, null)); }}>Skip the item — digest it instead (+{screen.skipFlesh} flesh)</button>}
       {screen.itemTaken && !screen.charmTaken && <button class="btn" onClick={() => { uiClick(); setRun(toMap(run)); }}>Leave the charm</button>}
-      <GenomePanel run={run} />
+      <GenomePanel run={run} setRun={setRun} />
     </div>
   );
 }
@@ -318,7 +349,7 @@ export function PoolScreen({ run, setRun: setRun0, screen }: { run: RunState; se
         {undoStack.length > 0 && <button class="btn" onClick={() => { uiClick(); setRun0(undoStack[undoStack.length - 1]); setUndo((u) => u.slice(0, -1)); }}>Undo last purchase</button>}
         <button class="btn primary" onClick={() => { uiClick(); setRun0(toMap(run)); }}>Leave</button>
       </div>
-      <GenomePanel run={run} />
+      <GenomePanel run={run} setRun={setRun} />
     </div>
   );
 }
@@ -364,7 +395,7 @@ export function BaskScreen({ run, setRun, screen }: { run: RunState; setRun: Set
       )}
       {screen.done && <p>You feel renewed.</p>}
       <button class={`btn ${screen.done ? 'primary' : ''}`} onClick={() => { uiClick(); setRun(toMap(run)); }}>{screen.done ? 'Move on' : 'Skip'}</button>
-      <GenomePanel run={run} />
+      <GenomePanel run={run} setRun={setRun} />
     </div>
   );
 }
@@ -392,7 +423,7 @@ export function EventScreen({ run, setRun, screen }: { run: RunState; setRun: Se
           <button class="btn primary" onClick={() => { uiClick(); setRun(toMap(run)); }}>Continue</button>
         </>
       )}
-      <GenomePanel run={run} />
+      <GenomePanel run={run} setRun={setRun} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { Pos, adjacent } from './geom';
 import type { Enemy, Fight } from './types';
-import { ENEMIES } from './registry';
+import { ENEMIES, ITEMS } from './registry';
 import { bodyBonus } from './ops';
 import { Tile } from './types';
 
@@ -9,7 +9,10 @@ export const MAX_COIL_AREA = 12;
 export interface Coil {
   tiles: Pos[];
   area: number;
+  /** Crush from tightness alone. */
   crush: number;
+  /** Ring bonus: crush from items on segments bordering this coil (e.g. Muscle). */
+  ring: number;
 }
 
 /** Crush damage per turn by coil area ("tightness"). */
@@ -80,10 +83,26 @@ export function computeCoils(f: Fight, bodyOverride?: Pos[]): Coil[] {
     const t0 = tiles[0];
     if (base.sizes[base.comp[t0.y * w + t0.x]] <= tiles.length) return;
     if (!tiles.some((t) => body.some((b) => adjacent(t, b)))) return;
-    coils.push({ tiles, area: tiles.length, crush: crushFor(tiles.length) });
+    coils.push({ tiles, area: tiles.length, crush: crushFor(tiles.length), ring: ringBonus(f, body, tiles) });
   });
   return coils;
 }
+
+/** Items bordering a coil ("Ring" passives): segment k sits on body[k + 1]. */
+function ringBonus(f: Fight, body: Pos[], tiles: Pos[]): number {
+  let n = 0;
+  f.snake.segs.forEach((s, k) => {
+    const b = body[k + 1];
+    if (!s.item || !b) return;
+    const r = ITEMS.get(s.item)?.ringCrush;
+    if (r && tiles.some((t) => Math.abs(t.x - b.x) + Math.abs(t.y - b.y) === 1)) n += r;
+  });
+  return n;
+}
+
+/** Damage a coil deals per turn: tightness + ring items + body/charm/turn bonuses (held-only coils deal 0). */
+export const coilDamage = (f: Fight, c: Coil) =>
+  c.crush > 0 ? c.crush + c.ring + bodyBonus(f, 'crushBonus') + (f.buffs.crush ?? 0) : 0;
 
 /**
  * Is the player's head enclosed by enemy snake bodies (walls help)? Mirrors the

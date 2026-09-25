@@ -2,7 +2,7 @@
  * Static evaluation of a fight state for the search-based bots.
  * Higher is better for the snake. Pure: never mutates the fight.
  */
-import { computeCoils } from '../core/coil';
+import { coilDamage, computeCoils } from '../core/coil';
 import { legalMoves } from '../core/fight';
 import { Pos, chebyshev, key, manhattan, neighbors4 } from '../core/geom';
 import * as ops from '../core/ops';
@@ -159,13 +159,12 @@ export function evaluate(f: Fight, w: Weights = DEFAULT_WEIGHTS): number {
   // Coils: held enemies and future crush.
   if (f.enemies.length) {
     const coils = computeCoils(f);
-    const bonus = ops.bodyBonus(f, 'crushBonus');
     for (const c of coils) {
       const ks = new Set(c.tiles.map(key));
       for (const e of f.enemies) {
         if (!ks.has(key(e.pos))) continue;
         v += w.held;
-        if (c.crush > 0) v += w.crush * Math.min(c.crush + bonus, e.hp);
+        if (c.crush > 0) v += w.crush * Math.min(coilDamage(f, c), e.hp);
       }
     }
   }

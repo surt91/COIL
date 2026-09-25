@@ -103,8 +103,11 @@ Every decision — play a card, eat, fight, coil, buy — spends the same thing.
 
 ## Items (the deck)
 
-- The run's **genome** is your persistent deck. At room start the snake is
-  built as head + genome (shuffled) + your flesh. You emerge from a burrow;
+- The run's **genome** is your persistent deck — an **ordered ring** that you
+  may reorder freely between fights. At room start you emerge at a random point
+  on the ring: the snake is head + the next 8 items *in ring order* + your flesh.
+  You don't control where the arc starts, but you control what sits next to
+  what (combos in one hand, strong items spread out, ring items together). You emerge from a burrow;
   the rest of the body is still underground and uncoils as you move.
 - Played or destroyed items return next room. **Flesh does not** — it is
   attrition, and it is also what you pay shops with.
@@ -122,7 +125,7 @@ Each item has an **active** (play from hand, consumes) and/or a **passive**
 | Venom Sac | Adjacent enemies get 1 poison / turn | Spit: first enemy in line (≤4): 3 poison |
 | Spine | Enemies hitting this segment take 2 | All enemies adjacent to the body take 1 |
 | Heart | Every 6 turns grow 1 flesh | Grow 3 flesh |
-| Muscle | Crush +1 | Crush all coiled enemies now |
+| Muscle | Ring: coils this segment borders crush +1 | Crush all coiled enemies now |
 | Reverse | — | Swap head and tail (the hand changes!) |
 | Shed Skin | — | Last 3 segments become husks |
 | Rattle | — | Enemies within 3 of the head lose their intent |

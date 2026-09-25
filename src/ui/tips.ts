@@ -1,4 +1,5 @@
-import { coiledEnemies, touchCount } from '../core/coil';
+import { coiledEnemies, occupiedCoils, touchCount } from '../core/coil';
+import { ITEMS } from '../core/registry';
 import * as ops from '../core/ops';
 import type { Fight } from '../core/types';
 
@@ -13,6 +14,7 @@ const TIPS: { id: string; when(f: Fight): boolean; text: string }[] = [
   { id: 'lock', when: (f) => f.enemies.some((e) => e.intent.t === 'lock' && !e.intent.sever), text: 'A red reticle: an enemy has latched onto that segment and will bite it after your move — if the segment is still inside the faint red box around the enemy (1 tile, diagonals count). Bite the attacker to knock it back and interrupt it (not if it is pinned against something, and never bosses), or move so the segment slides out of reach.' },
   { id: 'strike', when: (f) => f.enemies.some((e) => e.intent.t === 'strike'), text: 'Red tiles will be struck after your move. Your head can step out of the way — but your body follows into the tiles your head just left.' },
   { id: 'sever', when: (f) => f.enemies.some((e) => e.intent.t === 'lock' && !!e.intent.sever), text: 'A mantis is winding up to SEVER you. Everything behind the cut falls off as husks. Get that segment out of reach (2 tiles), or kill the mantis first. You can eat husks to reattach them.' },
+  { id: 'ring', when: (f) => f.snake.segs.some((x) => x.item && ITEMS.get(x.item)?.ringCrush) && occupiedCoils(f).length > 0, text: 'Ring items (like Muscle) only strengthen coils that their own segment borders — wrap your prey with that part of your body. Between rooms you can reorder your genome ring: items that sit next to each other there grow next to each other on you.' },
   { id: 'spiky', when: (f) => f.enemies.some((e) => e.kind === 'hedgehog'), text: 'Hedgehogs are spiny: biting one costs you your neck segment, and it curls up. Coil it instead — enclose it with your body.' },
   { id: 'coil', when: (f) => coiledEnemies(f).size > 0, text: 'Coiled! Enemies enclosed by your body (walls help) can’t move or attack and are crushed every turn — and what you crush, you eat. The tighter the coil, the harder the crush: 1 tile = 3 damage, 2–3 = 2, 4–8 = 1, 9–12 = held only. You must keep moving — to keep a coil closed, chase your own tail.' },
   { id: 'wrap', when: (f) => f.enemies.some((e) => !e.under && touchCount(f, e) >= 2), text: 'The violet arcs around an enemy count how many of your tiles touch it (diagonals count). At 4 it is wrapped and squeezed for 1 damage every turn. A fully closed coil is much stronger: coiled enemies can’t move or attack at all.' },

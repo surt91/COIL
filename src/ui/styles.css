@@ -373,3 +373,17 @@ p.small { font-size: 13px; margin-top: -8px; }
 }
 
 .mobile-tools button.on { border-color: var(--gold); color: var(--gold); }
+
+/* Genome ring: ordered, reorderable list */
+.genome ol.ring { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-direction: column; gap: 2px; }
+.genome ol.ring li { display: flex; align-items: center; gap: 8px; font-size: 15px; padding: 2px 6px; border-radius: 6px; border: 1px solid transparent; }
+.genome ol.ring.orderable li:not(.ring-wrap) { cursor: pointer; }
+.genome ol.ring.orderable li:not(.ring-wrap):hover { background: rgba(255, 255, 255, 0.05); }
+.genome ol.ring.placing li:not(.sel):not(.ring-wrap):hover { border-top-color: var(--gold); }
+.genome ol.ring li.sel { border-color: var(--gold); color: var(--gold); background: rgba(255, 209, 102, 0.1); }
+.genome ol.ring li.out { opacity: 0.35; }
+.genome ol.ring li.first .ring-i { color: var(--teal); }
+.genome ol.ring .ring-i { width: 18px; text-align: right; font-size: 12px; color: var(--dim, #8a93a6); font-variant-numeric: tabular-nums; }
+.genome ol.ring li.ring-wrap { font-size: 12px; padding-left: 30px; }
+.genome ol.ring li.ring-wrap:hover { color: inherit; }
+.ring-hint { font-size: 12px; margin-top: 6px; line-height: 1.35; max-width: 300px; }

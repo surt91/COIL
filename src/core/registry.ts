@@ -29,6 +29,8 @@ export interface ItemDef {
   crushBonus?: number;
   /** Larger coils count while this item is on the body. */
   coilAreaBonus?: number;
+  /** Ring: bonus crush for coils this segment borders (4-adjacent to a coil tile). */
+  ringCrush?: number;
   /** A hit landed on this segment. Return true to absorb it. */
   onHit?(f: Fight, segIndex: number, source: Enemy | null): boolean;
   /** Runs every body phase for each segment carrying this item. */
