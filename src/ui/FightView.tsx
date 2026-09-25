@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { coilDamage, computeCoils, occupiedCoils } from '../core/coil';
-import { canPlay, legalMoves, moveOutcome, step, wrapMin } from '../core/fight';
+import { canPlay, legalMoves, moveOutcome, riposteTile, step, wrapMin } from '../core/fight';
 import { DIRS, Dir, Pos, eq, step as stepPos } from '../core/geom';
 import * as ops from '../core/ops';
 import { ENEMIES, ITEMS, item } from '../core/registry';
@@ -334,6 +334,11 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
             <div class="dim">Tap or swipe the same way again to confirm</div>
           </div>
         )}
+        {tip && (
+          <div class="tip tip-toast mobile-only" onClick={() => { markSeen(tip.id); tipTurn.current = fightRef.current.turn; setTip(nextTip(fightRef.current)); }}>
+            <span class="tip-label">Tip</span> {tip.text} <span class="dim">(tap to dismiss)</span>
+          </div>
+        )}
         {f.status !== 'play' && (
           <div class={`fight-end ${f.status}`}>
             <div>{f.status === 'won' ? 'Onward…' : 'Your coil unwinds'}</div>
@@ -343,7 +348,7 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
       <aside class={`inspector ${infoOpen ? 'open' : ''}`} onClick={(e) => { if ((e.target as HTMLElement).closest('.sheet-close')) setInfoOpen(false); }}>
         <button class="sheet-close mobile-only btn">Close ✕</button>
         {tip && (
-          <div class="tip" onClick={() => { markSeen(tip.id); tipTurn.current = fightRef.current.turn; setTip(nextTip(fightRef.current)); }}>
+          <div class="tip desktop-tip" onClick={() => { markSeen(tip.id); tipTurn.current = fightRef.current.turn; setTip(nextTip(fightRef.current)); }}>
             <span class="tip-label">Tip</span> {tip.text} <span class="dim">(click to dismiss)</span>
           </div>
         )}
@@ -519,6 +524,9 @@ function MoveHint({ f, dir, preview, spent, card }: { f: Fight; dir: Dir | null;
       if (lostItems.length) lines.push(`Destroyed unplayed: ${lostItems.join(', ')}`);
       if (lostFlesh) lines.push(`Lose ${lostFlesh} flesh`);
     } else lines.push('No damage taken.');
+    if (preview.events.some((e) => e.t === 'msg' && e.text === 'riposte!')) lines.push('Lose: riposte — you stayed on the tile you bit the boss from');
+    if (preview.enemies.some((e) => { const rp = riposteTile(e); return !!rp && eq(rp, preview.snake.body[0]); }))
+      lines.push('The boss marks this tile: move off it next turn');
     const fizzles = preview.events.filter((e) => e.t === 'fizzle').length;
     if (fizzles) lines.push(`${fizzles} attack${fizzles > 1 ? 's' : ''} will miss`);
     const kills = preview.events.filter((e) => e.t === 'enemyDie').length;

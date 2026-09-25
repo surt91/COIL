@@ -1,3 +1,4 @@
+import { createPortal } from 'preact/compat';
 import { useEffect, useState } from 'preact/hooks';
 import { stinger, uiClick } from '../audio/audio';
 import { EVENTS } from '../content/events';
@@ -119,6 +120,11 @@ export function GenomeView({ run, onClose }: { run: RunState; onClose(): void })
   );
 }
 
+const describeItem = (id: ItemId) => {
+  const d = item(id);
+  return `${d.name}: ${[d.activeText, d.passiveText && `While carried: ${d.passiveText}`].filter(Boolean).join(' ')}`;
+};
+
 export function GenomePanel({ run, inFight, setRun }: { run: RunState; inFight?: boolean; setRun?: SetRun }) {
   const [open, setOpen] = useState(false);
   const [sel, setSel] = useState<number | null>(null);
@@ -143,14 +149,15 @@ export function GenomePanel({ run, inFight, setRun }: { run: RunState; inFight?:
   };
   const hint = canOrder
     ? sel !== null
-      ? `Now click where ${item(run.genome[sel]).name} should go.`
+      ? `${describeItem(run.genome[sel])} — now tap where it should go (it takes that place), or tap it again to cancel.`
       : draw < run.genome.length
         ? `Your genome is a ring. Each room you emerge at a random point on it, and the next ${draw} items grow on you in this order — the first three are your hand. Click an item, then a place, to reorder it (free).`
         : `Your genome is a ring. Each room all of it grows on you in this order, starting at a random point — the first three are your hand. Click an item, then a place, to reorder it (free).`
-    : arc && arc.size < run.genome.length ? 'Dimmed items stayed in the burrow this room.' : null;
+    : arc ? `▶ marks where you emerged this room.${arc.size < run.genome.length ? ' Dimmed items stayed in the burrow.' : ''}` : null;
   return (
     <div class="genome">
-      {open && <GenomeView run={run} onClose={() => setOpen(false)} />}
+      {/* Portal: a fixed overlay inside the (transformed) phone info sheet would open off-screen. */}
+      {open && createPortal(<GenomeView run={run} onClose={() => setOpen(false)} />, document.body)}
       <h3>Genome <span class="dim">({run.genome.length} items · {draw} grow each room)</span></h3>
       {inFight
         ? <div class="flesh-line dim">Brought {run.flesh} flesh into this room · carry up to {fleshCap(run)} out</div>
@@ -175,15 +182,16 @@ export function GenomePanel({ run, inFight, setRun }: { run: RunState; inFight?:
               onDragEnd={() => setDrag(null)}
               onDragOver={(e) => canOrder && e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); if (drag !== null) move(drag, i); }}
-              onClick={canOrder ? () => (sel === null ? setSel(i) : move(sel, i)) : undefined}
+              onClick={canOrder ? () => (sel === null ? setSel(i) : sel === i ? setSel(null) : move(sel, i)) : undefined}
               title={[d.activeText, d.passiveText && `While carried: ${d.passiveText}`].filter(Boolean).join('\n')}
             >
               <span class="ring-i">{arcStart === i ? '▶' : i + 1}</span>
+              {canOrder && <span class="ring-grip" aria-hidden>⋮⋮</span>}
               <GlyphIcon glyph={d.glyph} color={d.color} size={26} /> <span>{d.name}{d.base ? ' ✦' : ''}</span>
             </li>
           );
         })}
-        <li class="ring-wrap dim" aria-hidden>↻ back to 1</li>
+        <li class="ring-wrap dim" onClick={canOrder && sel !== null ? () => move(sel, run.genome.length - 1) : undefined}>↻ back to 1{canOrder && sel !== null ? ' (tap: move to the end)' : ''}</li>
       </ol>
       {hint && <div class="ring-hint dim">{hint}</div>}
       <button class="btn view-genome" onClick={() => setOpen(true)}>View all cards <kbd>G</kbd></button>
@@ -357,7 +365,7 @@ export function PoolScreen({ run, setRun: setRun0, screen }: { run: RunState; se
         {undoStack.length > 0 && <button class="btn" onClick={() => { uiClick(); setRun0(undoStack[undoStack.length - 1]); setUndo((u) => u.slice(0, -1)); }}>Undo last purchase</button>}
         <button class="btn primary" onClick={() => { uiClick(); setRun0(toMap(run)); }}>Leave</button>
       </div>
-      <GenomePanel run={run} setRun={setRun} />
+      <GenomePanel run={run} setRun={setRun0} />
     </div>
   );
 }
@@ -410,6 +418,7 @@ export function BaskScreen({ run, setRun, screen }: { run: RunState; setRun: Set
 
 /** Items named in an event choice, so the choice can explain them (longest names win: "Keeled Scale" over "Scale"). */
 function mentionedItems(label: string) {
+  for (const c of CHARMS.values()) label = label.split(c.name).join('');
   const hits = [...ITEMS.values()].filter((d) => d.rarity !== 'signature' && label.includes(d.name));
   const uniq = hits.filter((d, i) => hits.findIndex((x) => x.name === d.name) === i);
   return uniq.filter((d) => !uniq.some((o) => o !== d && o.name.includes(d.name)));
@@ -499,6 +508,7 @@ export function EndScreen({ run, onDone, onAgain, onDaily }: { run: RunState; on
           const ok = profile.unlocks.includes(g.unlock);
           return <span class={`ms ${ok ? 'ok' : nextSpecies === g ? 'next' : ''}`} title={ok ? `${g.species} unlocked` : g.goal}>{g.species}</span>;
         })}
+        <span class="ms-label dim">Depth</span>
         {MOLTS.slice(1).map((m, i) => {
           const d = i + 1;
           const ok = profile.moltUnlocked >= d;

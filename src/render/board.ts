@@ -182,8 +182,10 @@ export class BoardRenderer {
 
   private float(p: Pos, text: string, color: string, big = false) {
     // Stack texts that appear near each other at the same time.
-    const near = this.floats.filter((f) => f.life < 500 && Math.abs(f.x - p.x) < 2 && Math.abs(f.y - p.y) < 1.5).length;
-    this.floats.push({ x: p.x, y: p.y - near * 0.75, text, color, life: 0, max: big ? 2200 : 1000, big });
+    // "Up" on screen is -y on the board, or -x when the board is drawn rotated (portrait phones).
+    const near = this.floats.filter((f) => f.life < 500 && Math.abs(f.x - p.x) < 3 && Math.abs(f.y - p.y) < 3).length;
+    const [ux, uy] = this.rotated ? [-1, 0] : [0, -1];
+    this.floats.push({ x: p.x + ux * near * 0.6, y: p.y + uy * near * 0.6, text, color, life: 0, max: big ? 2200 : 1000, big });
   }
 
   private burst(p: Pos, color: string, n: number, speed = 3, size = 3) {
@@ -312,6 +314,7 @@ export class BoardRenderer {
     this.drawLocks(f, bodyPts, now);
     this.drawPreview(f, now);
     this.drawSnake(f, bodyPts, now);
+    this.drawRipostes(f, now);
     this.drawTargeting(f, now);
     this.drawFx(dt);
     ctx.restore();
@@ -523,20 +526,32 @@ export class BoardRenderer {
     }
   }
 
+  /** Riposte markers go on top of the snake: the marked tile is usually under your head. */
+  private drawRipostes(f: Fight, now: number) {
+    const ctx = this.ctx, T = this.T;
+    const pulse = 0.6 + 0.4 * Math.sin(now / 140);
+    for (const e of f.enemies) {
+      const rp = riposteTile(e);
+      if (!rp) continue;
+      ctx.save();
+      ctx.globalAlpha = pulse;
+      ctx.strokeStyle = PAL.danger;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([6, 4]);
+      ctx.lineDashOffset = -now / 60;
+      ctx.beginPath();
+      ctx.arc(this.ox + (rp.x + 0.5) * T, this.oy + (rp.y + 0.5) * T, T * 0.52, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
   private drawStrikes(f: Fight, now: number) {
     const ctx = this.ctx, T = this.T;
     const pulse = 0.6 + 0.3 * Math.sin(now / 160);
     for (const e of f.enemies) {
       const rp = riposteTile(e);
-      if (rp) {
-        // Riposte: the boss will strike this tile if your head is still on it after your move.
-        this.hatch([rp], PAL.danger, pulse * 0.55, now);
-        ctx.strokeStyle = PAL.danger;
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 3]);
-        ctx.strokeRect(this.ox + rp.x * T + 2, this.oy + rp.y * T + 2, T - 4, T - 4);
-        ctx.setLineDash([]);
-      }
+      if (rp) this.hatch([rp], PAL.danger, pulse * 0.55, now);
       const it = e.intent;
       if (it.t === 'strike') {
         this.hatch(it.tiles, PAL.danger, pulse * 0.7, now);
@@ -1008,7 +1023,8 @@ export class BoardRenderer {
       ctx.textAlign = 'center';
       ctx.strokeStyle = 'rgba(0,0,0,0.85)';
       ctx.lineWidth = 4;
-      const X = this.cx(fl.x), Y = this.cy(fl.y) - T * 0.3 - t * T * (fl.big ? 0.3 : 0.8);
+      const rise = T * 0.3 + t * T * (fl.big ? 0.3 : 0.8);
+      const X = this.cx(fl.x) - (this.rotated ? rise : 0), Y = this.cy(fl.y) - (this.rotated ? 0 : rise);
       ctx.strokeText(fl.text, X, Y);
       ctx.fillText(fl.text, X, Y);
     }

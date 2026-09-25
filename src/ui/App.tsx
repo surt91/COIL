@@ -188,15 +188,15 @@ function Title({ onStart }: { onStart(r: RunState): void }) {
           <span class="dim"> — each depth also includes all shallower ones</span>
         </div>
       )}
-      {profile.runs > 0 && <div class="dim">{profile.runs} runs · {profile.victories} victories{profile.bestMolt >= 0 ? ` · deepest win: depth ${profile.bestMolt}` : ''}</div>}
+      {profile.runs > 0 && <div class="dim">{profile.runs} run{profile.runs === 1 ? '' : 's'} · {profile.victories} victor{profile.victories === 1 ? 'y' : 'ies'}{profile.bestMolt >= 0 ? ` · deepest win: depth ${profile.bestMolt}` : ''}</div>}
       <div class="howto">
         <h3>How to play</h3>
         <ul>
           <li>Turn-based. Every turn your head moves one tile — you can never stand still. Your body follows.</li>
-          <li>Every segment is <b>flesh</b> or carries an <b>item</b>. The first three items behind your head are your <b>hand</b>: press <kbd>1</kbd>–<kbd>3</kbd> to play one. <b>Items are ammunition</b>: they all come back next room — spend them freely. Only flesh carries over.</li>
+          <li>Every segment is <b>flesh</b> or carries an <b>item</b>. The first three items behind your head are your <b>hand</b>: press <kbd>1</kbd>–<kbd>3</kbd> or tap its card to play one. <b>Items are ammunition</b>: they all come back next room — spend them freely. Only flesh carries over.</li>
           <li>Enemies telegraph everything. A hit destroys the segment it lands on — and its item. A red reticle means a bite locked on a segment: move so that segment slides out of the attacker's reach, or bite the attacker first to knock it back.</li>
           <li><b>Coil</b>: enclose enemies with your body (walls help). Tighter coils crush harder. Touching an enemy with 4 of your tiles <b>wraps</b> it — it gets squeezed too.</li>
-          <li>Hover a tile next to your head to preview the whole turn. <kbd>Z</kbd> undoes card plays, <kbd>T</kbd> tucks an item to your tail.</li>
+          <li>Hover (on phones: tap or swipe) a tile next to your head to preview the whole turn. <kbd>Z</kbd> undoes card plays, <kbd>T</kbd> tucks an item to your tail.</li>
           <li>Flesh carries between rooms. It is your health and your currency.</li>
         </ul>
       </div>
