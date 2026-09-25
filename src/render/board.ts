@@ -6,7 +6,7 @@ import { ENEMIES, ITEMS } from '../core/registry';
 import type { Enemy, Fight, GameEvent } from '../core/types';
 import { Tile } from '../core/types';
 import { drawCreature } from './creatures';
-import { drawGlyph } from './glyphs';
+import { drawGlyph, glyphOpts } from './glyphs';
 import { renderAscii } from './ascii';
 import { SPECIES_STYLES, SerpentStyle, drawBody, drawHead, sampleBody } from './serpent';
 
@@ -110,20 +110,67 @@ export class BoardRenderer {
     this.layout();
   }
 
+  /**
+   * Portrait screens show a landscape board rotated by 90° (clockwise) so it
+   * fills the screen. Board coordinates stay the same; only the view turns.
+   */
+  rotated = false;
+  private rx = 0;
+  private ry = 0;
+
   private layout() {
     const f = this.shown;
     if (!f) return;
     const w = this.canvas.width / this.dpr, h = this.canvas.height / this.dpr;
-    this.T = Math.floor(Math.min(w / f.w, h / f.h));
-    this.ox = Math.floor((w - this.T * f.w) / 2);
-    this.oy = Math.floor((h - this.T * f.h) / 2);
+    const flat = Math.floor(Math.min(w / f.w, h / f.h));
+    const turned = Math.floor(Math.min(w / f.h, h / f.w));
+    this.rotated = f.w !== f.h && turned > flat * 1.15;
+    if (this.rotated) {
+      this.T = turned;
+      this.ox = 0;
+      this.oy = 0;
+      this.rx = Math.floor((w - this.T * f.h) / 2);
+      this.ry = Math.floor((h - this.T * f.w) / 2);
+    } else {
+      this.T = flat;
+      this.ox = Math.floor((w - this.T * f.w) / 2);
+      this.oy = Math.floor((h - this.T * f.h) / 2);
+    }
+  }
+
+  /** Screen direction (0 up, 1 right, 2 down, 3 left) to board direction. */
+  screenToBoardDir(d: Dir): Dir {
+    return this.rotated ? (((d + 3) % 4) as Dir) : d;
   }
 
   tileAt(cssX: number, cssY: number): Pos | null {
     const f = this.shown;
     if (!f) return null;
-    const x = Math.floor((cssX - this.ox) / this.T), y = Math.floor((cssY - this.oy) / this.T);
+    let lx = cssX - this.ox, ly = cssY - this.oy;
+    if (this.rotated) {
+      lx = cssY - this.ry;
+      ly = this.rx + f.h * this.T - cssX;
+    }
+    const x = Math.floor(lx / this.T), y = Math.floor(ly / this.T);
     return x >= 0 && y >= 0 && x < f.w && y < f.h ? { x, y } : null;
+  }
+
+  /** Keep text upright when the board is rotated. */
+  private patchText() {
+    const ctx = this.ctx as CanvasRenderingContext2D & { __patched?: boolean };
+    if (ctx.__patched) return;
+    ctx.__patched = true;
+    const fill = ctx.fillText.bind(ctx), stroke = ctx.strokeText.bind(ctx);
+    const upright = (orig: typeof fill) => (text: string, x: number, y: number, maxW?: number) => {
+      if (!this.rotated) return orig(text, x, y, maxW);
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(-Math.PI / 2);
+      orig(text, 0, 0, maxW);
+      ctx.restore();
+    };
+    ctx.fillText = upright(fill);
+    ctx.strokeText = upright(stroke);
   }
 
   /** Show a new state; animate from the current one using its events. */
@@ -252,6 +299,12 @@ export class BoardRenderer {
     ctx.fillStyle = PAL.bg;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     if (!f) return;
+    this.patchText();
+    glyphOpts.rotation = this.rotated ? -Math.PI / 2 : 0;
+    if (this.rotated) {
+      ctx.translate(this.rx + f.h * this.T, this.ry);
+      ctx.rotate(Math.PI / 2);
+    }
     if (this.terminal) return this.drawTerminal(f, now);
     if (now < this.hitStop) this.animStart = now; // freeze the animation for a beat
     const k = Math.max(1, f.events.filter((e) => e.t === 'move').length);
@@ -275,13 +328,17 @@ export class BoardRenderer {
     this.drawFx(dt);
     ctx.restore();
     // Vignette (stronger in the Deep), with the snake's head as a faint light source.
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     const W = this.canvas.width / this.dpr, H = this.canvas.height / this.dpr;
     const h = f.snake.body[0];
-    const g = ctx.createRadialGradient(this.cx(h.x), this.cy(h.y), this.T * 2, W / 2, H / 2, Math.max(W, H) * 0.75);
+    const hx = this.rotated ? this.rx + f.h * this.T - this.cy(h.y) : this.cx(h.x);
+    const hy = this.rotated ? this.ry + this.cx(h.x) : this.cy(h.y);
+    const g = ctx.createRadialGradient(hx, hy, this.T * 2, W / 2, H / 2, Math.max(W, H) * 0.75);
     g.addColorStop(0, 'rgba(0,0,0,0)');
     g.addColorStop(1, `rgba(0,0,0,${th.vignette})`);
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
+    glyphOpts.rotation = 0;
   }
 
   private drawTerminal(f: Fight, now: number) {

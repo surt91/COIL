@@ -173,7 +173,7 @@ export function MapScreen({ run, setRun }: { run: RunState; setRun: SetRun }) {
     <div class="screen map-screen">
       <div class="map-col">
         <h2>Act {run.act + 1}: {ACT_NAMES[run.act]}</h2>
-        <svg width={W} height={H} class="map">
+        <svg viewBox={`0 0 ${W} ${H}`} class="map" style={{ width: `min(${W}px, 96vw)`, height: 'auto' }}>
           {run.map.flatMap((n) =>
             n.next.map((m) => {
               const t = run.map[m];

@@ -44,6 +44,11 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
   const [selected, setSelected] = useState<number | null>(null);
   const selectedRef = useRef(selected);
   const [hover, setHover] = useState<Pos | null>(null);
+  /** Touch: a direction previewed by the first tap/swipe; a second one confirms. */
+  const [pending, setPending] = useState<Dir | null>(null);
+  const [infoOpen, setInfoOpen] = useState(false);
+  const touchStart = useRef<{ x: number; y: number; t: number } | null>(null);
+  const lastTouch = useRef(0);
   const ended = useRef(false);
   const [tip, setTip] = useState<Tip | null>(() => nextTip(initial));
   const tipTurn = useRef(initial.turn);
@@ -107,6 +112,7 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
     const endsTurn = next.turn !== f.turn || next.status !== 'play';
     setSelected(null);
     setHint(null);
+    setPending(null);
     commit(next, endsTurn);
   }
 
@@ -153,7 +159,7 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key in KEY_DIRS) {
         e.preventDefault();
-        act(KEY_DIRS[e.key]);
+        act(renderer.current ? renderer.current.screenToBoardDir(KEY_DIRS[e.key]) : KEY_DIRS[e.key]);
       } else if (e.key >= '1' && e.key <= '3') selectSlot(Number(e.key) - 1);
       else if (e.key === 't' || e.key === 'T') dispatch({ t: 'tuck' });
       else if (e.key === 'z' || e.key === 'Z' || e.key === 'Backspace') undo();
@@ -181,8 +187,8 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
   // Preview of the hovered adjacent tile.
   const f = fight;
   const head = f.snake.body[0];
-  let hoverDir: Dir | null = null;
-  if (hover) for (const d of DIRS) if (eq(stepPos(head, d), hover)) hoverDir = d;
+  let hoverDir: Dir | null = pending;
+  if (hoverDir === null && hover) for (const d of DIRS) if (eq(stepPos(head, d), hover)) hoverDir = d;
   const preview = useMemo<Fight | null>(() => {
     if (f.status !== 'play') return null;
     if (hint && !hover) return hint.preview;
@@ -190,7 +196,7 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
       if (hoverDir !== null && canPlay(f, selected, hoverDir)) return step(f, { t: 'play', slot: selected, dir: hoverDir });
     } else if (hoverDir !== null && legalMoves(f).includes(hoverDir)) return step(f, { t: 'move', dir: hoverDir });
     return null;
-  }, [hover, selected, f, hint]);
+  }, [hover, selected, f, hint, pending]);
   useEffect(() => {
     const r = renderer.current;
     if (!r) return;
@@ -208,12 +214,50 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
     setHover((h) => (h && t && eq(h, t)) || h === t ? h : t);
   };
   const onClick = (e: MouseEvent) => {
+    if (Date.now() - lastTouch.current < 700) return; // handled by the touch path
     const t = toCss(e);
     if (!t) return;
     for (const d of DIRS) if (eq(stepPos(fightRef.current.snake.body[0], d), t)) act(d);
   };
+  // Touch: tap/swipe once to preview a direction, again to commit. Taps elsewhere inspect.
+  const onPointerDown = (e: PointerEvent) => {
+    if (e.pointerType === 'mouse') return;
+    touchStart.current = { x: e.clientX, y: e.clientY, t: Date.now() };
+  };
+  const onPointerUp = (e: PointerEvent) => {
+    if (e.pointerType === 'mouse' || !touchStart.current) return;
+    lastTouch.current = Date.now();
+    const dx = e.clientX - touchStart.current.x, dy = e.clientY - touchStart.current.y;
+    touchStart.current = null;
+    const fNow = fightRef.current;
+    const h = fNow.snake.body[0];
+    let d: Dir | null = null;
+    if (Math.hypot(dx, dy) > 28) d = renderer.current!.screenToBoardDir(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : dy > 0 ? 2 : 0);
+    else {
+      const rect = canvasRef.current!.getBoundingClientRect();
+      const t = renderer.current?.tileAt(e.clientX - rect.left, e.clientY - rect.top) ?? null;
+      if (t) for (const dd of DIRS) if (eq(stepPos(h, dd), t)) d = dd;
+      if (d === null) {
+        setPending(null);
+        setHover(t);
+        if (t) setInfoOpen(true);
+        return;
+      }
+    }
+    if (pendingRef.current === d) {
+      setPending(null);
+      setHover(null);
+      act(d);
+    } else {
+      setPending(d);
+      setHover(stepPos(h, d));
+    }
+  };
+  const pendingRef = useRef(pending);
+  pendingRef.current = pending;
 
   const handIdx = ops.hand(f);
+  const narrow = typeof window !== 'undefined' && window.matchMedia('(max-width: 820px)').matches;
   const pend = ops.pending(f);
   const onBoard = f.snake.body.length - 1;
   const flesh = f.snake.segs.filter((s) => !s.item).length;
@@ -247,14 +291,21 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
         {f.cleared && <div class="hud-stat good">Exits open</div>}
       </header>
       <div class="board-wrap" ref={wrapRef}>
-        <canvas ref={canvasRef} onMouseMove={onMove} onMouseLeave={() => setHover(null)} onClick={onClick} />
+        <canvas ref={canvasRef} onMouseMove={onMove} onMouseLeave={() => setHover(null)} onClick={onClick} onPointerDown={onPointerDown} onPointerUp={onPointerUp} />
+        {pending !== null && (
+          <div class="touch-confirm">
+            <MoveHint f={f} dir={hoverDir} preview={preview} spent={selected !== null && ops.hand(f)[selected] !== undefined ? f.snake.segs[ops.hand(f)[selected]].uid : undefined} />
+            <div class="dim">Tap or swipe the same way again to confirm</div>
+          </div>
+        )}
         {f.status !== 'play' && (
           <div class={`fight-end ${f.status}`}>
             <div>{f.status === 'won' ? 'Onward…' : 'Your coil unwinds'}</div>
           </div>
         )}
       </div>
-      <aside class="inspector">
+      <aside class={`inspector ${infoOpen ? 'open' : ''}`} onClick={(e) => { if ((e.target as HTMLElement).closest('.sheet-close')) setInfoOpen(false); }}>
+        <button class="sheet-close mobile-only btn">Close ✕</button>
         {tip && (
           <div class="tip" onClick={() => { markSeen(tip.id); tipTurn.current = fightRef.current.turn; setTip(nextTip(fightRef.current)); }}>
             <span class="tip-label">Tip</span> {tip.text} <span class="dim">(click to dismiss)</span>
@@ -279,7 +330,7 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
               style={{ '--c': d.color }}
               onClick={() => selectSlot(slot)}
             >
-              <CardArt id={seg.item!} height={50} />
+              <CardArt id={seg.item!} height={narrow ? 34 : 50} />
               <div class="card-top">
                 <span class="key">{slot + 1}</span>
                 <GlyphIcon glyph={d.glyph} color={d.color} size={28} />
@@ -295,6 +346,12 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
           );
         })}
         <div class="hand-actions">
+          <div class="mobile-only mobile-tools">
+            <button onClick={() => setInfoOpen((o) => !o)}>Info</button>
+            <button onClick={() => { const a = suggest(); if (a) setHint({ action: a, preview: step(fightRef.current, a) }); setInfoOpen(true); }}>Hint</button>
+            <button onClick={() => { const a = suggest(); if (a) dispatch(a); }}>Auto</button>
+            <button onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'g' }))}>Genome</button>
+          </div>
           <button onClick={() => dispatch({ t: 'tuck' })} disabled={f.tuckUsed || handIdx.length === 0} title="Send your first hand item to the tail (once per turn)">
             Tuck <kbd>T</kbd>
           </button>

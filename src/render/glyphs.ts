@@ -337,9 +337,13 @@ Object.assign(glyphs, {
   },
 });
 
+/** Extra rotation applied to every glyph (the board sets this when it is drawn rotated). */
+export const glyphOpts = { rotation: 0 };
+
 export function drawGlyph(ctx: G, key: string, x: number, y: number, r: number, color: string) {
   ctx.save();
   ctx.translate(x, y);
+  if (glyphOpts.rotation) ctx.rotate(glyphOpts.rotation);
   ctx.fillStyle = color;
   ctx.strokeStyle = color;
   ctx.lineWidth = Math.max(1.5, r * 0.18);
