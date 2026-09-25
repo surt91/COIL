@@ -314,13 +314,11 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
     <div class="fight">
       <header class="hud">
         <div class="hud-title">{title}</div>
-        <div class="hud-stat" title={`Flesh: your health and your currency.${fleshCap !== undefined ? ` Up to ${fleshCap} carry to the next room (hollow hearts: room to grow; faded: won't carry).` : ''}`}>
-          <b class="flesh">{flesh}</b> <FleshPips n={flesh} cap={fleshCap} />
+        <div class="hud-stat" title={`Flesh: your health and your currency.${fleshCap !== undefined ? ` Up to ${fleshCap} carry to the next room (hollow: room to grow; grey: won't carry).` : ''}${bonus ? ` Pulsing: ${bonus} regrow at room end (every 2 items played regrow 1).` : ''}`}>
+          <b class="flesh">{flesh}</b> <FleshPips n={flesh} cap={fleshCap} regrow={bonus} />
         </div>
         <div class="hud-stat hud-items" title={`Your items. Faded ones are spent or lost — all of them come back next room.${bonus ? ` Every 2 played regrow 1 flesh at room end (+${bonus}).` : ''}`}>
           {itemRow.map((it) => <span class={`hud-item ${it.live ? '' : 'spent'} ${it.temp ? 'temp' : ''}`}><GlyphIcon glyph={it.glyph} color={it.color} size={22} /></span>)}
-          <span class="hud-return">↻</span>
-          {bonus > 0 && <span class="hud-bonus">+{bonus}♥</span>}
         </div>
         {mods && mods.length > 0 && <div class="hud-stat mods" title="From an event">{mods.map((m) => <span class="mod-chip">{m}</span>)}</div>}
         {(f.buffs.bite > 0 || f.buffs.absorb > 0) && (
@@ -512,12 +510,13 @@ function Inspector({ f, hover }: { f: Fight; hover: Pos | null }) {
   return <div class="inspect dim">Empty.<Legend f={f} /></div>;
 }
 
-function FleshPips({ n, cap }: { n: number; cap?: number }) {
-  const total = Math.max(n, cap ?? n);
-  if (total > 16) return cap !== undefined ? <span class="dim">/ {cap}</span> : null;
+/** Hearts: filled = flesh, grey = over the carry cap, pulsing = regrows at room end, hollow = room to grow. */
+function FleshPips({ n, cap, regrow = 0 }: { n: number; cap?: number; regrow?: number }) {
+  const total = Math.max(n + regrow, cap ?? n);
+  if (total > 16) return <span class="dim">{regrow ? `+${regrow} ` : ''}{cap !== undefined ? `/ ${cap}` : ''}</span>;
   return (
     <span class="pips">
-      {Array.from({ length: total }, (_, i) => <i class={i >= n ? 'empty' : cap !== undefined && i >= cap ? 'over' : ''} />)}
+      {Array.from({ length: total }, (_, i) => <i class={i >= n + regrow ? 'empty' : i >= n ? 'regrow' : cap !== undefined && i >= cap ? 'over' : ''} />)}
     </span>
   );
 }

@@ -94,6 +94,8 @@ export interface RunState {
   bossBonus?: number;
   /** Ledger of the last cleared room (shown on the reward screen). */
   lastRoom?: { played: number; wasted: number; regrown: number; kept: number; body: number; fleshLost?: number };
+  /** The previous fight's room (the next one differs). */
+  lastLayout?: string;
   /** A player's very first run: the first easy fight is the Nursery (it teaches the coil). */
   teach?: boolean;
   /** Profile snapshot when the run began (UI only: what did this run earn?). */
@@ -235,6 +237,8 @@ export function generateMap(r: Rng): MapNode[] {
       for (const sib of p.next) if (sib !== n.id && SPECIAL.includes(nodeById(all, sib).kind)) banned.add(nodeById(all, sib).kind);
     }
     if (n.row === MAP_ROWS - 3) banned.add('bask'); // the row before the boss is always a bask
+    // Elites are a choice, never forced: not behind a node that leads nowhere else.
+    if (ps.some((p) => p.next.length === 1)) banned.add('elite');
     let opts: [NodeKind, number][] = [['fight', 45], ['event', 16], ['pool', 10], ['nest', 7]];
     if (n.row >= 2) opts.push(['elite', 13]);
     if (n.row >= 3) opts.push(['bask', 8]);
@@ -270,7 +274,9 @@ export function startFight(run: RunState, nodeId: number, pool: Pool): RunState 
   const encs = ENCOUNTERS.filter((e) => e.act === run.act && e.pool === pool);
   let enc = pick(run.rng, encs);
   const layouts = LAYOUTS.filter((l) => (enc.layouts ? enc.layouts.includes(l.id) : !l.boss && (!l.acts || l.acts.includes(run.act))));
-  let layout = pick(run.rng, layouts);
+  // Never the same room twice in a row (when the encounter allows another).
+  const fresh = layouts.filter((l) => l.id !== run.lastLayout);
+  let layout = pick(run.rng, fresh.length ? fresh : layouts);
   // After the normal picks, so the rest of the run's random stream stays the same.
   if (run.teach && pool === 'easy') {
     run.teach = false;
@@ -317,6 +323,7 @@ export function startFight(run: RunState, nodeId: number, pool: Pool): RunState 
     e.hp += bonus;
     e.maxHp += bonus;
   }
+  run.lastLayout = layout.id;
   run.screen = { t: 'fight', node: nodeId, encounter: enc.id, layout: layout.id, fight, mods: nf ? describeNextFight(nf) : undefined, arcStart: arc.start };
   return run;
 }

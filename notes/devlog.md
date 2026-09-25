@@ -626,3 +626,31 @@ auf dem Handy eine feste Höhe. Außerdem:
 - Blockierte Karten nennen auf dem Handy den Grund.
 - Der Passivtext steht jetzt im Tipp-Popup.
 - Die Haut sieht aus wie Haut und nicht wie ein Knopf.
+
+**Die offenen Punkte.**
+
+- **Hunger:** Statt die Leiste besser zu beschriften, steht die Folge jetzt dort, wo
+  sie eintritt. In den letzten drei Zügen zählt eine bernsteinfarbene Zahl auf der
+  Schwanzspitze herunter, also auf dem Segment, das der Hunger frisst (bzw. auf der
+  Fat Reserve, wenn man eine trägt). Bernstein und nicht Rot, denn Hunger ist kein
+  eingehender Schaden.
+- **Das kryptische "↻ +2♥":** Gemeint war die Regel "jedes zweite gespielte Item
+  lässt am Raumende 1 Fleisch nachwachsen". Jetzt pulsiert das nachwachsende Herz in
+  der Herzreihe. Beim Verdienen steigt über dem Kopf "+1♥ at room end" auf. Herzen
+  über der Mitnahmegrenze sind grau statt nur blass, damit man sie nicht mit den
+  pulsierenden verwechselt.
+- **Überlappende schwebende Texte:** Bisher wurde nur gestapelt, was jünger als
+  500 ms und näher als 3 Felder war. Ältere, noch steigende Texte und Nachbarspalten
+  wurden ignoriert. Jetzt kennt jeder Text seine gemessene Breite und Höhe, und ein
+  neuer rückt so weit nach oben, bis er keinen sichtbaren mehr überlappt (auch auf
+  dem gedrehten Brett).
+- **Pacing:** Der Handy-Tester wurde als drittes Kampfziel in ein Elite gezwungen,
+  im selben Raum wie davor. Neue Kartenregel: **Elites sind eine Wahl, nie ein
+  Muss.** Ein Elite steht nie hinter einem Knoten, der nur dorthin führt. Außerdem
+  kommt derselbe Raum nie zweimal hintereinander.
+  - Balance, je 4 × 40 Runs: vorher 48/53/40/55 % (Mittel 49 %), nachher
+    55/35/38/48 % (Mittel 44 %), Stalls 12 → 8.
+  - Der Unterschied liegt innerhalb des Rauschens (Standardfehler etwa 5,6 %).
+    Weil die Karte jeden Run neu würfelt, sind die Stichproben praktisch unabhängig.
+  - Ich stelle nichts nach, beobachte es aber: Bleibt es unter 45 %, ist das der
+    Hebel.

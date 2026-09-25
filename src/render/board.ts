@@ -43,7 +43,7 @@ export const THEMES = [
 ];
 
 interface Particle { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number }
-interface Float { x: number; y: number; text: string; color: string; life: number; max: number; big?: boolean }
+interface Float { x: number; y: number; text: string; color: string; life: number; max: number; big?: boolean; w: number; h: number }
 interface Flash { tiles: Pos[]; color: string; life: number; max: number }
 
 const ease = (t: number) => 1 - Math.pow(1 - t, 3);
@@ -191,12 +191,25 @@ export class BoardRenderer {
   private cx = (x: number) => this.ox + (x + 0.5) * this.T;
   private cy = (y: number) => this.oy + (y + 0.5) * this.T;
 
+  /** How far a float has risen (in tiles) at a given age. */
+  private rise = (fl: { life: number; max: number; big?: boolean }) => 0.3 + (fl.life / fl.max) * (fl.big ? 0.3 : 0.8);
+
   private float(p: Pos, text: string, color: string, big = false) {
-    // Stack texts that appear near each other at the same time.
-    // "Up" on screen is -y on the board, or -x when the board is drawn rotated (portrait phones).
-    const near = this.floats.filter((f) => f.life < 500 && Math.abs(f.x - p.x) < 3 && Math.abs(f.y - p.y) < 3).length;
+    // Screen axes in tiles: "up" is -y on the board, or -x when the board is drawn
+    // rotated (portrait phones); "across" is the other one.
+    const up = (x: number, y: number) => (this.rotated ? -x : -y);
+    const across = (x: number, y: number) => (this.rotated ? y : x);
+    this.ctx.font = `bold ${Math.round(this.T * (big ? 0.6 : 0.4))}px system-ui, sans-serif`;
+    const w = this.ctx.measureText(text).width / this.T + 0.15, h = big ? 0.7 : 0.48;
+    const alive = this.floats.filter((f) => f.life < f.max * 0.85);
+    // Lift it until it overlaps no text that is still on screen (older ones keep rising).
     const [ux, uy] = this.rotated ? [-1, 0] : [0, -1];
-    this.floats.push({ x: p.x + ux * near * 0.6, y: p.y + uy * near * 0.6, text, color, life: 0, max: big ? 2200 : 1000, big });
+    let k = 0;
+    const overlaps = (k: number) => alive.some((g) =>
+      Math.abs(across(p.x, p.y) - across(g.x, g.y)) < (w + g.w) / 2 &&
+      Math.abs(up(p.x, p.y) + k * 0.5 + 0.3 - (up(g.x, g.y) + this.rise(g))) < (h + g.h) / 2);
+    while (k < 6 && overlaps(k)) k++;
+    this.floats.push({ x: p.x + ux * k * 0.5, y: p.y + uy * k * 0.5, text, color, life: 0, max: big ? 2200 : 1000, big, w, h });
   }
 
   private burst(p: Pos, color: string, n: number, speed = 3, size = 3) {
@@ -258,9 +271,13 @@ export class BoardRenderer {
       case 'coil':
         this.flashes.push({ tiles: e.tiles, color: PAL.coil, life: 0, max: 600 });
         break;
-      case 'play':
+      case 'play': {
         this.float(f.snake.body[0], ITEMS.get(e.item)?.name ?? e.item, ITEMS.get(e.item)?.color ?? '#fff');
+        // Every second item played regrows a flesh at room end (at most two): say so when it's earned.
+        const n = f.played ?? 0;
+        if (n > 0 && n % 2 === 0 && n <= 4) this.float(f.snake.body[0], '+1♥ at room end', '#ff9fb2');
         break;
+      }
       case 'webbed':
         this.float(e.at, 'stuck!', '#d0c8ff');
         break;
@@ -983,6 +1000,32 @@ export class BoardRenderer {
     drawHead(ctx, T, this.style, now);
     ctx.restore();
     ctx.globalAlpha = 1;
+    // Hunger: the last turns before it bites are counted down on the segment it will eat.
+    const hungerLeft = f.opts.hungerEvery - f.hunger;
+    if (hungerLeft <= 3 && !f.cleared && f.status === 'play' && n > 1) {
+      const shield = f.snake.segs.findLastIndex((x) => x.item && ITEMS.get(x.item)?.hungerShield);
+      const k = shield >= 0 && shield + 1 < n ? shield + 1 : n - 1;
+      const t = P(k);
+      const pl = 0.55 + 0.45 * Math.sin(now / 160);
+      ctx.save();
+      ctx.strokeStyle = '#f4a261';
+      ctx.globalAlpha = pl;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, T * 0.36, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#f4a261';
+      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+      ctx.lineWidth = 3;
+      ctx.font = `bold ${Math.round(T * 0.34)}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.strokeText(String(hungerLeft), t.x, t.y);
+      ctx.fillText(String(hungerLeft), t.x, t.y);
+      ctx.textBaseline = 'alphabetic';
+      ctx.restore();
+    }
     // pending segments count at the burrow
     const pend = ops.pending(f);
     if (pend > 0 && n > 1) {
@@ -1106,7 +1149,7 @@ export class BoardRenderer {
       ctx.textAlign = 'center';
       ctx.strokeStyle = 'rgba(0,0,0,0.85)';
       ctx.lineWidth = 4;
-      const rise = T * 0.3 + t * T * (fl.big ? 0.3 : 0.8);
+      const rise = T * this.rise(fl);
       const X = this.cx(fl.x) - (this.rotated ? rise : 0), Y = this.cy(fl.y) - (this.rotated ? 0 : rise);
       ctx.strokeText(fl.text, X, Y);
       ctx.fillText(fl.text, X, Y);

@@ -443,13 +443,13 @@ p.small { font-size: 13px; margin-top: -8px; }
 .pips i { font-style: normal; color: #ff9fb2; }
 .pips i::before { content: '♥'; }
 .pips i.empty { color: transparent; -webkit-text-stroke: 1px rgba(255, 159, 178, 0.55); }
-.pips i.over { opacity: 0.4; }
+.pips i.over { color: #7d8590; }
+.pips i.regrow { animation: regrow 1.4s ease-in-out infinite; }
+@keyframes regrow { 50% { opacity: 0.35; } }
 .hud-items { gap: 2px; }
 .hud-item { display: inline-flex; border-radius: 50%; transition: opacity 0.3s; }
 .hud-item.spent { opacity: 0.3; filter: grayscale(1); }
 .hud-item.temp { outline: 1px dashed rgba(255, 255, 255, 0.4); outline-offset: 1px; }
-.hud-return { color: var(--dim); margin-left: 2px; }
-.hud-bonus { color: #ff9fb2; font-size: 12px; }
 .food-orb { width: 10px; height: 10px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 6px var(--gold); }
 .hunger .meter { display: inline-block; width: 64px; height: 7px; border-radius: 4px; background: rgba(255, 209, 102, 0.14); overflow: hidden; }
 .hunger .meter span { display: block; height: 100%; background: var(--gold); transition: width 0.25s; }
@@ -485,7 +485,7 @@ b.flesh { color: #ff9fb2; }
   /* A fixed-height HUD: more items or a buff chip must not resize (or re-orient) the board. */
   .hud { height: 58px; box-sizing: border-box; overflow: hidden; align-content: center; }
   .hud-item .glyph { width: 17px !important; height: 17px !important; }
-  .hud .hud-bonus, .hand .temp-mark { display: none; }
+  .hand .temp-mark { display: none; }
   .hand .card-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   /* A card that can't be played says why, in place of what it would do. */
   .hand .card.blocked .card-text { display: none; }

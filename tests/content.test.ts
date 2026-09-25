@@ -204,3 +204,11 @@ test('the pocket cue sees the Nursery coil two moves ahead, without touching the
   expect(p!.tiles).toContainEqual({ x: 2, y: 4 });
   expect(JSON.stringify(f)).toBe(before);
 });
+
+test('elites are always optional: every node leading to one also leads elsewhere', () => {
+  for (let seed = 1; seed <= 60; seed++) {
+    const map = generateMap(makeRng(seed * 31));
+    const byId = new Map(map.map((n) => [n.id, n]));
+    for (const n of map) for (const m of n.next) if (byId.get(m)!.kind === 'elite') expect(n.next.length, `seed ${seed}`).toBeGreaterThan(1);
+  }
+});
