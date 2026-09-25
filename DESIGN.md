@@ -134,6 +134,9 @@ Each item has an **active** (play from hand, consumes) and/or a **passive**
 | Molt | — | Leave your current shape as a husk-skin (2 turns); keep your body |
 | Ouroboros | — | If tail tip touches head: enemies in coils take 3 |
 | Kinetic Walk | — | 3 random self-avoiding steps (a nod to rsnake) |
+| Knot | Crush kill in a coil it borders: temporary copy of the next item behind it | Pull the next item behind it into the hand |
+| Scute | Its two neighbour segments can't be latched onto, severed or robbed | Every latched enemy lets go |
+| Heat Pit | Bites +2 vs. enemies held in a coil it borders | Next bite +2, ignores shells and curls |
 | Carapace / Tongue / Scythe / Silk | enemy signature items | |
 
 ## Enemies — each asks one question
@@ -154,6 +157,7 @@ Each item has an **active** (play from hand, consumes) and/or a **passive**
 | 3 | Wasp | Protect the head. | Flies, stings the head's tile. |
 | 3 | Glowworm | Lines again. | Spits light along 4 tiles. |
 | 3 | Rival snake | Can it coil *you*? | Plays by your rules; bite its body to cut it. |
+| 3 | Brood Grub | Will you coil it? | Slow. Any kill but a crush bursts it into two Grublings, which don't feed you. |
 | 3 | **The Ouroboros** (boss) | | Giant snake that hunts your tail and severs. |
 
 Enemy HP scales +1 per act (non-bosses).
@@ -206,4 +210,7 @@ in `src/bot` for fuzzing and balancing.
 - [x] Procedural art, synthesized sound, terminal skin, autopilot hints
 - [x] Bots, fight/run simulators, balancing
 - [ ] Bot that plans coils (better balance data for the Python)
-- [ ] More events and items per act; item upgrades
+- [x] Item upgrades (molting)
+- [x] Genome ring (ordered deck), ring/adjacency items
+- [x] Run-end screen with records, unlocks and the next goal
+- [ ] More events and items per act

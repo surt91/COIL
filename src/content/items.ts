@@ -1,8 +1,8 @@
-import { coilDamage, coiledEnemies, isWrapped } from '../core/coil';
+import { coilDamage, coiledEnemies, computeCoils, isWrapped, segBorders } from '../core/coil';
 import { doMove, legalMoves, moveOutcome, wrapMin } from '../core/fight';
 import { DIRS, Dir, Pos, chebyshev, dirTo, key, manhattan, neighbors4, step } from '../core/geom';
 import * as ops from '../core/ops';
-import { ENEMIES, defineItem, defineUpgrade } from '../core/registry';
+import { ENEMIES, defineItem, defineUpgrade, item } from '../core/registry';
 import { pick } from '../core/rng';
 import type { Enemy, Fight } from '../core/types';
 
@@ -172,7 +172,7 @@ defineItem({
   glyph: 'reverse',
   color: '#ffd166',
   rarity: 'common',
-  activeText: 'Swap head and tail. Your hand changes!',
+  activeText: 'Swap head and tail: your rearmost items become your hand.',
   active: {
     requires: 'Needs your whole body out of the burrow and at least 3 segments.',
     target: 'none',
@@ -684,7 +684,7 @@ defineUpgrade('muscle', {
 
 defineUpgrade('reverse', {
   name: 'Two-Headed',
-  activeText: 'Swap head and tail. Every bite locked onto you fizzles.',
+  activeText: 'Swap head and tail: your rearmost items become your hand. Every bite locked onto you fizzles.',
   active: {
     target: 'none',
     requires: 'Needs your whole body out of the burrow and at least 3 segments.',
@@ -955,6 +955,142 @@ defineUpgrade('python', {
     target: 'none',
     play(f) {
       for (const e of f.enemies.filter((x) => wrapped(f, x))) ops.damageEnemy(f, e, 3, 'crush');
+    },
+  },
+});
+
+// ---------------------------------------------------------------- arrangement items (genome ring)
+
+/** Index of the first item segment behind segment k (skipping flesh), or -1. */
+const nextItemBehind = (f: Fight, k: number) => {
+  for (let i = k + 1; i < f.snake.segs.length; i++) if (f.snake.segs[i].item) return i;
+  return -1;
+};
+
+/** Pull the next n items behind segment index `from` (exclusive) right behind the head. */
+function pullBehind(f: Fight, from: number, n: number) {
+  const pulled = [];
+  let i = from;
+  while (pulled.length < n) {
+    const j = nextItemBehind(f, i - 1);
+    if (j < 0) break;
+    pulled.push(f.snake.segs.splice(j, 1)[0]);
+    i = j;
+  }
+  f.snake.segs.unshift(...pulled);
+}
+
+/** Knot: a crush kill in a coil this segment borders (or, molted, a wrap kill next to it) copies the tied item. */
+function knotKill(wrapToo: boolean) {
+  return (f: Fight, k: number, e: Enemy, cause: string) => {
+    if (cause !== 'crush') return;
+    const coil = computeCoils(f).find((c) => c.tiles.some((t) => t.x === e.pos.x && t.y === e.pos.y));
+    const p = f.snake.body[k + 1];
+    const ok = coil ? segBorders(f, k, coil.tiles) : wrapToo && !!p && chebyshev(p, e.pos) === 1;
+    if (!ok) return;
+    const j = nextItemBehind(f, k);
+    const tied = j >= 0 ? f.snake.segs[j].item! : null;
+    if (!tied || tied.startsWith('knot')) return;
+    ops.addSeg(f, tied, 'neck', true);
+    ops.emit(f, { t: 'msg', text: `Knot: a copy of ${item(tied).name} grows` });
+  };
+}
+
+defineItem({
+  id: 'knot',
+  name: 'Knot',
+  glyph: 'knot',
+  color: '#b39ddb',
+  rarity: 'rare',
+  passiveText: 'When an enemy is crushed to death in a coil this segment borders, a temporary copy of the next item behind it grows behind your head.',
+  activeText: 'Pull the next item behind this one right behind your head.',
+  onEnemyDie: knotKill(false),
+  active: {
+    target: 'none',
+    requires: 'Needs an item behind it.',
+    canPlay: (f, a) => nextItemBehind(f, a.seg) >= 0,
+    play: (f, a) => pullBehind(f, a.seg, 1),
+  },
+});
+
+defineUpgrade('knot', {
+  name: 'Double Knot',
+  passiveText: 'When an enemy is crushed to death in a coil this segment borders — or squeezed to death right next to it — a temporary copy of the next item behind it grows behind your head.',
+  activeText: 'Pull the next 2 items behind this one right behind your head.',
+  onEnemyDie: knotKill(true),
+  active: {
+    target: 'none',
+    requires: 'Needs an item behind it.',
+    canPlay: (f, a) => nextItemBehind(f, a.seg) >= 0,
+    play: (f, a) => pullBehind(f, a.seg, 2),
+  },
+});
+
+defineItem({
+  id: 'scute',
+  name: 'Scute',
+  glyph: 'scute',
+  color: '#a8dadc',
+  rarity: 'common',
+  guardsNeighbours: true,
+  passiveText: 'The segments right in front of and behind this one can’t be latched onto, severed or robbed.',
+  activeText: 'Every enemy latched onto you lets go.',
+  active: {
+    target: 'none',
+    requires: 'Needs an enemy latched onto you.',
+    canPlay: (f) => f.enemies.some((e) => e.intent.t === 'lock' || e.intent.t === 'steal'),
+    play: (f) => locksFizzle(f),
+  },
+});
+
+defineUpgrade('scute', {
+  name: 'Armored Scute',
+  passiveText: 'The segments right in front of and behind this one can’t be latched onto, severed or robbed. Absorbs one hit on itself, then becomes a regular Scute.',
+  onHit(f, k) {
+    f.snake.segs[k].item = 'scute';
+    ops.emit(f, { t: 'absorb', at: segPosAt(f, k) ?? ops.head(f) });
+    return true;
+  },
+});
+
+/** Heat Pit: bites hit harder on prey held in a coil this segment borders (molted: or wrapped right next to it). */
+function heatBonus(wrapToo: boolean) {
+  return (f: Fight, k: number, e: Enemy) => {
+    const c = coiledEnemies(f).get(e);
+    if (c) return segBorders(f, k, c.tiles) ? 2 : 0;
+    const p = f.snake.body[k + 1];
+    return wrapToo && !!p && chebyshev(p, e.pos) === 1 && isWrapped(f, e, wrapMin(f)) ? 2 : 0;
+  };
+}
+
+defineItem({
+  id: 'heatpit',
+  name: 'Heat Pit',
+  glyph: 'heatpit',
+  color: '#ffcf99',
+  rarity: 'common',
+  passiveText: 'Your bites deal +2 to enemies held in a coil this segment borders.',
+  activeText: 'Your next bite this turn deals +2 and ignores shells and curls.',
+  biteBonusVs: heatBonus(false),
+  active: {
+    target: 'none',
+    play(f) {
+      f.buffs.bite += 2;
+      f.buffs.pierce = 1;
+    },
+  },
+});
+
+defineUpgrade('heatpit', {
+  name: 'Labial Pits',
+  passiveText: 'Your bites deal +2 to enemies held in a coil this segment borders, or wrapped and touching it.',
+  activeText: 'Your next bite this turn deals +3 and ignores shells and curls.',
+  biteBonusVs: heatBonus(true),
+  active: {
+    target: 'none',
+    play(f) {
+      f.buffs.bite += 3;
+      f.buffs.pierce = 1;
     },
   },
 });

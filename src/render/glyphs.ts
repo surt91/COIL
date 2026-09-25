@@ -412,6 +412,48 @@ Object.assign(glyphs, {
   },
 });
 
+Object.assign(glyphs, {
+  knot(ctx: G, r: number) {
+    // An overhand knot: a loop whose two ends cross below it.
+    ctx.lineWidth *= 1.15;
+    ctx.beginPath();
+    ctx.moveTo(-0.7 * r, 0.55 * r);
+    ctx.bezierCurveTo(-0.1 * r, 0.1 * r, -0.65 * r, -0.7 * r, 0, -0.62 * r);
+    ctx.bezierCurveTo(0.65 * r, -0.7 * r, 0.1 * r, 0.1 * r, 0.7 * r, 0.55 * r);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-0.45 * r, 0.05 * r);
+    ctx.quadraticCurveTo(0, 0.5 * r, 0.45 * r, 0.05 * r);
+    ctx.stroke();
+  },
+  scute(ctx: G, r: number) {
+    // A wide belly plate with a centre notch, cupped by two guarding arcs above and below.
+    ctx.beginPath();
+    ctx.roundRect(-0.5 * r, -0.24 * r, 1.0 * r, 0.48 * r, 0.22 * r);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(0, 0.25 * r, 0.75 * r, Math.PI * 1.2, Math.PI * 1.8);
+    ctx.moveTo(Math.cos(Math.PI * 0.2) * 0.75 * r, -0.25 * r + Math.sin(Math.PI * 0.2) * 0.75 * r);
+    ctx.arc(0, -0.25 * r, 0.75 * r, Math.PI * 0.2, Math.PI * 0.8);
+    ctx.stroke();
+  },
+  heatpit(ctx: G, r: number) {
+    // Two pits with heat waves rising from them.
+    ctx.beginPath();
+    for (const x of [-0.3, 0.3]) {
+      ctx.moveTo(x * r + 0.15 * r, 0.45 * r);
+      ctx.arc(x * r, 0.45 * r, 0.15 * r, 0, Math.PI * 2);
+    }
+    ctx.fill();
+    ctx.beginPath();
+    for (const [rad, a] of [[0.45, 0.9], [0.75, 0.7]] as const) {
+      ctx.moveTo(Math.cos(-Math.PI / 2 - a) * rad * r, 0.45 * r + Math.sin(-Math.PI / 2 - a) * rad * r);
+      ctx.arc(0, 0.45 * r, rad * r, -Math.PI / 2 - a, -Math.PI / 2 + a);
+    }
+    ctx.stroke();
+  },
+});
+
 export function drawGlyph(ctx: G, key: string, x: number, y: number, r: number, color: string) {
   ctx.save();
   ctx.translate(x, y);

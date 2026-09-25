@@ -48,16 +48,19 @@ export const ENCOUNTERS: Encounter[] = [
   // Act 3 — The Deep
   { id: 'glow', act: 2, pool: 'easy', enemies: ['glowworm', 'glowworm', 'ant', 'ant'] },
   { id: 'wasps', act: 2, pool: 'easy', enemies: ['wasp', 'wasp', 'beetle'] },
+  { id: 'brood', act: 2, pool: 'easy', enemies: ['grub', 'wasp'] },
   { id: 'deep-rival', act: 2, pool: 'easy', enemies: ['rival'] },
 
   { id: 'hive', act: 2, pool: 'normal', enemies: ['wasp', 'wasp', 'wasp', 'tortoise', 'ant', 'ant'] },
   { id: 'deep-mix', act: 2, pool: 'normal', enemies: ['glowworm', 'mole', 'mantis', 'magpie', 'beetle'] },
-  { id: 'deep-web', act: 2, pool: 'normal', enemies: ['spider', 'spider', 'glowworm', 'hedgehog', 'mole'] },
+  { id: 'deep-web', act: 2, pool: 'normal', enemies: ['spider', 'spider', 'glowworm', 'grub', 'mole'] },
+  { id: 'nursery', act: 2, pool: 'normal', enemies: ['grub', 'grub', 'glowworm', 'ant', 'ant'] },
   { id: 'rivals', act: 2, pool: 'normal', enemies: ['rival', 'wasp', 'ant', 'ant'] },
 
   { id: 'twin-rivals', act: 2, pool: 'elite', enemies: ['rival', 'rival', 'wasp'] },
   { id: 'swarm-deep', act: 2, pool: 'elite', enemies: ['ant', 'ant', 'ant', 'ant', 'ant', 'ant', 'wasp', 'wasp'] },
   { id: 'mantis-deep', act: 2, pool: 'elite', enemies: ['mantis', 'mantis', 'mole', 'glowworm'] },
+  { id: 'brood-chamber', act: 2, pool: 'elite', enemies: ['grub', 'grub', 'grub', 'mantis'] },
 
   { id: 'ouroboros', act: 2, pool: 'boss', enemies: ['ouroboros'], layouts: ['ouroboros-ring'] },
 ];

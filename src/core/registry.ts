@@ -31,6 +31,12 @@ export interface ItemDef {
   coilAreaBonus?: number;
   /** Ring: bonus crush for coils this segment borders (4-adjacent to a coil tile). */
   ringCrush?: number;
+  /** The segments right in front of and behind this one can't be latched onto, severed or robbed. */
+  guardsNeighbours?: boolean;
+  /** Extra bite damage against a specific enemy (segIndex = this item's segment). */
+  biteBonusVs?(f: Fight, segIndex: number, e: Enemy): number;
+  /** An enemy just died (any cause); runs for each on-board segment carrying this item. */
+  onEnemyDie?(f: Fight, segIndex: number, e: Enemy, cause: string): void;
   /** A hit landed on this segment. Return true to absorb it. */
   onHit?(f: Fight, segIndex: number, source: Enemy | null): boolean;
   /** Runs every body phase for each segment carrying this item. */
@@ -75,6 +81,10 @@ export interface EnemyDef {
   onBitten?(f: Fight, e: Enemy): boolean;
   /** Called when a bite happens, after damage. */
   afterBitten?(f: Fight, e: Enemy): void;
+  /** Called when it dies, before it is removed. */
+  onDie?(f: Fight, e: Enemy, cause: string): void;
+  /** Too small to feed you: killing it grows no flesh and doesn't reset hunger. */
+  meagre?: boolean;
 }
 
 export const ITEMS = new Map<ItemId, ItemDef>();

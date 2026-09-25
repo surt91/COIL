@@ -260,10 +260,14 @@ function bite(f: Fight, e: Enemy, dir: Dir, extraBite: number): boolean {
     ops.removeDead(f);
     return false;
   }
-  let dmg = Math.max(1, 1 + f.buffs.bite + ops.bodyBonus(f, 'biteBonus') + extraBite + (e.hp >= 3 ? charmSum(f.charms, 'toughBite') : 0));
+  let vs = 0;
+  for (const { id, seg } of ops.itemsOnBody(f)) vs += item(id).biteBonusVs?.(f, seg, e) ?? 0;
+  let dmg = Math.max(1, 1 + f.buffs.bite + ops.bodyBonus(f, 'biteBonus') + extraBite + vs + (e.hp >= 3 ? charmSum(f.charms, 'toughBite') : 0));
   f.buffs.bite = 0;
-  if (d.onBitten?.(f, e)) dmg = 0;
-  if (d.biteCap !== undefined) dmg = Math.min(dmg, d.biteCap);
+  const pierce = (f.buffs.pierce ?? 0) > 0;
+  f.buffs.pierce = 0;
+  if (!pierce && d.onBitten?.(f, e)) dmg = 0;
+  if (!pierce && d.biteCap !== undefined) dmg = Math.min(dmg, d.biteCap);
   const at = { ...e.pos };
   const killed = dmg > 0 && ops.damageEnemy(f, e, dmg, 'bite');
   if (!killed && dmg > 0) e.poison += charmSum(f.charms, 'bitePoison') + (f.buffs.poison ?? 0);
@@ -278,7 +282,7 @@ function bite(f: Fight, e: Enemy, dir: Dir, extraBite: number): boolean {
   if (killed) {
     ops.removeDead(f);
     if (d.signature) ops.addSeg(f, d.signature, 'neck', true);
-    else ops.addSeg(f, null, 'tail');
+    else if (!d.meagre) ops.addSeg(f, null, 'tail');
     const fi = ops.foodAt(f, at);
     if (fi >= 0) {
       f.food.splice(fi, 1);
@@ -287,7 +291,7 @@ function bite(f: Fight, e: Enemy, dir: Dir, extraBite: number): boolean {
     const wi = ops.webAt(f, at);
     if (wi >= 0) f.webs.splice(wi, 1);
     ops.moveHeadTo(f, at, dir);
-    f.hunger = 0;
+    if (!d.meagre) f.hunger = 0;
     ops.emit(f, { t: 'eat', at, what: 'enemy' });
     return true;
   }
@@ -378,7 +382,7 @@ export function endTurn(f: Fight) {
 
 function bodyPhase(f: Fight) {
   for (const { id, seg } of ops.itemsOnBody(f)) item(id).bodyPhase?.(f, seg);
-  for (const e of f.enemies) {
+  for (const e of [...f.enemies]) {
     if (e.poison > 0 && e.hp > 0) {
       ops.damageEnemy(f, e, 1, 'poison');
       e.poison--;
@@ -390,7 +394,9 @@ function bodyPhase(f: Fight) {
 function constrictPhase(f: Fight) {
   const coils = computeCoils(f);
   const held = coiledEnemies(f, coils);
-  for (const e of f.enemies) {
+  // Snapshots: enemies spawned by a death this phase (grublings) aren't squeezed on arrival.
+  const present = [...f.enemies];
+  for (const e of present) {
     const c = held.get(e);
     e.held = !!c;
     if (!c) continue;
@@ -400,7 +406,7 @@ function constrictPhase(f: Fight) {
     if (dmg > 0) ops.damageEnemy(f, e, dmg, 'crush');
   }
   // Wrap: an enemy touching enough of your tiles (diagonals count) is squeezed even without a closed coil.
-  for (const e of f.enemies) {
+  for (const e of present) {
     if (e.held || e.hp <= 0) continue;
     if (isWrapped(f, e, wrapMin(f))) ops.damageEnemy(f, e, 1, 'crush');
   }
@@ -451,9 +457,22 @@ export function think(f: Fight, e: Enemy): Intent {
 
 /** While the snake is still emerging, segments at the burrow mouth can't be targeted. */
 export function protectedSeg(f: Fight, uid: number): boolean {
-  if (!f.entry || ops.pending(f) === 0 || uid === 0) return false;
-  const p = ops.segPos(f, uid);
-  return !!p && chebyshev(p, f.entry) <= 1;
+  if (uid === 0) return false;
+  if (f.entry && ops.pending(f) > 0) {
+    const p = ops.segPos(f, uid);
+    if (p && chebyshev(p, f.entry) <= 1) return true;
+  }
+  return scuteGuarded(f, uid);
+}
+
+/** A Scute on the board guards the segments right in front of and behind it. */
+function scuteGuarded(f: Fight, uid: number): boolean {
+  const segs = f.snake.segs;
+  const k = segs.findIndex((x) => x.uid === uid);
+  if (k < 0) return false;
+  const onBoard = f.snake.body.length - 1;
+  const guards = (i: number) => i >= 0 && i < onBoard && !!segs[i]?.item && !!item(segs[i].item!).guardsNeighbours;
+  return guards(k - 1) || guards(k + 1);
 }
 
 /** Resolve an intent. Returns true if the intent should be kept (windup). */
@@ -539,7 +558,7 @@ function resolveIntent(f: Fight, e: Enemy): boolean {
       const k = f.snake.segs.findIndex((s) => s.uid === it.seg);
       const p = ops.segPos(f, it.seg);
       const seg = f.snake.segs[k];
-      if (!p || !seg?.item || chebyshev(p, e.pos) > it.reach) {
+      if (!p || !seg?.item || chebyshev(p, e.pos) > it.reach || protectedSeg(f, it.seg)) {
         ops.emit(f, { t: 'fizzle', enemy: e.id });
         return false;
       }
@@ -579,7 +598,7 @@ function upkeep(f: Fight) {
     const s = f.snake;
     const at = s.body[s.body.length - 1];
     ops.emit(f, { t: 'hunger', at });
-    const shield = s.segs.findIndex((x) => x.item && item(x.item).hungerShield);
+    const shield = s.segs.findLastIndex((x) => x.item && item(x.item).hungerShield);
     if (shield >= 0) ops.removeSeg(f, shield, 'hunger');
     else if (!ops.removeTail(f, 'hunger')) ops.kill(f, 'starvation');
     if (f.status !== 'play') return;

@@ -230,3 +230,80 @@ describe('genome ring', () => {
     if (r.screen.t === 'fight') expect(moveGenome(r, 0, 2)).toBe(r);
   });
 });
+
+describe('arrangement items and the brood grub', () => {
+  test('Scute guards its neighbours: a lock on the segment behind it fizzles', () => {
+    const f = fight(RING, ['scute', 'fang', null, null, null, null, null]);
+    const b = enemy(f, 'beetle', P(5, 3));
+    b.hp = b.maxHp = 10;
+    b.intent = { t: 'lock', seg: f.snake.segs[1].uid, dmg: 1, windup: 1, reach: 1 };
+    const g = step(f, { t: 'move', dir: L });
+    expect(g.snake.segs.some((x) => x.item === 'fang')).toBe(true);
+    expect(g.events.some((e) => e.t === 'fizzle')).toBe(true);
+  });
+
+  test('Heat Pit: bites on prey held in a bordering coil deal +2', () => {
+    // Head at (3,2) above the coil tile (3,3); Heat Pit on segment 1 at (4,3) borders it.
+    const f = fight(RING, [null, 'heatpit', null, null, null, null, null]);
+    const b = enemy(f, 'tortoise', P(3, 3));
+    b.hp = b.maxHp = 20;
+    const g = step(f, { t: 'move', dir: D });
+    const hurt = g.events.find((e) => e.t === 'bite');
+    expect(hurt && hurt.t === 'bite' && hurt.dmg).toBe(1); // tortoise shell caps bites at 1 …
+    const f2 = fight(RING, [null, 'heatpit', null, null, null, null, null]);
+    const b2 = enemy(f2, 'beetle', P(3, 3));
+    b2.hp = b2.maxHp = 20;
+    const g2 = step(f2, { t: 'move', dir: D });
+    const bite = g2.events.find((e) => e.t === 'bite');
+    expect(bite && bite.t === 'bite' && bite.dmg).toBe(3); // … a beetle takes 1 + 2
+  });
+
+  test('Heat Pit active pierces the tortoise shell', () => {
+    const f = fight(RING, ['heatpit', null, null, null, null, null, null]);
+    const b = enemy(f, 'tortoise', P(3, 3));
+    b.hp = b.maxHp = 20;
+    const g = step(step(f, { t: 'play', slot: 0 }), { t: 'move', dir: D });
+    const bite = g.events.find((e) => e.t === 'bite');
+    expect(bite && bite.t === 'bite' && bite.dmg).toBe(3);
+  });
+
+  test('Knot pulls the item behind it into the hand', () => {
+    const f = fight(RING, ['knot', null, null, 'rattle', null, null, null]);
+    const g = step(f, { t: 'play', slot: 0 });
+    expect(g.snake.segs[0].item).toBe('rattle');
+  });
+
+  test('Knot copies its tied item when a bordering coil crushes an enemy to death', () => {
+    // After moving up, segment 2 sits at (4,3), bordering the coil tile (3,3); Fang is the next item behind it.
+    const f = fight(RING, [null, null, 'knot', 'fang', null, null, null]);
+    const b = enemy(f, 'beetle', P(3, 3));
+    b.hp = 1;
+    const g = step(f, { t: 'move', dir: U });
+    expect(g.snake.segs.filter((x) => x.item === 'fang').length).toBe(2);
+    expect(g.snake.segs.find((x) => x.item === 'fang' && x.temp)).toBeTruthy();
+  });
+
+  test('a bitten Brood Grub bursts into Grublings; a crushed one does not', () => {
+    const f = fight([P(3, 2), P(2, 2), P(1, 2)], [null, null], [], 12, 9);
+    const g0 = enemy(f, 'grub', P(3, 4));
+    g0.hp = 1;
+    // Head (3,2) → (3,3) bites the grub at (3,4) from above.
+    const a = step(f, { t: 'move', dir: D });
+    const b = step(a, { t: 'move', dir: D });
+    expect(b.enemies.filter((e) => e.kind === 'grubling').length).toBeGreaterThanOrEqual(1);
+    const c = fight(RING, new Array(7).fill(null));
+    const g1 = enemy(c, 'grub', P(3, 3));
+    g1.hp = 1;
+    const d = step(c, { t: 'move', dir: U });
+    expect(d.enemies.some((e) => e.kind === 'grubling')).toBe(false);
+    expect(d.snake.segs.length).toBe(8); // swallowed
+  });
+
+  test('Grublings are meagre: biting one to death grows nothing', () => {
+    const f = fight([P(3, 2), P(2, 2), P(1, 2)], [null, null], [], 12, 9);
+    enemy(f, 'grubling', P(4, 2));
+    const g = step(f, { t: 'move', dir: R });
+    expect(g.enemies.some((e) => e.kind === 'grubling')).toBe(false);
+    expect(g.snake.segs.length).toBe(2);
+  });
+});

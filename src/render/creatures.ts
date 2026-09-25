@@ -443,6 +443,69 @@ function drawCreatureInner(ctx: G, kind: string, T: number, color: string, t: nu
       eyes(ctx, T * 0.29, T * 0.035, T * 0.018);
       break;
     }
+    case 'grub':
+    case 'grubling': {
+      // A plump C-curved larva (opening towards +x) with umber bands and a dark
+      // head capsule. The grub shows two curled embryos in its belly: it splits.
+      const k = kind === 'grub' ? 1.3 : 0.8;
+      const pulse = 1 + Math.sin(t * 2.2) * 0.04;
+      const R = T * 0.17 * k, W = T * 0.2 * k * pulse;
+      const a0 = Math.PI * 0.35, a1 = Math.PI * 1.65; // tail (bottom right) → head (top right)
+      const cx = -T * 0.02 * k;
+      ctx.strokeStyle = color;
+      ctx.lineCap = 'round';
+      // Body tapers towards the tail: draw it in a few overlapping pieces.
+      const n = 8;
+      for (let i = 0; i < n; i++) {
+        const u0 = i / n, u1 = (i + 1) / n;
+        ctx.lineWidth = W * (0.7 + 0.3 * u1);
+        ctx.beginPath();
+        ctx.arc(cx, 0, R, a0 + (a1 - a0) * u0, a0 + (a1 - a0) * u1);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = '#6d5a4f';
+      ctx.lineWidth = T * 0.02 * (0.6 + 0.4 * k);
+      const bands = kind === 'grub' ? 4 : 2;
+      for (let i = 1; i <= bands; i++) {
+        const ang = a0 + ((a1 - a0) * i) / (bands + 1);
+        const w = W * 0.45;
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(ang) * (R - w), Math.sin(ang) * (R - w));
+        ctx.lineTo(cx + Math.cos(ang) * (R + w), Math.sin(ang) * (R + w));
+        ctx.stroke();
+      }
+      if (kind === 'grub') {
+        // Two wobbling embryos showing through the back of the belly.
+        ctx.strokeStyle = 'rgba(80, 62, 48, 0.85)';
+        ctx.lineWidth = T * 0.02;
+        for (const ang of [Math.PI * 0.8, Math.PI * 1.2]) {
+          const w = Math.sin(t * 3 + ang) * 0.3;
+          ctx.beginPath();
+          ctx.arc(cx + Math.cos(ang) * R, Math.sin(ang) * R, T * 0.035, w, w + Math.PI * 1.4);
+          ctx.stroke();
+        }
+      }
+      // Head capsule at the top-right end, facing +x, with mandible ticks and an amber eye.
+      const hx = cx + Math.cos(a1) * R + T * 0.04 * k, hy = Math.sin(a1) * R;
+      const hr = T * 0.075 * k;
+      ctx.fillStyle = '#4a3a2e';
+      ctx.beginPath();
+      ctx.arc(hx, hy, hr, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#4a3a2e';
+      ctx.lineWidth = T * 0.02;
+      for (const sgn of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(hx + hr * 0.8, hy + sgn * hr * 0.4);
+        ctx.lineTo(hx + hr * 1.5, hy + sgn * hr * 0.1);
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#f4a261';
+      ctx.beginPath();
+      ctx.arc(hx + hr * 0.25, hy - hr * 0.3, Math.max(1, hr * 0.24), 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
     case 'rival':
     case 'ouroboros': {
       ctx.fillStyle = '#07100f';

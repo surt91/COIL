@@ -3,6 +3,7 @@ import { DIRS, Pos, chebyshev, dirTo, manhattan, step } from '../core/geom';
 import { protectedSeg } from '../core/fight';
 import * as ops from '../core/ops';
 import { defineEnemy } from '../core/registry';
+import { shuffle } from '../core/rng';
 import type { Enemy, Fight, Intent } from '../core/types';
 import { adjacentParts, approach, lockAdjacent, predictHead, retreat } from './ai';
 
@@ -206,5 +207,44 @@ defineEnemy({
       if (tiles.length) return { t: 'summon', kind: 'glowworm', tiles };
     }
     return snakeThink(f, e, { sever: true, hunt: 'tail' });
+  },
+});
+
+defineEnemy({
+  kind: 'grub',
+  name: 'Brood Grub',
+  char: 'c',
+  hp: 2,
+  glyph: 'grub',
+  color: '#b9a58c',
+  text: 'Fat, slow and full of brood. Kill it any way but crushing and it bursts into two Grublings. Coil it — what you crush, you swallow whole.',
+  think(f, e) {
+    e.mem.tick = (e.mem.tick ?? 0) + 1;
+    const l = lockAdjacent(f, e);
+    if (l) return l;
+    return e.mem.tick % 2 === 0 ? { t: 'wait' } : approach(f, e, f.snake.body);
+  },
+  onDie(f, e, cause) {
+    if (cause === 'crush' || cause === 'swallow') return;
+    const free = shuffle(f.rng, DIRS.map((d) => step(e.pos, d)).filter((p) => ops.freeForEnemy(f, p, false) && !ops.enemyAt(f, p)));
+    for (const p of free.slice(0, 2)) {
+      const g = ops.spawnEnemy(f, 'grubling', p);
+      g.intent = lockAdjacent(f, g) ?? { t: 'wait' };
+      ops.emit(f, { t: 'spawn', enemy: g.id, at: { ...p } });
+    }
+  },
+});
+
+defineEnemy({
+  kind: 'grubling',
+  name: 'Grubling',
+  char: 'i',
+  hp: 1,
+  glyph: 'grubling',
+  color: '#a8927a',
+  text: 'Freshly hatched and hungry. Latches onto adjacent segments. Too small to feed you.',
+  meagre: true,
+  think(f, e) {
+    return lockAdjacent(f, e) ?? approach(f, e, f.snake.body);
   },
 });

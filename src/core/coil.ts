@@ -100,6 +100,12 @@ function ringBonus(f: Fight, body: Pos[], tiles: Pos[]): number {
   return n;
 }
 
+/** Does segment k (on the board) sit orthogonally next to one of these coil tiles? */
+export function segBorders(f: Fight, k: number, tiles: Pos[]): boolean {
+  const b = f.snake.body[k + 1];
+  return !!b && tiles.some((t) => Math.abs(t.x - b.x) + Math.abs(t.y - b.y) === 1);
+}
+
 /** Damage a coil deals per turn: tightness + ring items + body/charm/turn bonuses (held-only coils deal 0). */
 export const coilDamage = (f: Fight, c: Coil) =>
   c.crush > 0 ? c.crush + c.ring + bodyBonus(f, 'crushBonus') + (f.buffs.crush ?? 0) : 0;

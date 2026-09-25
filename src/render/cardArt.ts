@@ -175,6 +175,94 @@ const SCENES: Record<string, Scene> = {
       ctx.stroke();
     }
   },
+  knot(ctx, w, h, c) {
+    // A body tied in an overhand knot, a violet thread running to the item tied behind it.
+    const cx = w * 0.42, cy = h * 0.5, R = h * 0.26;
+    const pts: V[] = [];
+    for (let i = 0; i <= 16; i++) {
+      const t = i / 16;
+      const a = -Math.PI * 0.2 + t * Math.PI * 2.4;
+      pts.push({ x: cx + Math.cos(a) * R * (1 - 0.25 * t) - (1 - t) * R * 1.2, y: cy + Math.sin(a) * R * 0.9 });
+    }
+    snake(ctx, pts.reverse(), h * 0.2);
+    ctx.strokeStyle = rgba(c, 0.85);
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(cx + R * 0.9, cy);
+    ctx.quadraticCurveTo(w * 0.7, h * 0.2, w * 0.8, h * 0.5);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(13, 19, 33, 0.85)';
+    ctx.beginPath();
+    ctx.arc(w * 0.8, h * 0.5, h * 0.17, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = rgba(c, 0.9);
+    ctx.stroke();
+    drawGlyph(ctx, 'fang', w * 0.8, h * 0.5, h * 0.12, '#f1faee');
+  },
+  scute(ctx, w, h, c) {
+    // Three belly plates; the glowing middle one turns a mandible away from its neighbour.
+    const pw = w * 0.2, ph = h * 0.5, y = h * 0.28;
+    for (let i = -1; i <= 1; i++) {
+      const x = w / 2 + i * pw * 1.15 - pw / 2;
+      ctx.fillStyle = i === 0 ? rgba(c, 0.95) : 'rgba(168, 218, 220, 0.35)';
+      ctx.beginPath();
+      ctx.roundRect(x, y, pw, ph, pw * 0.3);
+      ctx.fill();
+      if (i === 0) {
+        ctx.strokeStyle = 'rgba(13, 19, 33, 0.55)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + pw / 2, y + ph * 0.18);
+        ctx.lineTo(x + pw / 2, y + ph * 0.82);
+        ctx.stroke();
+      }
+    }
+    // Guard brackets over both neighbours.
+    ctx.strokeStyle = rgba(c, 0.9);
+    ctx.lineWidth = 2;
+    for (const i of [-1, 1]) {
+      const x = w / 2 + i * pw * 1.15;
+      ctx.beginPath();
+      ctx.arc(x, y + ph / 2, pw * 0.75, i < 0 ? Math.PI * 0.75 : -Math.PI * 0.25, i < 0 ? Math.PI * 1.25 : Math.PI * 0.25);
+      ctx.stroke();
+    }
+    ctx.save();
+    ctx.translate(w * 0.08, h * 0.52);
+    drawCreature(ctx, 'beetle', h * 0.42, '#b0764a', 0.3);
+    ctx.restore();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
+    for (const a of [-0.7, 0, 0.7]) {
+      ctx.beginPath();
+      ctx.moveTo(w * 0.22 + Math.cos(a) * 4, h * 0.52 + Math.sin(a) * 4);
+      ctx.lineTo(w * 0.22 + Math.cos(a) * 10, h * 0.52 + Math.sin(a) * 10);
+      ctx.stroke();
+    }
+  },
+  heatpit(ctx, w, h, c) {
+    // A head sensing warm prey inside its coil: heat waves from the pits to the held beetle.
+    ctx.strokeStyle = 'rgba(155, 93, 229, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.arc(w * 0.68, h * 0.52, h * 0.3, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.save();
+    ctx.translate(w * 0.68, h * 0.52);
+    drawCreature(ctx, 'beetle', h * 0.4, '#b0764a', 0.4);
+    ctx.restore();
+    ctx.strokeStyle = rgba(c, 0.9);
+    for (let i = 0; i < 3; i++) {
+      ctx.lineWidth = 2.2 - i * 0.5;
+      ctx.beginPath();
+      ctx.arc(w * 0.2, h * 0.5, h * (0.2 + i * 0.12), -0.5, 0.5);
+      ctx.stroke();
+    }
+    snake(ctx, [{ x: w * 0.2, y: h * 0.5 }, { x: w * 0.1, y: h * 0.62 }, { x: w * 0.02, y: h * 0.8 }], h * 0.3);
+  },
   muscle(ctx, w, h, c) {
     // A tight ring squeezing a beetle.
     ctx.save();

@@ -28,7 +28,7 @@ export interface RunResult {
 const TIER: Record<string, number> = {
   python: 9, venom: 8, lunge: 7, fang: 6, muscle: 6, egg: 6, heart: 6, acid: 6, strike: 6, hood: 5, spine: 5,
   scale: 5, swallow: 5, ouroboros: 5, sprint: 4, reserve: 4, gorge: 3, rattle: 4, reverse: 3, tailwhip: 3,
-  kinetic: 2, molt: 3, shed: 1,
+  kinetic: 2, molt: 3, shed: 1, heatpit: 5, scute: 4, knot: 4,
 };
 const tier = (id: ItemId) => (TIER[id.replace('+', '')] ?? 3) + (id.endsWith('+') ? 1 : 0);
 
