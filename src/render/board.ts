@@ -904,9 +904,9 @@ export class BoardRenderer {
       for (const t of c.tiles) ctx.strokeRect(this.ox + t.x * T + 3, this.oy + t.y * T + 3, T - 6, T - 6);
       ctx.setLineDash([]);
     }
-    ctx.globalAlpha = 0.35 + 0.1 * Math.sin(now / 200);
+    ctx.globalAlpha = 0.5 + 0.12 * Math.sin(now / 200);
     ctx.strokeStyle = '#bff5e8';
-    ctx.lineWidth = T * 0.18;
+    ctx.lineWidth = T * 0.22;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.beginPath();
@@ -915,9 +915,14 @@ export class BoardRenderer {
     const h = g.snake.body[0];
     ctx.fillStyle = '#bff5e8';
     ctx.beginPath();
-    ctx.arc(this.cx(h.x), this.cy(h.y), T * 0.22, 0, Math.PI * 2);
+    ctx.arc(this.cx(h.x), this.cy(h.y), T * 0.3, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#ffd166';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(this.cx(h.x), this.cy(h.y), T * 0.34, 0, Math.PI * 2);
+    ctx.stroke();
     // Segments that will be lost this turn (compare uids).
     const keep = new Set(g.snake.segs.map((s) => s.uid));
     const lost = f.snake.segs.filter((s, k) => !keep.has(s.uid) && k + 1 < f.snake.body.length);

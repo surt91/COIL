@@ -161,6 +161,11 @@ const NODE_NAME: Record<NodeKind, string> = {
 };
 
 export function MapScreen({ run, setRun }: { run: RunState; setRun: SetRun }) {
+  useEffect(() => {
+    // Bring the next choices into view (the map is taller than a phone screen).
+    const el = document.querySelector('.map .node.can');
+    el?.scrollIntoView({ block: 'center', behavior: 'instant' as ScrollBehavior });
+  }, [run.at]);
   const reach = new Set(reachable(run));
   const W = 560, H = 760, padX = 60, padY = 50;
   const px = (col: number) => padX + (col / (MAP_COLS - 1)) * (W - 2 * padX);
@@ -358,7 +363,7 @@ export function BaskScreen({ run, setRun, screen }: { run: RunState; setRun: Set
         <UpgradePicker run={run} onPick={(i) => { stinger('reward'); setRun(upgradeItem(run, i)); setMode('choose'); }} onCancel={() => setMode('choose')} />
       )}
       {screen.done && <p>You feel renewed.</p>}
-      <button class="btn primary" onClick={() => { uiClick(); setRun(toMap(run)); }}>{screen.done ? 'Move on' : 'Skip'}</button>
+      <button class={`btn ${screen.done ? 'primary' : ''}`} onClick={() => { uiClick(); setRun(toMap(run)); }}>{screen.done ? 'Move on' : 'Skip'}</button>
       <GenomePanel run={run} />
     </div>
   );

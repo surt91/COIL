@@ -6,8 +6,10 @@ import type { Fight } from '../core/types';
 export interface Tip { id: string; text: string }
 
 const TIPS: { id: string; when(f: Fight): boolean; text: string }[] = [
-  { id: 'start', when: (f) => f.turn === 0, text: 'Move with the arrow keys, WASD or by clicking next to your head. You can never stand still — every turn, you move. Hover a tile next to your head to preview the whole turn.' },
-  { id: 'hand', when: (f) => f.turn >= 2 && ops.hand(f).length > 0, text: 'The glowing items right behind your head are your hand. Press 1–3 to play one. Items are ammunition, not health: every item comes back next room, played or not. Only flesh carries over — so spend items freely.' },
+  { id: 'start', when: (f) => f.turn === 0, text: typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
+    ? 'Tap next to your head or swipe to preview a move — it shows exactly what will happen. Tap or swipe the same way again to do it. You can never stand still: every turn, you move.'
+    : 'Move with the arrow keys, WASD or by clicking next to your head. You can never stand still — every turn, you move. Hover a tile next to your head to preview the whole turn.' },
+  { id: 'hand', when: (f) => f.turn >= 2 && ops.hand(f).length > 0, text: 'The glowing items right behind your head are your hand. Press 1–3 (or tap a card) to play one. Items are ammunition, not health: every item comes back next room, played or not. Only flesh carries over — so spend items freely.' },
   { id: 'lock-item', when: (f) => f.enemies.some((e) => e.intent.t === 'lock' && !!f.snake.segs.find((x) => x.uid === (e.intent as { seg: number }).seg)?.item), text: 'That enemy is going for one of your items — enemies always prefer items. If it’s in your hand, play it now: the attack fizzles and you get its effect. You lose nothing: it comes back next room.' },
   { id: 'lock', when: (f) => f.enemies.some((e) => e.intent.t === 'lock' && !e.intent.sever), text: 'A red reticle: an enemy has latched onto that segment and will bite it after your move — if the segment is still inside the faint red box around the enemy (1 tile, diagonals count). Bite the attacker to knock it back and interrupt it (not if it is pinned against something, and never bosses), or move so the segment slides out of reach.' },
   { id: 'strike', when: (f) => f.enemies.some((e) => e.intent.t === 'strike'), text: 'Red tiles will be struck after your move. Your head can step out of the way — but your body follows into the tiles your head just left.' },

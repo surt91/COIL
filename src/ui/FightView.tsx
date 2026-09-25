@@ -14,6 +14,8 @@ import { CardArt } from './CardArt';
 import { GlyphIcon } from './GlyphIcon';
 import { Tip, markSeen, nextTip } from './tips';
 
+const isTouch = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+
 const KEY_DIRS: Record<string, Dir> = {
   ArrowUp: 0, ArrowRight: 1, ArrowDown: 2, ArrowLeft: 3,
   w: 0, d: 1, s: 2, a: 3, W: 0, D: 1, S: 2, A: 3,
@@ -47,6 +49,9 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
   /** Touch: a direction previewed by the first tap/swipe; a second one confirms. */
   const [pending, setPending] = useState<Dir | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
+  const [quick, setQuick] = useState(() => { try { return localStorage.getItem('coil.quickmove') === '1'; } catch { return false; } });
+  const quickRef = useRef(quick);
+  quickRef.current = quick;
   const touchStart = useRef<{ x: number; y: number; t: number } | null>(null);
   const lastTouch = useRef(0);
   const ended = useRef(false);
@@ -140,7 +145,13 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
     const d = item(f.snake.segs[k].item!);
     if (!d.active) return;
     if (d.active.target === 'none') {
-      if (canPlay(f, slot)) dispatch({ t: 'play', slot });
+      if (!canPlay(f, slot)) return;
+      // On touch screens the first tap previews, the second plays.
+      if (isTouch && selectedRef.current !== slot) {
+        setSelected(slot);
+        return;
+      }
+      dispatch({ t: 'play', slot });
       return;
     }
     setSelected((s) => (s === slot ? null : slot));
@@ -193,6 +204,9 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
     if (f.status !== 'play') return null;
     if (hint && !hover) return hint.preview;
     if (selected !== null) {
+      const k = ops.hand(f)[selected];
+      const d = k !== undefined ? item(f.snake.segs[k].item!) : null;
+      if (d?.active?.target === 'none' && canPlay(f, selected)) return step(f, { t: 'play', slot: selected });
       if (hoverDir !== null && canPlay(f, selected, hoverDir)) return step(f, { t: 'play', slot: selected, dir: hoverDir });
     } else if (hoverDir !== null && legalMoves(f).includes(hoverDir)) return step(f, { t: 'move', dir: hoverDir });
     return null;
@@ -244,6 +258,16 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
         return;
       }
     }
+    if (quickRef.current && pendingRef.current === null && legalMoves(fNow).includes(d)) {
+      // Quick mode: a swipe moves at once if the preview shows no harm.
+      const g = step(fNow, { t: 'move', dir: d });
+      const keep = new Set(g.snake.segs.map((x) => x.uid));
+      const safe = g.status === 'play' && fNow.snake.segs.every((x) => keep.has(x.uid));
+      if (safe && Math.hypot(dx, dy) > 28) {
+        act(d);
+        return;
+      }
+    }
     if (pendingRef.current === d) {
       setPending(null);
       setHover(null);
@@ -256,8 +280,9 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
   const pendingRef = useRef(pending);
   pendingRef.current = pending;
 
+  view.rotated = renderer.current?.rotated ?? false;
   const handIdx = ops.hand(f);
-  const narrow = typeof window !== 'undefined' && window.matchMedia('(max-width: 820px)').matches;
+  const narrow = typeof window !== 'undefined' && window.matchMedia('(max-width: 820px), (pointer: coarse) and (max-height: 520px)').matches;
   const pend = ops.pending(f);
   const onBoard = f.snake.body.length - 1;
   const flesh = f.snake.segs.filter((s) => !s.item).length;
@@ -292,9 +317,19 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
       </header>
       <div class="board-wrap" ref={wrapRef}>
         <canvas ref={canvasRef} onMouseMove={onMove} onMouseLeave={() => setHover(null)} onClick={onClick} onPointerDown={onPointerDown} onPointerUp={onPointerUp} />
+        {isTouch && hint && pending === null && selected === null && (
+          <div class="touch-confirm">Autopilot suggests: <b>{describeAction(f, hint.action)}</b> <span class="dim">— tap Auto to let it play</span></div>
+        )}
+        {isTouch && pending === null && selected !== null && preview && (
+          <div class="touch-confirm">
+            <MoveHint f={f} dir={hoverDir} card={hoverDir === null} preview={preview} spent={ops.hand(f)[selected] !== undefined ? f.snake.segs[ops.hand(f)[selected]].uid : undefined} />
+            <div class="dim">Tap the card again to play it{item(f.snake.segs[ops.hand(f)[selected]].item!).active?.target === 'dir' ? ' — or pick a direction' : ''}</div>
+          </div>
+        )}
         {pending !== null && (
           <div class="touch-confirm">
-            <MoveHint f={f} dir={hoverDir} preview={preview} spent={selected !== null && ops.hand(f)[selected] !== undefined ? f.snake.segs[ops.hand(f)[selected]].uid : undefined} />
+            {hint && <div class="autopilot">Autopilot suggests: <b>{describeAction(f, hint.action)}</b> <span class="dim">{isTouch ? '(Auto to let it play)' : '(P to let it play, Esc to dismiss)'}</span></div>}
+        <MoveHint f={f} dir={hoverDir} preview={preview} spent={selected !== null && ops.hand(f)[selected] !== undefined ? f.snake.segs[ops.hand(f)[selected]].uid : undefined} />
             <div class="dim">Tap or swipe the same way again to confirm</div>
           </div>
         )}
@@ -313,7 +348,6 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
         )}
         <MoveHint f={f} dir={hoverDir} preview={preview} spent={selected !== null && ops.hand(f)[selected] !== undefined ? f.snake.segs[ops.hand(f)[selected]].uid : undefined} />
         <Inspector f={f} hover={hover} />
-        {hint && <div class="autopilot">Autopilot suggests: <b>{describeAction(f, hint.action)}</b> <span class="dim">(P to let it play, Esc to dismiss)</span></div>}
         {side}
       </aside>
       <footer class="hand">
@@ -348,9 +382,10 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
         <div class="hand-actions">
           <div class="mobile-only mobile-tools">
             <button onClick={() => setInfoOpen((o) => !o)}>Info</button>
-            <button onClick={() => { const a = suggest(); if (a) setHint({ action: a, preview: step(fightRef.current, a) }); setInfoOpen(true); }}>Hint</button>
+            <button onClick={() => { const a = suggest(); if (a) setHint({ action: a, preview: step(fightRef.current, a) }); }}>Hint</button>
             <button onClick={() => { const a = suggest(); if (a) dispatch(a); }}>Auto</button>
             <button onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'g' }))}>Genome</button>
+            <button class={quick ? 'on' : ''} title="Quick: safe swipes move at once; risky ones still ask" onClick={() => setQuick((q) => { try { localStorage.setItem('coil.quickmove', q ? '0' : '1'); } catch { /* ignore */ } return !q; })}>Quick{quick ? ' ✓' : ''}</button>
           </div>
           <button onClick={() => dispatch({ t: 'tuck' })} disabled={f.tuckUsed || handIdx.length === 0} title="Send your first hand item to the tail (once per turn)">
             Tuck <kbd>T</kbd>
@@ -364,8 +399,12 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
   );
 }
 
+/** Direction words in screen terms (the board may be drawn rotated). */
+const view = { rotated: false };
+const dirName = (d: Dir) => ['up', 'right', 'down', 'left'][view.rotated ? (d + 1) % 4 : d];
+
 function describeAction(f: Fight, a: Action): string {
-  const dn = (d?: Dir) => (d === undefined ? '' : ['up', 'right', 'down', 'left'][d]);
+  const dn = (d?: Dir) => (d === undefined ? '' : dirName(d));
   if (a.t === 'move') return `move ${dn(a.dir)}`;
   if (a.t === 'tuck') return 'tuck';
   const k = ops.hand(f)[a.slot];
@@ -377,7 +416,7 @@ function describeIntent(f: Fight, e: Enemy): string {
   const it = e.intent;
   switch (it.t) {
     case 'wait': return e.held ? 'Held in your coil' : 'Waiting';
-    case 'move': return `Moving ${['up', 'right', 'down', 'left'][it.dir]}${it.steps > 1 ? ` ×${it.steps}` : ''}`;
+    case 'move': return `Moving ${dirName(it.dir)}${it.steps > 1 ? ` ×${it.steps}` : ''}`;
     case 'strike': return `Striking ${it.tiles.length} tile${it.tiles.length > 1 ? 's' : ''} for ${it.dmg}`;
     case 'lock': {
       const k = f.snake.segs.findIndex((s) => s.uid === it.seg);
@@ -394,7 +433,7 @@ function describeIntent(f: Fight, e: Enemy): string {
 }
 
 function Inspector({ f, hover }: { f: Fight; hover: Pos | null }) {
-  if (!hover) return <div class="inspect dim">Hover a tile to inspect it.<Legend f={f} /></div>;
+  if (!hover) return <div class="inspect dim">{isTouch ? 'Tap a tile to inspect it.' : 'Hover a tile to inspect it.'}<Legend f={f} /></div>;
   const e = ops.enemyAt(f, hover);
   if (e) {
     const d = ENEMIES.get(e.kind)!;
@@ -441,7 +480,7 @@ function Inspector({ f, hover }: { f: Fight; hover: Pos | null }) {
 function Legend({ f }: { f: Fight }) {
   return (
     <ul class="legend">
-      <li><b>Move</b> arrows / WASD / click. You can never stand still.</li>
+      <li><b>Move</b> {isTouch ? 'tap next to your head or swipe (twice: preview, then confirm)' : 'arrows / WASD / click'}. You can never stand still.</li>
       <li><b>Hand</b> = the first three items behind your head. <kbd>1</kbd>–<kbd>3</kbd> to play. Items are ammunition: they all come back next room. Only flesh carries over.</li>
       <li><b>Hits</b> destroy the segment they land on.</li>
       <li><b>Coil</b>: enclose enemies with your body (walls help). Coiled enemies can’t move or attack. Tighter = more crush (1 tile: 3/turn, 2–3: 2, 4–8: 1, 9–12: held only). To keep a coil, chase your own tail.</li>
@@ -454,13 +493,13 @@ function Legend({ f }: { f: Fight }) {
   );
 }
 
-function MoveHint({ f, dir, preview, spent }: { f: Fight; dir: Dir | null; preview: Fight | null; spent?: number }) {
-  if (dir === null || f.status !== 'play') return null;
-  const legal = legalMoves(f).includes(dir);
-  const o = moveOutcome(f, dir);
+function MoveHint({ f, dir, preview, spent, card }: { f: Fight; dir: Dir | null; preview: Fight | null; spent?: number; card?: boolean }) {
+  if ((dir === null && !card) || f.status !== 'play') return null;
+  const legal = card || legalMoves(f).includes(dir!);
+  const o = card ? { k: 'play' as const } : moveOutcome(f, dir!);
   const text: Record<string, string> = {
     illegal: 'Blocked', step: 'Move', food: 'Eat', husk: 'Eat husk', web: 'Web: stuck',
-    exit: 'Leave the room', bite: 'Bite', body: 'Bite yourself (trapped)', neck: 'Bite your own neck (stuck!)',
+    exit: 'Leave the room', bite: 'Bite', body: 'Bite yourself (trapped)', neck: 'Bite your own neck (stuck!)', play: 'Play',
   };
   if (!legal) return <div class="movehint">Blocked</div>;
   const lines: string[] = [];
