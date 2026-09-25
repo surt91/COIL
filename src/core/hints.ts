@@ -13,6 +13,17 @@ export interface Pocket { tiles: Pos[]; enemy: number; dmg: number; moves: numbe
  * the route. Pure: it only calls `step`.
  */
 export function coilWithin(f: Fight, depth = 4): Pocket | null {
+  // States are immutable (step clones), so the search is cached per state: the view and the tips both ask.
+  const memo = depth === 4 ? pocketMemo.get(f) : undefined;
+  if (memo !== undefined) return memo;
+  const p = searchPocket(f, depth);
+  if (depth === 4) pocketMemo.set(f, p);
+  return p;
+}
+
+const pocketMemo = new WeakMap<Fight, Pocket | null>();
+
+function searchPocket(f: Fight, depth: number): Pocket | null {
   if (f.status !== 'play' || coiledEnemies(f).size > 0) return null;
   let frontier: Fight[] = [f];
   for (let d = 1; d <= depth; d++) {

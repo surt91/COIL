@@ -9,7 +9,7 @@ import { hand } from '../src/core/ops';
 import { ENEMIES, ITEMS } from '../src/core/registry';
 import { makeRng, pick } from '../src/core/rng';
 import { coilWithin } from '../src/core/hints';
-import { STARTER, createRun, enterNode, eventChoice, finishFight, generateMap, reachable, takeCharm, takeReward } from '../src/core/run';
+import { PLAYED_REGROW_MAX, STARTER, createRun, enterNode, eventChoice, finishFight, generateMap, reachable, regrowFromPlayed, startFight, takeCharm, takeReward } from '../src/core/run';
 import type { Action, Fight } from '../src/core/types';
 
 const ALL_ITEMS = [...ITEMS.keys()].filter((k) => ITEMS.get(k)!.rarity !== 'signature');
@@ -211,4 +211,26 @@ test('elites are always optional: every node leading to one also leads elsewhere
     const byId = new Map(map.map((n) => [n.id, n]));
     for (const n of map) for (const m of n.next) if (byId.get(m)!.kind === 'elite') expect(n.next.length, `seed ${seed}`).toBeGreaterThan(1);
   }
+});
+
+test('the same room never comes twice in a row', () => {
+  for (let seed = 1; seed <= 40; seed++) {
+    const run = createRun(seed);
+    const a = startFight(structuredClone(run), reachable(run)[0], 'normal');
+    const b = startFight(structuredClone(a), reachable(run)[0], 'normal');
+    expect((b.screen as { layout: string }).layout, `seed ${seed}`).not.toBe((a.screen as { layout: string }).layout);
+  }
+});
+
+test('room end regrows one flesh per two items played, capped', () => {
+  expect([0, 1, 2, 3, 4, 5, 9].map(regrowFromPlayed)).toEqual([0, 0, 1, 1, 2, 2, PLAYED_REGROW_MAX]);
+  const run = enterNode(createRun(3), reachable(createRun(3))[0]);
+  const f = structuredClone((run.screen as { fight: Fight }).fight);
+  f.enemies = [];
+  f.status = 'won';
+  f.played = 3;
+  const body = f.snake.segs.filter((s) => !s.item || s.temp).length;
+  const after = finishFight(run, f);
+  expect(after.lastRoom?.regrown).toBe(1);
+  expect(after.flesh).toBe(Math.min(body + 1, 8));
 });

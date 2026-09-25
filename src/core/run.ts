@@ -113,6 +113,8 @@ export const FLESH_CAP = [8, 10, 12];
 const capFor = (act: number) => FLESH_CAP[Math.min(act, FLESH_CAP.length - 1)];
 /** Room-end flesh regrowth from played items. */
 export const PLAYED_REGROW_MAX = 2;
+/** Flesh regrown at room end after `played` items: one per two, at most PLAYED_REGROW_MAX. */
+export const regrowFromPlayed = (played: number) => Math.min(PLAYED_REGROW_MAX, Math.floor(played / 2));
 /** How many genome items grow on you per room. */
 export const GENOME_DRAW = 8;
 export const genomeDraw = (run: RunState) => GENOME_DRAW + charmSum(run.charms, 'drawBonus');
@@ -401,7 +403,7 @@ export function finishFight(prev: RunState, fight: Fight): RunState {
   }
   run.stats.rooms++;
   // Spent items nourish you: +1 flesh per 2 items played (max 2), within the cap.
-  const regrown = Math.min(PLAYED_REGROW_MAX, Math.floor((fight.played ?? 0) / 2));
+  const regrown = regrowFromPlayed(fight.played ?? 0);
   const body = fight.snake.segs.filter((s) => !s.item || s.temp).length;
   run.flesh = Math.min(fleshCap(run), body + regrown);
   run.lastRoom = { played: fight.played ?? 0, wasted: fight.wasted ?? 0, regrown, kept: run.flesh, body, fleshLost: fight.fleshLost ?? 0 };

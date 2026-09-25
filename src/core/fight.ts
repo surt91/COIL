@@ -79,7 +79,7 @@ export function createFight(spec: RoomSpec): Fight {
         f.tiles[i] = Tile.Burrow;
         start = p;
       } else if (c === 'f') f.food.push(p);
-      else if (c === 'k') f.husks.push({ pos: p, item: null, ttl: 999 });
+      else if (c === 'k') f.husks.push({ pos: p, item: null, ttl: HUSK_PERMANENT });
       else if (c === 'w') f.webs.push(p);
       else if (c === 'x') {
         f.spawns.push(p);
@@ -634,20 +634,27 @@ function neighborsRing(p: Pos): Pos[] {
   return out;
 }
 
+/** A husk with this ttl never decays (layout skins, e.g. the Nursery plug). A number, so saves stay JSON. */
+export const HUSK_PERMANENT = 999;
+
+/** The segment index hunger eats next: the last Fat Reserve if you carry one, else the tail (-1: nothing left). */
+export function hungerTarget(f: Fight): number {
+  const shield = f.snake.segs.findLastIndex((x) => x.item && item(x.item).hungerShield);
+  return shield >= 0 ? shield : f.snake.segs.length - 1;
+}
+
 function upkeep(f: Fight) {
-  for (const hk of f.husks) hk.ttl--;
+  for (const hk of f.husks) if (hk.ttl < HUSK_PERMANENT) hk.ttl--;
   f.husks = f.husks.filter((hk) => hk.ttl > 0);
 
   // A cleared room grows no food, so hunger stands still there: leave in peace.
   if (!f.cleared) f.hunger++;
   if (f.hunger >= f.opts.hungerEvery) {
     f.hunger = 0;
-    const s = f.snake;
-    const at = s.body[s.body.length - 1];
-    ops.emit(f, { t: 'hunger', at });
-    const shield = s.segs.findLastIndex((x) => x.item && item(x.item).hungerShield);
-    if (shield >= 0) ops.removeSeg(f, shield, 'hunger');
-    else if (!ops.removeTail(f, 'hunger')) ops.kill(f, 'starvation');
+    const k = hungerTarget(f);
+    ops.emit(f, { t: 'hunger', at: f.snake.body[Math.min(k + 1, f.snake.body.length - 1)] });
+    if (k >= 0) ops.removeSeg(f, k, 'hunger');
+    else ops.kill(f, 'starvation');
     if (f.status !== 'play') return;
   }
 

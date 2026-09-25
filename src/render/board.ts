@@ -1,6 +1,7 @@
 import { coilDamage, coiledEnemies, computeCoils, occupiedCoils, touchCount } from '../core/coil';
 import { Dir, Pos, eq } from '../core/geom';
-import { bossExposed, riposteTile, wrapMin } from '../core/fight';
+import { bossExposed, hungerTarget, riposteTile, wrapMin } from '../core/fight';
+import { regrowFromPlayed } from '../core/run';
 import * as ops from '../core/ops';
 import { ENEMIES, ITEMS } from '../core/registry';
 import type { Enemy, Fight, GameEvent } from '../core/types';
@@ -199,15 +200,17 @@ export class BoardRenderer {
     // rotated (portrait phones); "across" is the other one.
     const up = (x: number, y: number) => (this.rotated ? -x : -y);
     const across = (x: number, y: number) => (this.rotated ? y : x);
+    this.ctx.save();
     this.ctx.font = `bold ${Math.round(this.T * (big ? 0.6 : 0.4))}px system-ui, sans-serif`;
     const w = this.ctx.measureText(text).width / this.T + 0.15, h = big ? 0.7 : 0.48;
+    this.ctx.restore();
     const alive = this.floats.filter((f) => f.life < f.max * 0.85);
     // Lift it until it overlaps no text that is still on screen (older ones keep rising).
     const [ux, uy] = this.rotated ? [-1, 0] : [0, -1];
     let k = 0;
-    const overlaps = (k: number) => alive.some((g) =>
+    const overlaps = (lift: number) => alive.some((g) =>
       Math.abs(across(p.x, p.y) - across(g.x, g.y)) < (w + g.w) / 2 &&
-      Math.abs(up(p.x, p.y) + k * 0.5 + 0.3 - (up(g.x, g.y) + this.rise(g))) < (h + g.h) / 2);
+      Math.abs(up(p.x, p.y) + lift * 0.5 + 0.3 - (up(g.x, g.y) + this.rise(g))) < (h + g.h) / 2);
     while (k < 6 && overlaps(k)) k++;
     this.floats.push({ x: p.x + ux * k * 0.5, y: p.y + uy * k * 0.5, text, color, life: 0, max: big ? 2200 : 1000, big, w, h });
   }
@@ -273,9 +276,9 @@ export class BoardRenderer {
         break;
       case 'play': {
         this.float(f.snake.body[0], ITEMS.get(e.item)?.name ?? e.item, ITEMS.get(e.item)?.color ?? '#fff');
-        // Every second item played regrows a flesh at room end (at most two): say so when it's earned.
+        // Every second item played regrows a flesh at room end (capped): say so when it's earned.
         const n = f.played ?? 0;
-        if (n > 0 && n % 2 === 0 && n <= 4) this.float(f.snake.body[0], '+1♥ at room end', '#ff9fb2');
+        if (regrowFromPlayed(n) > regrowFromPlayed(n - 1)) this.float(f.snake.body[0], '+1♥ at room end', '#ff9fb2');
         break;
       }
       case 'webbed':
@@ -1003,9 +1006,7 @@ export class BoardRenderer {
     // Hunger: the last turns before it bites are counted down on the segment it will eat.
     const hungerLeft = f.opts.hungerEvery - f.hunger;
     if (hungerLeft <= 3 && !f.cleared && f.status === 'play' && n > 1) {
-      const shield = f.snake.segs.findLastIndex((x) => x.item && ITEMS.get(x.item)?.hungerShield);
-      const k = shield >= 0 && shield + 1 < n ? shield + 1 : n - 1;
-      const t = P(k);
+      const t = P(Math.min(hungerTarget(f) + 1, n - 1));
       const pl = 0.55 + 0.45 * Math.sin(now / 160);
       ctx.save();
       ctx.strokeStyle = '#f4a261';

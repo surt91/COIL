@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { coilDamage, coiledEnemies, computeCoils, occupiedCoils } from '../core/coil';
 import { coilWithin } from '../core/hints';
+import { regrowFromPlayed } from '../core/run';
 import { bossExposed, canPlay, legalMoves, moveOutcome, riposteTile, step, wrapMin } from '../core/fight';
 import { DIRS, Dir, Pos, eq, step as stepPos } from '../core/geom';
 import * as ops from '../core/ops';
@@ -299,7 +300,7 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
   const onBoard = f.snake.body.length - 1;
   const flesh = f.snake.segs.filter((s) => !s.item).length;
   const hungerLeft = f.opts.hungerEvery - f.hunger;
-  const bonus = Math.min(2, Math.floor((f.played ?? 0) / 2));
+  const bonus = regrowFromPlayed(f.played ?? 0);
   // Every item this room started with, in body order, plus temporary ones grown since; faded once gone.
   const liveUids = new Set(f.snake.segs.map((x) => x.uid));
   const seenUids = new Set<number>();
