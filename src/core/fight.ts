@@ -547,9 +547,12 @@ function resolveIntent(f: Fight, e: Enemy): boolean {
       }
       // Flyers pass over the body but never land on it.
       while (d.flies && ops.bodyIndexAt(f, e.pos) >= 0 && trail.length) e.pos = trail.pop()!;
+      // Snakes never stand still: blocked, they turn.
+      if (e.body && !trail.length) slither(f, e);
       return false;
     }
     case 'strike': {
+      if (it.lunge) return lunge(f, e, it.tiles, it.dmg, !!it.sever);
       ops.emit(f, { t: 'strike', enemy: e.id, tiles: it.tiles });
       const uids: number[] = [];
       for (const t of it.tiles) {
@@ -629,9 +632,56 @@ function resolveIntent(f: Fight, e: Enemy): boolean {
         n.intent = think(f, n);
         ops.emit(f, { t: 'spawn', enemy: n.id, at: { ...t } });
       }
+      if (e.body) slither(f, e);
       return false;
     }
   }
+}
+
+/**
+ * An enemy snake's bite, symmetric to yours: whatever lies on the tile after your move is
+ * bitten (the snake stays, and must pull back before biting again); an empty tile it slithers into.
+ */
+function lunge(f: Fight, e: Enemy, tiles: Pos[], dmg: number, sever: boolean): false {
+  // Long lunges (the Ouroboros) cover a line: the first part of you on it is bitten.
+  for (const at of tiles) {
+    const bi = ops.bodyIndexAt(f, at);
+    if (bi < 0) {
+      if (ops.freeForEnemy(f, at)) continue;
+      break;
+    }
+    ops.emit(f, { t: 'strike', enemy: e.id, tiles: [{ ...at }] });
+    ops.hitSnake(f, bi, dmg, e, { sever });
+    if (!enemyDef(e.kind).boss) e.mem.recoil = 1;
+    return false;
+  }
+  if (ops.freeForEnemy(f, tiles[0])) ops.moveEnemy(f, e, tiles[0]);
+  else slither(f, e);
+  return false;
+}
+
+/** The free step with the most room behind it (then the one nearest your body); null when boxed in. */
+export function forcedStep(f: Fight, e: Enemy): Dir | null {
+  let best: Dir | null = null, bestScore = -Infinity;
+  for (const d of DIRS) {
+    const p = stepPos(e.pos, d);
+    if (!ops.freeForEnemy(f, p)) continue;
+    const near = Math.min(...f.snake.body.map((b) => manhattan(b, p)));
+    // Enough room to get out again counts first; beyond that, stay on the prey.
+    const score = Math.min(ops.floodFrom(f, p, 4).length, 6) * 10 - near;
+    if (score > bestScore) { bestScore = score; best = d; }
+  }
+  return best;
+}
+
+/** A snake must move. Boxed in with nothing to bite, it gnaws its own tail (husks for you). */
+function slither(f: Fight, e: Enemy) {
+  if (e.held) return;
+  const d = forcedStep(f, e);
+  if (d !== null) return ops.moveEnemy(f, e, stepPos(e.pos, d));
+  ops.emit(f, { t: 'msg', text: `${enemyDef(e.kind).name} gnaws its own tail!` });
+  if (e.body?.length) ops.cutEnemy(f, e, Math.max(0, e.body.length - 2), 'gnaw');
+  else ops.damageEnemy(f, e, 1, 'gnaw');
 }
 
 function neighborsRing(p: Pos): Pos[] {

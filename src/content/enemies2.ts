@@ -1,11 +1,11 @@
 /** Act 2 ("The Roots") and Act 3 ("The Deep") enemies. */
 import { DIRS, Pos, chebyshev, dirTo, manhattan, step } from '../core/geom';
-import { protectedSeg } from '../core/fight';
+import { forcedStep, protectedSeg } from '../core/fight';
 import * as ops from '../core/ops';
 import { defineEnemy } from '../core/registry';
 import { shuffle } from '../core/rng';
 import type { Enemy, Fight, Intent } from '../core/types';
-import { adjacentParts, approach, lockAdjacent, predictHead, retreat } from './ai';
+import { approach, lockAdjacent, predictHead, retreat } from './ai';
 
 defineEnemy({
   kind: 'mole',
@@ -166,21 +166,46 @@ defineEnemy({
 });
 
 /** Shared brain for enemy snakes. */
-function snakeThink(f: Fight, e: Enemy, opts: { sever: boolean; hunt: 'tail' | 'body' }): Intent {
+function snakeThink(f: Fight, e: Enemy, opts: { sever: boolean; hunt: 'tail' | 'body'; reach?: number }): Intent {
   const s = f.snake;
-  // Bite an adjacent segment (never the head: it prefers to cut you).
-  // A bare head is fair game: otherwise it could circle the boss forever.
-  const parts = adjacentParts(f, e.pos);
-  const adj = f.snake.segs.length ? parts.filter((x) => x.bi > 0) : parts;
-  if (adj.length) {
-    const t = adj.sort((a, b) => a.bi - b.bi)[0];
-    return { t: 'lock', seg: t.uid, dmg: 1, sever: opts.sever, windup: 1, reach: 1 };
+  // Snakes play by your rules: never wait, and bite by moving into you.
+  const recoil = e.mem.recoil;
+  delete e.mem.recoil;
+  // Lunge at a segment in reach, in a straight line (never the head: it prefers to cut you) —
+  // unless it just bit. The first segment on the line is the one it aims for.
+  if (!recoil) {
+    let best: { bi: number; tiles: Pos[] } | null = null;
+    for (const d of DIRS) {
+      const tiles: Pos[] = [];
+      let p = e.pos;
+      for (let i = 0; i < (opts.reach ?? 1); i++) {
+        p = step(p, d);
+        const bi = ops.bodyIndexAt(f, p);
+        if (bi < 0 && !ops.freeForEnemy(f, p)) break;
+        tiles.push(p);
+        if (bi === 0) break;
+        if (bi > 0) {
+          // The tail tip's tile empties when you move (unless more of you is still emerging): not worth it.
+          const tip = bi === f.snake.body.length - 1 && ops.pending(f) === 0;
+          const uid = f.snake.segs[bi - 1].uid;
+          if (!tip && !protectedSeg(f, uid) && (!best || bi < best.bi)) best = { bi, tiles: [...tiles] };
+          break;
+        }
+      }
+    }
+    if (best) return { t: 'strike', tiles: best.tiles, dmg: 1, lunge: true, sever: opts.sever };
   }
   const h = ops.head(f);
   const nearFood = f.food.filter((p) => manhattan(p, e.pos) < manhattan(h, e.pos));
-  if (nearFood.length && e.hp < e.maxHp + 4) return approach(f, e, nearFood);
-  const goals = opts.hunt === 'tail' ? [s.body[s.body.length - 1]] : s.body.slice(1);
-  return approach(f, e, goals.length ? goals : s.body);
+  // Hunt the body, not the tail tip (its tile empties as you move): the last few segments, or all of it.
+  const n = s.body.length;
+  const prey = opts.hunt === 'tail' ? s.body.slice(Math.max(1, n - 4), n - 1) : s.body.slice(1, n - 1);
+  const goals = nearFood.length && e.hp < e.maxHp + 4 ? nearFood : prey;
+  const it = approach(f, e, goals.length ? goals : s.body);
+  if (it.t === 'move') return it;
+  // Already there, or no way through: it still has to move somewhere.
+  const d = forcedStep(f, e);
+  return { t: 'move', dir: d ?? 0, steps: 1 };
 }
 
 defineEnemy({
@@ -190,7 +215,7 @@ defineEnemy({
   hp: 7,
   glyph: 'rival',
   color: '#9aa35f',
-  text: 'Another snake, playing by your rules. Its length is its health. Bite into its body to cut it in two — the severed part becomes husks you can eat. It eats food to regrow.',
+  text: 'Another snake, playing by your rules: it never stands still, and bites by lunging into the red tile. Its length is its health. Bite into its body to cut it in two — the severed part becomes husks you can eat. It eats food to regrow.',
   snake: true,
   think: (f, e) => snakeThink(f, e, { sever: false, hunt: 'body' }),
 });
@@ -199,21 +224,21 @@ defineEnemy({
   kind: 'ouroboros',
   name: 'The Ouroboros',
   char: 'U',
-  hp: 22,
+  hp: 30,
   glyph: 'ouroboros',
   color: '#d9d2c3',
-  text: 'Final boss. An ancient serpent that hunts your tail and severs what it bites. Its length is its health — but its ancient hide tears at most 5 segments per bite. Cut it down, eat what falls, and do not let it close its circle around you. The glowworms it calls are too small to feed you.',
+  text: 'Final boss. An ancient serpent that never stands still, hunts your tail and severs what its lunge lands on. Its length is its health — but its ancient hide tears at most 5 segments per bite. Cut it down, eat what falls, and do not let it close its circle around you. The glowworms it calls are too small to feed you.',
   snake: true,
   boss: true,
   meagreBrood: true,
   heldMaxArea: 6,
   think(f, e) {
     e.mem.t = (e.mem.t ?? 0) + 1;
-    if (e.mem.t % 6 === 0) {
+    if (e.mem.t % 4 === 0) {
       const tiles = DIRS.map((d) => step(e.pos, d)).filter((p) => ops.isEmpty(f, p)).slice(0, 1);
       if (tiles.length) return { t: 'summon', kind: 'glowworm', tiles };
     }
-    return snakeThink(f, e, { sever: true, hunt: 'tail' });
+    return snakeThink(f, e, { sever: true, hunt: 'tail', reach: 2 });
   },
 });
 

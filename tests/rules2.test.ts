@@ -363,3 +363,30 @@ test('a Clutch hit on the head hatches once and is gone (no infinite hatching)',
   const g = step(f, { t: 'move', dir: D });
   expect(g.snake.segs.some((x) => x.item === 'egg+')).toBe(false);
 });
+
+describe('enemy snakes play by your rules', () => {
+  test('they never stand still — except when coiled, when their lunge lands, or when they gnaw themselves free', () => {
+    const snakeEncs = ENCOUNTERS.filter((e) => e.enemies.some((k) => k === 'rival' || k === 'ouroboros'));
+    let moved = 0;
+    for (const enc of snakeEncs)
+      for (let seed = 1; seed <= 6; seed++) {
+        const r = makeRng(seed * 7);
+        const layout = LAYOUTS.find((l) => (enc.layouts ? enc.layouts.includes(l.id) : !l.boss))!;
+        let f = createFight({ rows: layout.rows, genome: ['scale', 'fang', 'lunge'], flesh: 6, seed, place: enc.enemies });
+        for (let i = 0; i < 80 && f.status === 'play'; i++) {
+          const moves = legalMoves(f);
+          const g = step(f, moves.length ? { t: 'move', dir: pick(r, moves) } : { t: 'tuck' });
+          for (const e of g.status === 'play' ? f.enemies : []) {
+            if (!e.body || e.held) continue;
+            const after = g.enemies.find((x) => x.id === e.id);
+            if (!after || after.held) continue;
+            const excused = g.events.some((ev) => (ev.t === 'strike' && ev.enemy === e.id) || (ev.t === 'enemyHurt' && ev.enemy === e.id && ev.cause === 'gnaw'));
+            if (after.pos.x === e.pos.x && after.pos.y === e.pos.y) expect(excused, `${enc.id} seed ${seed} turn ${i}: ${e.kind} stood still (${JSON.stringify(e.intent)})`).toBe(true);
+            else moved++;
+          }
+          f = g;
+        }
+      }
+    expect(moved).toBeGreaterThan(100);
+  });
+});

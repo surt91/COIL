@@ -601,6 +601,29 @@ export class BoardRenderer {
         ctx.strokeStyle = PAL.danger;
         ctx.lineWidth = 2;
         for (const t of it.tiles) ctx.strokeRect(this.ox + t.x * T + 2, this.oy + t.y * T + 2, T - 4, T - 4);
+        if (it.lunge) {
+          // A snake's lunge: a chevron from its head into the tile (and ✂ if it severs).
+          const t = it.tiles[0];
+          const ax = this.cx(e.pos.x), ay = this.cy(e.pos.y), bx = this.cx(t.x), by = this.cy(t.y);
+          const mx = (ax + bx) / 2, my = (ay + by) / 2, ux = (bx - ax) / T, uy = (by - ay) / T;
+          ctx.save();
+          ctx.globalAlpha = pulse + 0.1;
+          ctx.fillStyle = PAL.danger;
+          ctx.beginPath();
+          ctx.moveTo(mx + ux * T * 0.14, my + uy * T * 0.14);
+          ctx.lineTo(mx - ux * T * 0.08 - uy * T * 0.13, my - uy * T * 0.08 + ux * T * 0.13);
+          ctx.lineTo(mx - ux * T * 0.08 + uy * T * 0.13, my - uy * T * 0.08 - ux * T * 0.13);
+          ctx.closePath();
+          ctx.fill();
+          if (it.sever) {
+            ctx.font = `bold ${Math.round(T * 0.34)}px system-ui, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('✂', bx + T * 0.28, by - T * 0.28);
+            ctx.textBaseline = 'alphabetic';
+          }
+          ctx.restore();
+        }
       } else if (it.t === 'web') {
         ctx.strokeStyle = 'rgba(225, 230, 235, 0.7)';
         ctx.setLineDash([4, 4]);

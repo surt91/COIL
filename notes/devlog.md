@@ -654,3 +654,67 @@ auf dem Handy eine feste Höhe. Außerdem:
     Weil die Karte jeden Run neu würfelt, sind die Stichproben praktisch unabhängig.
   - Ich stelle nichts nach, beobachte es aber: Bleibt es unter 45 %, ist das der
     Hebel.
+
+## 2026-09-26 — Der sicherste Zustand im Spiel, und Schlangen, die nie stehen
+
+**Nackter Kopf.** Der Desktop-Playtester hat zum ersten Mal einen ganzen Run bis
+Akt 3 gespielt und dabei etwas gefunden, das keine Zahl verraten hatte: *"Von Zug 24
+bis 79 war die Schlange ein Feld lang, mit 0 Fleisch. 55 Züge ohne Entscheidung."*
+Im zweiten Run hat er die Ameisenkönigin sogar als nackter Kopf besiegt. Der
+Systems-Designer hat den Grund im Code gefunden: Jede Bedrohung zielt auf
+Segmente. Locks, Severs, Stacheln und Hunger brauchen etwas hinter dem Kopf, und
+der Kopf selbst kann jedem angekündigten Angriff ausweichen. Jedes Futter ist ein
+Extraleben, das der nächste Biss wieder abnimmt. **0 Segmente waren der sicherste
+Zustand im Spiel.** Die Spannungskurve lief rückwärts.
+
+Die Psychologin warnte vor der naheliegenden Lösung "sofort tot": Die Geschichten,
+die man weitererzählt, sind die mit "ein Feld, drei Züge, ich hab's zum Futter
+geschafft". Der Systems-Designer warnte vor ihrer Lösung, einem Countdown, der sich
+durch Fressen auffüllt, weil das nur die Schleife verlängert. Entschieden habe ich:
+**6 Atemzüge pro Kampf.** Jeder Zug ohne Segmente kostet einen, und verbrauchter
+Atem kommt nicht zurück. Die Punkte stehen als weißer Kranz um den Kopf (nicht
+rot, denn es greift niemand an, man geht nur aus), dazu ein Herzschlag.
+
+Die Bot-Quote fiel erst auf 41 % (Ersticken wurde Todesursache Nr. 1). Dem Bot
+beizubringen, dass Atem etwas wert ist, half nur wenig, und 9 Atemzüge brachten
+gar nichts. Die zusätzlichen Tode waren genau die zähen Siege, die die Regel
+abschaffen soll.
+
+**Schlangen, die nie stehen.** Dann die Frage des Auftraggebers, der das Spiel auf
+dem Handy durchgespielt hat: *"Ich habe das Gefühl, dass Gegnerschlangen manchmal
+stehen bleiben. Sollten sie nicht auch immer ziehen müssen?"* Richtig. Die Rival
+Snake "spielt nach deinen Regeln", biss aber mit demselben Lock wie ein Käfer und
+stand dabei still. Die Psychologin: *"Eine Schlange, die still steht, hat aufgehört
+zu kommunizieren."* Der Systems-Designer hat die ehrliche Symmetrie gefunden: Auch
+der Spieler bleibt beim Beißen stehen. Die Regel heißt also nicht "Schlangen halten
+nie an", sondern **"Schlangen warten nie: jeder Zug ist ein Bewegungsversuch, und
+ein Biss ist eine Bewegung in ein besetztes Feld."**
+- Der Biss ist ein *Lunge*: ein rotes Feld mit Pfeil vom Kopf. Was nach deinem Zug
+  dort liegt, wird gebissen, ein leeres Feld gleitet sie einfach hinein. Danach
+  muss sie erst wegziehen, bevor sie wieder beißt.
+- Blockiert, weicht sie aus. Ganz eingesperrt, frisst sie ihren eigenen Schwanz und
+  wirft Hüllen ab. Bei der Ouroboros ist das wörtlich der Mythos.
+- Die einzige Ausnahme ist der Coil.
+
+Die Überraschung kam beim Messen des Endbosses allein: Die Siegquote des Bots stieg
+von 50 % auf 87 %. Er verlor im Schnitt nur 1 Fleisch statt 7. In 488 Zügen hatte
+die Ouroboros nur **10 Mal** zugestoßen. Sie jagte die Schwanzspitze, deren Feld
+nach jedem Zug leer ist, und wenn sie dort ankam, durfte sie weder warten noch die
+Spitze beißen. Also wich sie zum offensten Feld aus, weg von der Beute. Drei
+Korrekturen:
+- Sie jagt das hintere Körperdrittel statt der Spitze.
+- Beim Ausweichen bleibt sie nah an der Beute.
+- Ihr Lunge reicht 2 Felder weit.
+
+Dazu kamen 30 statt 22 HP und ein Glühwürmchen alle 4 statt alle 6 Züge. Damit steht
+es bei 65 % im Einzelkampf.
+
+Gesamtbalance, je 40 Runs: 53 % / 45 %, Crush-Anteil 38–40 %. Die Tode sitzen
+wieder bei den Bossen. Außerdem:
+- Bosse schlucken einen Zug lang, nachdem ihr Lock gelandet ist. Der
+  "Fleischwolf" (ein Mungo, der sich jeden Zug ein vorbeigleitendes Segment
+  holt) ist damit weg.
+- Belohnungen erinnern sich an die letzten zwei Angebote.
+- Die Karte passt auf den Bildschirm.
+- Der Fuzz-Test hat einen alten Fehler aufgedeckt: Maulwürfe konnten in einen
+  anderen, eingegrabenen Maulwurf hinein auftauchen.

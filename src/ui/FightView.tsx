@@ -450,7 +450,8 @@ function describeIntent(f: Fight, e: Enemy): string {
   switch (it.t) {
     case 'wait': return e.held ? 'Held in your coil' : e.mem.swallowing ? 'Swallowing — it won’t bite this turn' : 'Waiting';
     case 'move': return `Moving ${dirName(it.dir)}${it.steps > 1 ? ` ×${it.steps}` : ''}`;
-    case 'strike': return `Striking ${it.tiles.length} tile${it.tiles.length > 1 ? 's' : ''} for ${it.dmg}`;
+    case 'strike': if (it.lunge) return it.sever ? 'Lunging — severs whatever lies on the red tile' : 'Lunging at the red tile';
+      return `Striking ${it.tiles.length} tile${it.tiles.length > 1 ? 's' : ''} for ${it.dmg}`;
     case 'lock': {
       const k = f.snake.segs.findIndex((s) => s.uid === it.seg);
       const what = it.seg === 0 ? 'your head' : f.snake.segs[k]?.item ? ITEMS.get(f.snake.segs[k].item!)?.name : 'a flesh segment';
