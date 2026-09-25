@@ -4,7 +4,7 @@
  */
 import { ENCOUNTERS, Pool } from '../content/encounters';
 import { EVENTS } from '../content/events';
-import { LAYOUTS } from '../content/layouts';
+import { FIRST_COIL, LAYOUTS } from '../content/layouts';
 import { SPECIES } from '../content/species';
 import { createFight, randomEmpty, think } from './fight';
 import { addSeg, spawnEnemy } from './ops';
@@ -94,6 +94,8 @@ export interface RunState {
   bossBonus?: number;
   /** Ledger of the last cleared room (shown on the reward screen). */
   lastRoom?: { played: number; wasted: number; regrown: number; kept: number; body: number; fleshLost?: number };
+  /** A player's very first run: the first easy fight is the Nursery (it teaches the coil). */
+  teach?: boolean;
   /** Profile snapshot when the run began (UI only: what did this run earn?). */
   meta?: { unlocksBefore: string[]; bestBefore?: number; moltUnlockedBefore: number };
 }
@@ -266,9 +268,15 @@ function fightOpts(pool: Pool, row: number, molt: number): Partial<FightOpts> {
 
 export function startFight(run: RunState, nodeId: number, pool: Pool): RunState {
   const encs = ENCOUNTERS.filter((e) => e.act === run.act && e.pool === pool);
-  const enc = pick(run.rng, encs);
+  let enc = pick(run.rng, encs);
   const layouts = LAYOUTS.filter((l) => (enc.layouts ? enc.layouts.includes(l.id) : !l.boss && (!l.acts || l.acts.includes(run.act))));
-  const layout = pick(run.rng, layouts);
+  let layout = pick(run.rng, layouts);
+  // After the normal picks, so the rest of the run's random stream stays the same.
+  if (run.teach && pool === 'easy') {
+    run.teach = false;
+    layout = FIRST_COIL;
+    enc = { id: 'first-coil', act: 0, pool: 'easy', enemies: [] }; // both beetles are in the layout
+  }
   const node = run.map[nodeId];
   const arc = drawArc(run);
   const fight = createFight({

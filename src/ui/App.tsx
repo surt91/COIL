@@ -47,7 +47,7 @@ export function App() {
       r.at = r.map.find((n) => n.row === 0)!.id;
       r.screen = {
         t: 'fight', node: r.at, encounter: 'debug', layout: layout.id,
-        fight: createFight({ rows: layout.rows, genome: r.genome, flesh: r.flesh, seed: Number(params.get('seed') ?? 1), place: (params.get('enemies') ?? 'beetle').split(',') }),
+        fight: createFight({ rows: layout.rows, genome: r.genome, flesh: r.flesh, seed: Number(params.get('seed') ?? 1), place: (params.get('enemies') ?? 'beetle').split(',').filter(Boolean) }),
       };
       setRun(r);
     } else if (params.has('seed')) {
@@ -146,7 +146,9 @@ function Title({ onStart }: { onStart(r: RunState): void }) {
     uiClick();
     markSpeciesSeen(species);
     const s = seed.trim();
-    onStart(createRun(s ? (/^\d+$/.test(s) ? Number(s) : seedFromString(s)) : Math.floor(Math.random() * 2 ** 31), molt, undefined, species));
+    const r = createRun(s ? (/^\d+$/.test(s) ? Number(s) : seedFromString(s)) : Math.floor(Math.random() * 2 ** 31), molt, undefined, species);
+    if (profile.runs === 0) r.teach = true; // the first fight of the first run teaches the coil
+    onStart(r);
   };
   const today = todayKey();
   const daily = profile.dailies[today];

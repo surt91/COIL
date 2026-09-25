@@ -4,6 +4,7 @@ import { bossExposed, riposteTile, wrapMin } from '../core/fight';
 import * as ops from '../core/ops';
 import { ENEMIES, ITEMS } from '../core/registry';
 import type { Enemy, Fight, GameEvent } from '../core/types';
+import type { Pocket } from '../core/hints';
 import { Tile } from '../core/types';
 import { drawCreature } from './creatures';
 import { drawGlyph, glyphOpts } from './glyphs';
@@ -73,6 +74,8 @@ export class BoardRenderer {
 
   hover: Pos | null = null;
   preview: Fight | null = null;
+  /** A coil the player could close in a few moves (shown to newcomers). */
+  pocket: Pocket | null = null;
   previewDir: Dir | null = null;
   targetDirs: Dir[] | null = null;
   instant = false;
@@ -459,6 +462,7 @@ export class BoardRenderer {
     const coils = computeCoils(f);
     const occupied = new Set(occupiedCoils(f, coils));
     for (const c of coils) this.hatch(c.tiles, PAL.coil, occupied.has(c) ? 0.5 : 0.14, now);
+    if (this.pocket && !this.preview) this.hatch(this.pocket.tiles, PAL.coil, 0.1 + 0.06 * Math.sin(now / 300), now);
   }
 
   private drawWebsFoodHusks(f: Fight, now: number) {
@@ -517,7 +521,7 @@ export class BoardRenderer {
         const d = ITEMS.get(hk.item);
         if (d) drawGlyph(ctx, d.glyph, X, Y + T * 0.05, T * 0.18, d.color);
       }
-      for (let i = 0; i < hk.ttl; i++) {
+      for (let i = 0; i < (hk.ttl <= 9 ? hk.ttl : 0); i++) {
         ctx.fillStyle = '#adb5bd';
         ctx.beginPath();
         ctx.arc(X - T * 0.2 + i * T * 0.13, Y + T * 0.38, T * 0.035, 0, Math.PI * 2);
@@ -575,9 +579,9 @@ export class BoardRenderer {
   }
 
   /** The coil's per-turn crush, written under the enemy it holds ("held" if it only holds). */
-  private crushBadge(q: { x: number; y: number }, dmg: number, ghost: boolean) {
+  private crushBadge(q: { x: number; y: number }, dmg: number, ghost: boolean, maybe = false) {
     const ctx = this.ctx, T = this.T;
-    const text = dmg > 0 ? `−${dmg}` : 'held';
+    const text = (dmg > 0 ? `−${dmg}` : 'held') + (maybe ? '?' : '');
     ctx.save();
     ctx.translate(this.cx(q.x), this.cy(q.y));
     if (this.rotated) ctx.rotate(-Math.PI / 2);
@@ -699,6 +703,7 @@ export class BoardRenderer {
       this.drawEnemyHud(e, X, Y, d, now);
       const hc = held.get(e);
       if (hc && !this.preview) this.crushBadge(q, coilDamage(f, hc), false);
+      else if (this.pocket?.enemy === e.id && !this.preview) this.crushBadge(q, this.pocket.dmg, true, true);
       if (this.hover && eq(this.hover, e.pos)) {
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 1.5;

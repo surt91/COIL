@@ -188,7 +188,7 @@ kbd {
 .map .node.here circle { fill: var(--teal); stroke: var(--teal); }
 .map .node.here text { fill: #07231c; }
 .map .node.passed { opacity: 0.35; }
-.map .k-elite text { fill: var(--red); }
+
 .map .k-boss circle { stroke: var(--red); }
 @keyframes pulse { 50% { stroke-width: 4; } }
 .map-hint { color: var(--dim); margin-top: 6px; }
@@ -463,3 +463,21 @@ p.small { font-size: 13px; margin-top: -8px; }
 .hand .card-art { margin-bottom: 6px; }
 /* A warning line (targeted, can't play) replaces the passive text: it matters more right now. */
 .card.threatened .card-passive, .card.blocked .card-passive { display: none; }
+/* Map nodes tinted by kind, so a path reads at a glance (the icon names it, the colour groups it). */
+.map .node { --k: #8aa0b8; }
+.map .k-fight { --k: #9aa8b8; }
+.map .k-elite { --k: #e07a3f; }
+.map .k-nest { --k: var(--gold); }
+.map .k-pool { --k: #4cc9f0; }
+.map .k-bask { --k: #f4a261; }
+.map .k-event { --k: #b8c0cc; }
+.map .k-boss { --k: #ef476f; }
+.map .node circle { fill: color-mix(in srgb, var(--k) 14%, var(--panel2)); stroke: color-mix(in srgb, var(--k) 45%, #2a3b57); }
+.map .node text { fill: color-mix(in srgb, var(--k) 70%, var(--dim)); }
+.map .node.can text { fill: var(--k); }
+.map .k-elite circle { stroke-width: 3; stroke-dasharray: 6 3; }
+.map .k-event circle { stroke-dasharray: 3 3; }
+.map-legend .dot { color: var(--k); }
+.map-legend .k-fight { --k: #9aa8b8; } .map-legend .k-elite { --k: #e07a3f; } .map-legend .k-nest { --k: var(--gold); }
+.map-legend .k-pool { --k: #4cc9f0; } .map-legend .k-bask { --k: #f4a261; } .map-legend .k-event { --k: #b8c0cc; } .map-legend .k-boss { --k: #ef476f; }
+b.flesh { color: #ff9fb2; }

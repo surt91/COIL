@@ -1,7 +1,7 @@
 /**
  * Terrain-only room layouts (17x13) used by runs. Enemies are placed from
  * encounter tables. Legend: `#` wall, `.` floor, `E` exit, `S` start burrow,
- * `w` web, `x` escalation spawn point, `f` food.
+ * `w` web, `x` escalation spawn point, `f` food, `k` an old husk (doesn't decay).
  */
 export interface Layout {
   id: string;
@@ -12,7 +12,36 @@ export interface Layout {
   acts?: number[];
 }
 
+/**
+ * The first fight of a player's first run (never picked at random). A beetle sits in
+ * a wall nook whose mouth is plugged by an old husk; eating the husk on the way in
+ * seals the nook with your body, and the beetle is crushed — the first coil happens
+ * by walking, before any text explains it. The second beetle ends up pinned against
+ * the corner where the corridor opens: a real choice between biting and wrapping.
+ */
+export const FIRST_COIL: Layout = {
+  id: 'first-coil',
+  acts: [],
+  name: 'Nursery',
+  rows: [
+    '#################',
+    '######b.........#',
+    '######..........#',
+    '######..........#',
+    '##b###..........#',
+    '##.###..........#',
+    'S.k.............E',
+    '######..........#',
+    '######..........#',
+    '######....f.....#',
+    '######..........#',
+    '######..........#',
+    '#################',
+  ],
+};
+
 export const LAYOUTS: Layout[] = [
+  FIRST_COIL,
   {
     id: 'garden-gate',
     acts: [0],

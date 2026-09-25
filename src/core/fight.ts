@@ -79,6 +79,7 @@ export function createFight(spec: RoomSpec): Fight {
         f.tiles[i] = Tile.Burrow;
         start = p;
       } else if (c === 'f') f.food.push(p);
+      else if (c === 'k') f.husks.push({ pos: p, item: null, ttl: 999 });
       else if (c === 'w') f.webs.push(p);
       else if (c === 'x') {
         f.spawns.push(p);

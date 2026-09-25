@@ -8,6 +8,7 @@ import { manhattan } from '../src/core/geom';
 import { hand } from '../src/core/ops';
 import { ENEMIES, ITEMS } from '../src/core/registry';
 import { makeRng, pick } from '../src/core/rng';
+import { coilWithin } from '../src/core/hints';
 import { STARTER, createRun, enterNode, eventChoice, finishFight, generateMap, reachable, takeCharm, takeReward } from '../src/core/run';
 import type { Action, Fight } from '../src/core/types';
 
@@ -158,4 +159,48 @@ describe('card text', () => {
     expect(d.activeText?.length ?? 0).toBeLessThanOrEqual(72);
     expect(d.passiveText?.length ?? 0).toBeLessThanOrEqual(60);
   });
+});
+
+describe('Nursery (first fight of a first run)', () => {
+  test('walking in seals the nook and crushes the beetle — the first coil needs no explanation', () => {
+    for (let seed = 1; seed <= 5; seed++) {
+      let run = createRun(seed);
+      run.teach = true;
+      run = enterNode(run, reachable(run)[0]);
+      const scr = run.screen as { t: 'fight'; layout: string; fight: Fight };
+      expect(scr.layout).toBe('first-coil');
+      expect(run.teach).toBe(false);
+      let f = scr.fight;
+      const crushed: boolean[] = [];
+      for (let t = 0; t < 2; t++) {
+        expect(legalMoves(f)).toEqual([1]); // the corridor only goes east
+        f = step(f, { t: 'move', dir: 1 });
+        crushed.push(f.events.some((e) => e.t === 'enemyHurt' && e.cause === 'crush'));
+      }
+      expect(crushed).toEqual([false, true]);
+      expect(f.enemies.length).toBe(1);
+    }
+  });
+
+  test('ordinary runs never see it, and the teaching run keeps its random stream', () => {
+    for (let seed = 1; seed <= 5; seed++) {
+      const a = enterNode(createRun(seed), reachable(createRun(seed))[0]);
+      expect((a.screen as { layout: string }).layout).not.toBe('first-coil');
+      const t = createRun(seed);
+      t.teach = true;
+      const b = enterNode(t, reachable(t)[0]);
+      expect(b.rng.s).toBe(a.rng.s);
+    }
+  });
+});
+
+test('the pocket cue sees the Nursery coil two moves ahead, without touching the state', () => {
+  const run = createRun(1);
+  run.teach = true;
+  const f = (enterNode(run, reachable(run)[0]).screen as { fight: Fight }).fight;
+  const before = JSON.stringify(f);
+  const p = coilWithin(f);
+  expect(p).toMatchObject({ moves: 2, dmg: 2 });
+  expect(p!.tiles).toContainEqual({ x: 2, y: 4 });
+  expect(JSON.stringify(f)).toBe(before);
 });

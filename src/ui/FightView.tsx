@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { coilDamage, computeCoils, occupiedCoils } from '../core/coil';
+import { coilDamage, coiledEnemies, computeCoils, occupiedCoils } from '../core/coil';
+import { coilWithin } from '../core/hints';
 import { bossExposed, canPlay, legalMoves, moveOutcome, riposteTile, step, wrapMin } from '../core/fight';
 import { DIRS, Dir, Pos, eq, step as stepPos } from '../core/geom';
 import * as ops from '../core/ops';
@@ -12,7 +13,7 @@ import { lookahead2Policy } from '../bot/policies';
 import { makeRng } from '../core/rng';
 import { CardArt } from './CardArt';
 import { GlyphIcon } from './GlyphIcon';
-import { Tip, markSeen, nextTip, urgentTip } from './tips';
+import { COILS_KEY, Tip, coilsSoFar, markSeen, nextTip, showPocket, urgentTip } from './tips';
 
 const isTouch = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 
@@ -92,6 +93,9 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
   }, []);
 
   function commit(next: Fight, endsTurn: boolean) {
+    if (coiledEnemies(next).size > 0 && coiledEnemies(fightRef.current).size === 0) {
+      try { localStorage.setItem(COILS_KEY, String(coilsSoFar() + 1)); } catch { /* ignore */ }
+    }
     fightRef.current = next;
     if (endsTurn) turnStart.current = next;
     setFight(next);
@@ -217,13 +221,15 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
     } else if (hoverDir !== null && legalMoves(f).includes(hoverDir)) return step(f, { t: 'move', dir: hoverDir });
     return null;
   }, [hover, selected, f, hint, pending]);
+  const pocket = useMemo(() => (showPocket() ? coilWithin(f) : null), [f]);
   useEffect(() => {
     const r = renderer.current;
     if (!r) return;
+    r.pocket = pocket;
     r.hover = hover;
     r.preview = preview;
     r.targetDirs = f.status === 'play' && selected !== null ? DIRS.filter((d) => canPlay(f, selected, d)) : null;
-  }, [hover, selected, f, preview]);
+  }, [hover, selected, f, preview, pocket]);
 
   const toCss = (e: MouseEvent) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -492,7 +498,7 @@ function Inspector({ f, hover }: { f: Fight; hover: Pos | null }) {
   const hk = ops.huskAt(f, hover);
   if (hk >= 0) {
     const h = f.husks[hk];
-    return <div class="inspect"><h3>Husk</h3><p>A severed piece of you{h.item ? ` carrying ${ITEMS.get(h.item)?.name}` : ''}. Blocks the way; counts as a coil wall. Eat it within {h.ttl} turns to take it back.</p></div>;
+    return <div class="inspect"><h3>Husk</h3><p>A severed piece of you{h.item ? ` carrying ${ITEMS.get(h.item)?.name}` : ''}. Blocks the way; counts as a coil wall. {h.ttl <= 9 ? `Eat it within ${h.ttl} turns to take it back.` : 'Eat it to take it back.'}</p></div>;
   }
   const tile = ops.tileAt(f, hover);
   if (tile === 2) return <div class="inspect"><h3>Exit</h3><p>{f.cleared ? 'Open! Move into it to leave the room.' : 'Closed until every enemy is dead (escalation spawns don’t count).'}</p></div>;

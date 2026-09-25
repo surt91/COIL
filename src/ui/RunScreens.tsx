@@ -281,15 +281,15 @@ export function RewardScreen({ run, setRun, screen }: { run: RunState; setRun: S
     <div class="screen center-screen">
       <h2>{screen.title}</h2>
       {screen.boss && run.meta && SPECIES_GOALS.filter((g) => g.unlock === (run.act >= 2 ? 'act2' : 'act1') && !run.meta!.unlocksBefore.includes(g.unlock)).map((g) => <p class="unlock-banner">{g.stirs}</p>)}
-      <p class="dim">Choose an item to add to your genome. It will grow on your body in every room from now on.</p>
+      <p class="dim">Choose an item: it grows on you in every room from now on.</p>
       {run.lastRoom && (
         <div class="ledger">
           <span>Items played <b>{run.lastRoom.played}</b>{run.lastRoom.regrown ? ` → +${run.lastRoom.regrown} flesh regrown` : ''}</span>
-          <span class={run.lastRoom.wasted ? 'bad' : ''}>Destroyed unplayed <b>{run.lastRoom.wasted}</b>{run.lastRoom.wasted ? ' (their effects were lost — they’re back now)' : ''}</span>
-          {(run.lastRoom.fleshLost ?? 0) > 0 && <span class="bad">Flesh lost to hits and hunger <b>{run.lastRoom.fleshLost}</b></span>}
+          <span class={run.lastRoom.wasted ? 'bad' : ''}>Destroyed unplayed <b>{run.lastRoom.wasted}</b>{run.lastRoom.wasted ? ' — back now' : ''}</span>
+          {(run.lastRoom.fleshLost ?? 0) > 0 && <span class="bad">Flesh lost <b>{run.lastRoom.fleshLost}</b></span>}
         </div>
       )}
-      <p class="dim small">You carry <b>{run.flesh}</b> of at most {fleshCap(run)} flesh (temporary items were digested into flesh{run.flesh >= fleshCap(run) ? '; anything beyond the cap was too much to carry' : ''}).</p>
+      <p class="dim small" title="Temporary items were digested into flesh; anything beyond the cap was too much to carry."><b class="flesh">♥ {run.flesh}</b> / {fleshCap(run)} flesh carried</p>
       {screen.itemTaken ? <h3>Item chosen</h3> : (
         <div class="choices">
           {screen.options.map((id, i) => (

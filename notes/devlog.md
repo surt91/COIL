@@ -558,3 +558,58 @@ Deckbuilder. Die Grenze ist: **Text für das, was sich pro Item unterscheidet,
 Brett-Feedback für alles, was in jedem Kampf gleich ist.** 12-Pixel-Gitter wären nur
 eine neue Sprache, die man erst lernen müsste. Den Passivtext kürze ich auf eine
 Zeile mit ◇, den Rest gibt es beim Hovern.
+
+## 2026-09-25 — Kartentext, der passt, und der erste Coil ohne Erklärung
+
+**Kartentext.** Der Auftraggeber: *"Der Itemtext ist manchmal zu lang für die Karten.
+Items dürfen Text haben, aber er sollte lesbar sein"* (aufgefallen beim Passivtext von
+Ouroboros). Meine Ein-Zeilen-Ellipse aus dem letzten Schritt hatte es noch
+verschlimmert. Aus "kürzer" wurde deshalb ein Budget: höchstens 72 Zeichen aktiv und
+60 Zeichen passiv. Ein Inhaltstest bewacht das Budget. Zusätzlich misst ein
+Browser-Skript für *jedes* Item, ob die Karte bei 1400 px, 1150 px und auf dem Handy
+überläuft. 38 Texte wurden neu geschrieben, die Mechanik blieb gleich. Beispiel
+Double Knot, von 177 auf 59 Zeichen:
+
+> ~~When an enemy is crushed to death in a coil this segment borders — or squeezed to
+> death right next to it — a temporary copy of the next item behind it grows behind
+> your head.~~
+> Coil or squeeze kill beside it: temp copy of item behind it.
+
+**Der erste Coil.** Der Nicht-Leser aus dem letzten Test hatte nie selbst etwas
+eingerollt. Die Psychologin hat den Grund benannt: *"Die Vorschau schaut einen Zug
+voraus, ein Coil ist ein Plan über drei bis fünf Züge. Das gestrichelte '−3'
+erscheint genau dann, wenn man es nicht mehr braucht."* Daraus sind zwei Dinge
+entstanden:
+
+- **Pocket-Hinweis.** Eine Breitensuche über die eigenen Züge (höchstens 4 Züge,
+  etwa 10 ms) findet den nächsten erreichbaren Coil. Die Tasche glimmt dann
+  violett, und auf dem Gegner steht "−2?". Das Ziel ist sichtbar, der Weg nicht.
+  Der Hinweis gilt nur für die ersten drei Coils einer Karriere, danach nimmt er
+  sich zurück.
+  - Überraschung: Die Suche fand zuerst *nichts*. Der Grund: Ein Coil, der sofort
+    tötet, hinterlässt keinen eingerollten Gegner, sondern nur seinen Quetschschaden
+    im Ereignisstrom.
+  - Zweite Überraschung: Coils sind in kleinen frühen Kämpfen schlicht selten. Der
+    Bot schloss 4 in rund 1500 Zügen. Der Hinweis hilft also, wenn es eine Chance
+    gibt, aber er erschafft keine.
+- **Die Kinderstube.** Deshalb ist der erste Kampf des ersten Runs die "Nursery",
+  entworfen vom Systems-Designer. Ein Käfer sitzt in einer Wandnische, und eine alte
+  Haut (ein Husk, der nicht verfällt) verstopft den Ausgang. Auf dem einzigen Weg in
+  den Raum frisst man die Haut, der Körper versiegelt die Nische, und in Zug 2 steht
+  dort "−2". Der zweite Käfer landet an der Wandecke, wo der Gang sich öffnet, und
+  dort wird es eine echte Wahl zwischen Beißen und Umwickeln.
+  - Getestet über fünf Seeds.
+  - Nicht als Tutorial beschriftet.
+  - Nie in Tages-Runs oder für Bots.
+  - Der Zufallsstrom des Runs bleibt identisch, weil die Auswahl erst *nach* den
+    normalen Ziehungen ersetzt wird.
+
+Die Psychologin warnte vor dem Gegenteil: *"Kein Geisterpfad — er löst das Rätsel,
+und man zeichnet ihn nur nach."* Daran habe ich mich gehalten.
+
+Außerdem:
+- Die Knoten auf der Karte sind nach Typ eingefärbt (Pool blau, Nest gold, Elite
+  orange und gestrichelt).
+- Der Belohnungsbildschirm ist kürzer.
+- Der Coil-Tipp drängelt sich jetzt vor.
+- Der Hand-Tipp wartet bis Zug 5, damit Raum 1 nicht vier Tipps in vier Zügen zeigt.
