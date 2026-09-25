@@ -75,7 +75,11 @@ kbd {
 .inspect h3 { margin: 0 0 4px; }
 .inspect p { margin: 8px 0; }
 .intent { color: var(--red); margin-top: 6px; }
-.legend { padding-left: 18px; margin-top: 16px; color: var(--dim); }
+.legend { margin-top: 16px; color: var(--dim); font-size: 13px; }
+.legend .keys { line-height: 2; }
+.legend .keys kbd { margin: 0 1px; }
+.legend summary { cursor: pointer; margin-top: 10px; color: var(--text); }
+.legend ul { padding-left: 18px; }
 .legend li { margin-bottom: 8px; }
 .legend b { color: var(--text); }
 .movehint {
@@ -213,6 +217,8 @@ kbd {
 .title-buttons { display: flex; gap: 12px; align-items: center; }
 .seed { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); width: 170px; }
 .howto { max-width: 640px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px 24px; line-height: 1.5; }
+.howto summary { cursor: pointer; padding: 6px 0; color: var(--dim); }
+.howto[open] summary { color: var(--text); font-weight: 700; }
 .howto li { margin-bottom: 6px; }
 .stats td { padding: 3px 14px; text-align: left; }
 .stats td:last-child { text-align: right; font-weight: 700; }
@@ -429,3 +435,27 @@ p.small { font-size: 13px; margin-top: -8px; }
   .hand { height: 198px; box-sizing: border-box; }
   .hand .card { overflow: hidden; }
 }
+
+/* HUD as pictures: flesh pips, the room's items, a hunger meter. */
+.hud-title { flex-shrink: 0; }
+.hud-stat { display: inline-flex; align-items: center; gap: 6px; }
+.pips { display: inline-flex; gap: 1px; font-size: 13px; line-height: 1; }
+.pips i { font-style: normal; color: #ff9fb2; }
+.pips i::before { content: '♥'; }
+.pips i.empty { color: transparent; -webkit-text-stroke: 1px rgba(255, 159, 178, 0.55); }
+.pips i.over { opacity: 0.4; }
+.hud-items { gap: 2px; }
+.hud-item { display: inline-flex; border-radius: 50%; transition: opacity 0.3s; }
+.hud-item.spent { opacity: 0.22; filter: grayscale(1); }
+.hud-item.temp { outline: 1px dashed rgba(255, 255, 255, 0.4); outline-offset: 1px; }
+.hud-return { color: var(--dim); margin-left: 2px; }
+.hud-bonus { color: #ff9fb2; font-size: 12px; }
+.food-orb { width: 10px; height: 10px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 6px var(--gold); }
+.hunger .meter { display: inline-block; width: 64px; height: 7px; border-radius: 4px; background: rgba(255, 209, 102, 0.14); overflow: hidden; }
+.hunger .meter span { display: block; height: 100%; background: var(--gold); transition: width 0.25s; }
+.hunger.warn .meter span { background: #f4a261; animation: hungry 0.9s ease-in-out infinite; }
+@keyframes hungry { 50% { opacity: 0.45; } }
+.hunger.warn .food-orb { background: #f4a261; box-shadow: 0 0 6px #f4a261; }
+.hud-stat.turn { font-size: 12px; }
+.card-passive, .card-why { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.passive-mark { color: var(--c, var(--dim)); }

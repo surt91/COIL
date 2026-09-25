@@ -1,4 +1,4 @@
-import { computeCoils, occupiedCoils, touchCount } from '../core/coil';
+import { coilDamage, coiledEnemies, computeCoils, occupiedCoils, touchCount } from '../core/coil';
 import { Dir, Pos, eq } from '../core/geom';
 import { bossExposed, riposteTile, wrapMin } from '../core/fight';
 import * as ops from '../core/ops';
@@ -23,7 +23,7 @@ export const PAL = {
   danger: '#ef476f',
   coil: '#9b5de5',
   husk: '#6c757d',
-  web: 'rgba(210, 200, 255, 0.55)',
+  web: 'rgba(225, 230, 235, 0.55)',
   text: '#e8f1f2',
 };
 
@@ -311,9 +311,9 @@ export class BoardRenderer {
     this.drawStrikes(f, now);
     const bodyPts = this.snakePoints(f, p);
     this.drawEnemies(f, p, now);
-    this.drawLocks(f, bodyPts, now);
     this.drawPreview(f, now);
     this.drawSnake(f, bodyPts, now);
+    this.drawLocks(f, bodyPts, now);
     this.drawRipostes(f, now);
     this.drawTargeting(f, now);
     this.drawFx(dt);
@@ -559,7 +559,7 @@ export class BoardRenderer {
         ctx.lineWidth = 2;
         for (const t of it.tiles) ctx.strokeRect(this.ox + t.x * T + 2, this.oy + t.y * T + 2, T - 4, T - 4);
       } else if (it.t === 'web') {
-        ctx.strokeStyle = '#c8b6ff';
+        ctx.strokeStyle = 'rgba(225, 230, 235, 0.7)';
         ctx.setLineDash([4, 4]);
         ctx.lineWidth = 2;
         for (const t of it.tiles) ctx.strokeRect(this.ox + t.x * T + 4, this.oy + t.y * T + 4, T - 8, T - 8);
@@ -574,9 +574,40 @@ export class BoardRenderer {
     return { x: lerp(pe.pos.x, e.pos.x, p), y: lerp(pe.pos.y, e.pos.y, p) };
   }
 
+  /** The coil's per-turn crush, written under the enemy it holds ("held" if it only holds). */
+  private crushBadge(q: { x: number; y: number }, dmg: number, ghost: boolean) {
+    const ctx = this.ctx, T = this.T;
+    const text = dmg > 0 ? `−${dmg}` : 'held';
+    ctx.save();
+    ctx.translate(this.cx(q.x), this.cy(q.y));
+    if (this.rotated) ctx.rotate(-Math.PI / 2);
+    this.textUpright = false;
+    ctx.font = `bold ${Math.round(T * (dmg > 0 ? 0.3 : 0.22))}px system-ui, sans-serif`;
+    const w = ctx.measureText(text).width + T * 0.18, h = T * 0.34, y = T * 0.6;
+    ctx.beginPath();
+    ctx.roundRect(-w / 2, y - h / 2, w, h, h / 2);
+    ctx.fillStyle = ghost ? 'rgba(13, 19, 33, 0.85)' : PAL.coil;
+    ctx.fill();
+    if (ghost) {
+      ctx.strokeStyle = PAL.coil;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 2]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.fillStyle = ghost ? '#d9c2ff' : '#fff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 0, y + 1);
+    ctx.textBaseline = 'alphabetic';
+    this.textUpright = true;
+    ctx.restore();
+  }
+
   private drawEnemies(f: Fight, p: number, now: number) {
     const ctx = this.ctx, T = this.T;
     const head = f.snake.body[0];
+    const held = coiledEnemies(f);
     for (const e of f.enemies) {
       const d = ENEMIES.get(e.kind);
       const q0 = this.enemyPos(e, p);
@@ -666,6 +697,8 @@ export class BoardRenderer {
       drawCreature(ctx, e.kind, d?.boss ? T * 1.35 : T, d?.color ?? '#fff', now / 1000 + e.id, (e.mem.curled ?? 0) > 0);
       ctx.restore();
       this.drawEnemyHud(e, X, Y, d, now);
+      const hc = held.get(e);
+      if (hc && !this.preview) this.crushBadge(q, coilDamage(f, hc), false);
       if (this.hover && eq(this.hover, e.pos)) {
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 1.5;
@@ -806,7 +839,8 @@ export class BoardRenderer {
       const r = it.reach;
       ctx.strokeRect(this.ox + (e.pos.x - r) * T, this.oy + (e.pos.y - r) * T, (2 * r + 1) * T, (2 * r + 1) * T);
       // reticle
-      const rr = T * (0.42 + 0.05 * Math.sin(now / 120));
+      // Around the head it has to clear the head sprite, or it hides underneath.
+      const rr = T * ((idx === 0 ? 0.62 : 0.42) + 0.05 * Math.sin(now / 120));
       ctx.strokeStyle = PAL.danger;
       ctx.lineWidth = 2.5;
       ctx.beginPath();
@@ -986,6 +1020,8 @@ export class BoardRenderer {
       ctx.lineTo(X - T * 0.2, Y + T * 0.2);
       ctx.stroke();
     }
+    // What the new coils will crush: the table from the rules, read off the board.
+    for (const [e, c] of coiledEnemies(g)) this.crushBadge(e.pos, coilDamage(g, c), true);
     if (g.status === 'dead') {
       ctx.fillStyle = PAL.danger;
       ctx.font = `bold ${Math.round(T * 0.35)}px system-ui, sans-serif`;

@@ -502,3 +502,59 @@ sich, und nachdem nach dem Säubern kein Futter mehr wächst, verhungerte der Au
 einen Schritt vor dem Ausgang. Jetzt steht in gesäuberten Räumen auch der Hunger still.
 
 Balance nach allem: 48 / 53 % (zwei Seeds), Tode an den drei Bossen.
+
+## 2026-09-25 — Weniger lesen, mehr sehen
+
+Der Auftraggeber: *"Mir scheint das Interface sehr minimalistisch und textlastig zu
+sein. Ein gutes Spiel sollte keine langen Texte benötigen, um sich zu erklären."*
+Drei Blicke darauf, parallel: Spielerpsychologin, Art-Critic und ein Playtester mit
+der Anweisung, sich zu *weigern* zu lesen.
+
+Die Diagnose war bei allen dreien die gleiche, die Psychologin hat sie am knappsten
+formuliert: Das Brett zeigte die meisten Regeln längst (rote Kacheln, Fadenkreuz,
+violette Bögen, Vorschau-Geist mit roten Kreuzen), der Text wiederholte sie nur. So
+lernt man als Spieler, Text zu überspringen, und verpasst dann genau die drei Regeln,
+die das Brett *nicht* zeigt: Items kommen zurück, Fleisch wird mitgenommen, und wie
+stark ein Coil quetscht. Ihre Regel dazu: **Das Brett nennt die Fakten, der Text gibt
+ihnen Namen.**
+
+Der Nicht-Leser hat drei Räume gewonnen, und zwar nur über die Vorschau:
+
+> Hover-Vorschauen sind das Beste am Spiel. Ab Zug 3 habe ich jede Entscheidung
+> anhand der Vorschau getroffen.
+
+Er hat aber nie selbst etwas eingerollt ("nichts auf dem Brett zeigt 'dieser Zug
+würde X einschließen'"). Ein Kopf-Biss war für ihn "ein paar rote Pixel unter den
+Mandibeln", weil das Fadenkreuz *unter* dem Kopf gezeichnet wurde. Und die rosa
+Zunge hielt er für eine Angriffsmarkierung, weil Rot doch Schaden heißt.
+
+Was sich geändert hat:
+- **Tipps haben nur noch einen Satz.** Der Fadenkreuz-Tipp hatte vorher 14 Zeilen,
+  jetzt: *"Red reticle: that segment gets bitten — unless it slides out of the red
+  box, or you bite the attacker first."*
+- **Die Regel-Seitenleiste ist weg.** Übrig sind eine Tastenzeile und ein
+  zugeklapptes "Rules". Auch das "How to play" auf dem Titelbildschirm ist
+  zugeklappt, von sechs Absätzen auf fünf kurze Zeilen geschrumpft.
+- **Das HUD zeigt Bilder statt Prosa.**
+  - Vorher: `4 flesh (carry ≤8) · 6 items left ↻ all return next room · 10 in burrow`.
+  - Jetzt: 4 volle Herzen und 4 hohle bis zur Mitnahmegrenze, dazu eine Reihe mit
+    den Items des Raums (gespielte verblassen, ↻ dahinter) und eine goldene
+    Hunger-Leiste.
+  - Dass Items zurückkommen, sieht man jetzt: Das verblasste Icon bleibt stehen.
+- **Die Quetsch-Tabelle steht jetzt auf dem Brett.** Ein violettes "−2" unter jedem
+  eingerollten Gegner. In der Vorschau steht ein gestricheltes "−3" auf dem Gegner,
+  den der Zug einschließen *würde*. Die Tabelle `1 Feld: 3, 2–3: 2, 4–8: 1` muss
+  niemand mehr lesen, man vergleicht einfach zwei Vorschauen.
+- **Kleinigkeiten mit großer Wirkung:**
+  - Das Fadenkreuz wird über der Schlange gezeichnet, um den Kopf größer.
+  - Die Zunge ist schiefergrau (Rot ist für Schaden reserviert).
+  - Netz-Absichten sind silbern statt violett (Violett gehört den Coils).
+  - Die Vorschau warnt, wenn ein Fang-Bonus verfällt, weil in diesem Zug kein Biss
+    kommt.
+
+Bewusst abgelehnt habe ich das Symbolvokabular des Art-Critics: Karteneffekte als
+Icon plus Zahl, dazu 3×3-Minigitter für Reichweiten. Kartentext gehört zu einem
+Deckbuilder. Die Grenze ist: **Text für das, was sich pro Item unterscheidet,
+Brett-Feedback für alles, was in jedem Kampf gleich ist.** 12-Pixel-Gitter wären nur
+eine neue Sprache, die man erst lernen müsste. Den Passivtext kürze ich auf eine
+Zeile mit ◇, den Rest gibt es beim Hovern.

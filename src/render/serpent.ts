@@ -300,7 +300,7 @@ export function drawHead(ctx: G, T0: number, st: SerpentStyle, now: number, opts
   // Tongue first (under the head).
   if (opts.tongue ?? Math.sin(now / 900) > 0.9) {
     const flick = Math.sin(now / 45) * 0.04 * T;
-    ctx.strokeStyle = '#ef476f';
+    ctx.strokeStyle = '#9aa3ad'; // slate grey: red is reserved for incoming damage
     ctx.lineWidth = Math.max(1.5, T * 0.045);
     ctx.lineCap = 'round';
     ctx.beginPath();

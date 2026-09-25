@@ -151,8 +151,8 @@ export function GenomePanel({ run, inFight, setRun }: { run: RunState; inFight?:
     ? sel !== null
       ? `${describeItem(run.genome[sel])} — now tap where it should go (it takes that place), or tap it again to cancel.`
       : draw < run.genome.length
-        ? `Your genome is a ring. Each room you emerge at a random point on it, and the next ${draw} items grow on you in this order — the first three are your hand. Click an item, then a place, to reorder it (free).`
-        : `Your genome is a ring. Each room all of it grows on you in this order, starting at a random point — the first three are your hand. Click an item, then a place, to reorder it (free).`
+        ? `A ring: each room the next ${draw} grow on you in this order, from a random point. Click an item, then a place, to reorder.`
+        : `A ring: each room it grows on you in this order, from a random point. Click an item, then a place, to reorder.`
     : arc ? `▶ marks where you emerged this room.${arc.size < run.genome.length ? ' Dimmed items stayed in the burrow.' : ''}` : null;
   return (
     <div class="genome">

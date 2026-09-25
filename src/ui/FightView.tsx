@@ -289,12 +289,17 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
   view.rotated = renderer.current?.rotated ?? false;
   const handIdx = ops.hand(f);
   const narrow = typeof window !== 'undefined' && window.matchMedia('(max-width: 820px), (pointer: coarse) and (max-height: 520px)').matches;
-  const pend = ops.pending(f);
   const onBoard = f.snake.body.length - 1;
   const flesh = f.snake.segs.filter((s) => !s.item).length;
-  const items = f.snake.segs.length - flesh;
   const hungerLeft = f.opts.hungerEvery - f.hunger;
-  const fleshCapNote = fleshCap !== undefined ? `(carry ≤${fleshCap})` : '';
+  const bonus = Math.min(2, Math.floor((f.played ?? 0) / 2));
+  // Every item this room started with, in body order, plus temporary ones grown since; faded once gone.
+  const liveUids = new Set(f.snake.segs.map((x) => x.uid));
+  const seenUids = new Set<number>();
+  const itemRow = [...initial.snake.segs, ...f.snake.segs].filter((x) => x.item && !seenUids.has(x.uid) && seenUids.add(x.uid)).map((x) => {
+    const d = item(x.item!);
+    return { glyph: d.glyph, color: d.color, live: liveUids.has(x.uid), temp: !!x.temp };
+  });
   // Hand items an enemy has latched onto: play them and the attack fizzles.
   const targeted = new Set(f.enemies.flatMap((e) => (e.intent.t === 'lock' || e.intent.t === 'steal' ? [e.intent.seg] : [])));
 
@@ -302,11 +307,13 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
     <div class="fight">
       <header class="hud">
         <div class="hud-title">{title}</div>
-        <div class="hud-stat" title="Flesh is your health and your currency. It carries to the next room (up to your cap). Temporary items count as flesh at room end.">
-          <b class="flesh">♥ {flesh}</b> flesh <span class="dim">{fleshCapNote}</span>
+        <div class="hud-stat" title={`Flesh: your health and your currency.${fleshCap !== undefined ? ` Up to ${fleshCap} carry to the next room (hollow hearts: room to grow; faded: won't carry).` : ''}`}>
+          <b class="flesh">{flesh}</b> <FleshPips n={flesh} cap={fleshCap} />
         </div>
-        <div class="hud-stat" title="Items are ammunition: every item comes back next room, played or not. Play them freely — a destroyed item is just wasted. Every 2 played regrow 1 flesh at room end (max 2).">
-          <b class="ammo">{items}</b> item{items === 1 ? '' : 's'} left <span class="dim">↻ all return next room{(f.played ?? 0) > 0 ? ` · ${f.played} spent${Math.min(2, Math.floor((f.played ?? 0) / 2)) > 0 ? ` (+${Math.min(2, Math.floor((f.played ?? 0) / 2))} flesh)` : ''}` : ''}{pend ? ` · ${pend} in burrow` : ''}</span>
+        <div class="hud-stat hud-items" title={`Your items. Faded ones are spent or lost — all of them come back next room.${bonus ? ` Every 2 played regrow 1 flesh at room end (+${bonus}).` : ''}`}>
+          {itemRow.map((it) => <span class={`hud-item ${it.live ? '' : 'spent'} ${it.temp ? 'temp' : ''}`}><GlyphIcon glyph={it.glyph} color={it.color} size={22} /></span>)}
+          <span class="hud-return">↻</span>
+          {bonus > 0 && <span class="hud-bonus">+{bonus}♥</span>}
         </div>
         {mods && mods.length > 0 && <div class="hud-stat mods" title="From an event">{mods.map((m) => <span class="mod-chip">{m}</span>)}</div>}
         {(f.buffs.bite > 0 || f.buffs.absorb > 0) && (
@@ -315,10 +322,12 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
             {f.buffs.absorb > 0 && <span class="buff">Absorb ×{f.buffs.absorb}</span>}
           </div>
         )}
-        <div class={`hud-stat ${hungerLeft <= 3 ? 'warn' : ''}`} title="Every few turns without eating, you lose your tail.">
-          Hunger <b>{hungerLeft}</b>
+        <div class={`hud-stat hunger ${hungerLeft <= 3 ? 'warn' : ''}`} title="Hunger: when the meter runs out, you lose your tail. Eating refills it.">
+          <span class="food-orb" />
+          <span class="meter"><span style={{ width: `${(100 * Math.max(0, hungerLeft)) / f.opts.hungerEvery}%` }} /></span>
+          <b>{hungerLeft}</b>
         </div>
-        <div class="hud-stat">Turn <b>{f.turn}</b></div>
+        <div class="hud-stat dim turn">Turn {f.turn}</div>
         {f.cleared && <div class="hud-stat good">Exits open</div>}
       </header>
       <div class="board-wrap" ref={wrapRef}>
@@ -382,11 +391,11 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
                 <span class="card-name">{d.name}{seg.temp ? ' ·temp' : ''}</span>
               </div>
               {d.activeText && <div class="card-text">{d.activeText}</div>}
-              {d.passiveText && <div class="card-passive">While carried: {d.passiveText}</div>}
+              {d.passiveText && <div class="card-passive" title={`While carried: ${d.passiveText}`}><span class="passive-mark">◇</span> {d.passiveText}</div>}
               {d.active?.move && <div class="card-tag">MOVE</div>}
-              {threatened && <div class="card-threat">Targeted! Play it — the attack fizzles.</div>}
+              {threatened && <div class="card-threat">Targeted — play it!</div>}
               {!playable && d.active && <div class="card-why">{d.active.requires ?? (d.active.target === 'dir' ? 'No valid direction right now.' : 'Can’t be played right now.')}</div>}
-              {!d.active && <div class="card-why">Passive only — tuck it (T) to cycle.</div>}
+              {!d.active && <div class="card-why">Passive — tuck (T) to cycle</div>}
             </button>
           );
         })}
@@ -495,19 +504,35 @@ function Inspector({ f, hover }: { f: Fight; hover: Pos | null }) {
   return <div class="inspect dim">Empty.<Legend f={f} /></div>;
 }
 
+function FleshPips({ n, cap }: { n: number; cap?: number }) {
+  const total = Math.max(n, cap ?? n);
+  if (total > 16) return cap !== undefined ? <span class="dim">/ {cap}</span> : null;
+  return (
+    <span class="pips">
+      {Array.from({ length: total }, (_, i) => <i class={i >= n ? 'empty' : cap !== undefined && i >= cap ? 'over' : ''} />)}
+    </span>
+  );
+}
+
 function Legend({ f }: { f: Fight }) {
   return (
-    <ul class="legend">
-      <li><b>Move</b> {isTouch ? 'tap next to your head or swipe (twice: preview, then confirm)' : 'arrows / WASD / click'}. You can never stand still.</li>
-      <li><b>Hand</b> = the first three items behind your head. <kbd>1</kbd>–<kbd>3</kbd> to play. Items are ammunition: they all come back next room. Only flesh carries over.</li>
-      <li><b>Hits</b> destroy the segment they land on.</li>
-      <li><b>Coil</b>: enclose enemies with your body (walls help). Coiled enemies can’t move or attack. Tighter = more crush (1 tile: 3/turn, 2–3: 2, 4–8: 1, 9–12: held only). To keep a coil, chase your own tail.</li>
-      <li><b>Wrap</b>: the violet arcs count how many of your tiles touch an enemy. At {wrapMin(f)} (diagonals count) it is squeezed for 1 each turn.</li>
-      <li><b>Bites interrupt</b> by knocking the enemy back — not if it is pinned against something. Bosses only while wrapped or inside your coil; otherwise they <b>riposte</b>: don't bite twice from the same tile.</li>
-      <li><kbd>H</kbd> asks the autopilot for a hint, <kbd>P</kbd> lets it play a turn. (Every snake needs an autopilot.)</li>
-      <li><kbd>F2</kbd> toggles the terminal skin — a nod to where all this started: C and ncurses.</li>
-      <li><b>Red</b> = incoming damage. A red reticle = a bite locked on that segment: it lands only if the segment is still inside the faint red box after your move.</li>
-    </ul>
+    <div class="legend">
+      {isTouch
+        ? <div class="keys">Tap/swipe twice to move · tap a card to play</div>
+        : <div class="keys"><kbd>WASD</kbd> move · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> play · <kbd>T</kbd> tuck · <kbd>Z</kbd> undo · <kbd>H</kbd> hint · <kbd>P</kbd> autopilot</div>}
+      <details>
+        <summary>Rules</summary>
+        <ul>
+          <li><b>Hand</b>: the first three items behind your head. All items come back next room; only flesh carries over.</li>
+          <li><b>Hits</b> destroy the segment they land on. A head hit destroys the two behind it.</li>
+          <li><b>Coil</b>: enclose enemies (walls help). They can’t act; the violet number is their crush per turn — tighter is harder.</li>
+          <li><b>Wrap</b>: {wrapMin(f)} of your tiles touching an enemy (diagonals count) squeeze it for 1.</li>
+          <li><b>Bites</b> knock enemies back and interrupt them, unless pinned. Bosses only while exposed — otherwise they <b>riposte</b>.</li>
+          <li><b>Red</b> is always incoming damage.</li>
+          {!isTouch && <li><kbd>F2</kbd> toggles the terminal skin — a nod to C and ncurses.</li>}
+        </ul>
+      </details>
+    </div>
   );
 }
 
@@ -532,6 +557,7 @@ function MoveHint({ f, dir, preview, spent, card }: { f: Fight; dir: Dir | null;
       if (sp?.item) lines.push(`Spend: ${ITEMS.get(sp.item)?.name} (back next room)`);
     }
     if (preview.status === 'dead') lines.push('☠ You would die.');
+    if (!card && f.buffs.bite > 0 && o.k !== 'bite') lines.push(`Lose: +${f.buffs.bite} bite bonus (no bite this turn)`);
     else if (lost.length) {
       if (lostItems.length) lines.push(`Destroyed unplayed: ${lostItems.join(', ')}`);
       if (lostFlesh) lines.push(`Lose ${lostFlesh} flesh`);
