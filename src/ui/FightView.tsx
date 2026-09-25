@@ -380,7 +380,7 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
           const threatened = targeted.has(seg.uid);
           return (
             <button
-              class={`card ${selected === slot ? 'selected' : ''} ${playable ? '' : 'disabled'} ${k >= onBoard ? 'buried' : ''} ${threatened ? 'threatened' : ''}`}
+              class={`card ${selected === slot ? 'selected' : ''} ${playable ? '' : 'disabled'} ${k >= onBoard ? 'buried' : ''} ${threatened ? 'threatened' : ''} ${!playable && d.active ? 'blocked' : ''}`}
               style={{ '--c': d.color }}
               onClick={() => selectSlot(slot)}
             >

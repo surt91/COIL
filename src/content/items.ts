@@ -269,7 +269,7 @@ defineItem({
   glyph: 'molt',
   color: '#dee2e6',
   rarity: 'rare',
-  activeText: 'Leave your current shape behind as a husk-skin for 2 turns.',
+  activeText: 'Leave a husk-skin of your shape for 2 turns.',
   active: {
     target: 'none',
     play(f) {
@@ -284,7 +284,7 @@ defineItem({
   glyph: 'ouroboros',
   color: '#ffbe0b',
   rarity: 'rare',
-  passiveText: 'While your tail tip touches your head, your coils crush for +2.',
+  passiveText: 'Tail tip touching your head: coils crush +2.',
   activeText: 'Every coiled or wrapped enemy takes 4.',
   active: {
     requires: 'Needs a coiled or wrapped enemy.',
@@ -307,7 +307,7 @@ defineItem({
   glyph: 'kinetic',
   color: '#a0c4ff',
   rarity: 'uncommon',
-  activeText: 'Move: take 3 random self-avoiding steps. (A nod to smart kinetic walks.)',
+  activeText: 'Move: take 3 random self-avoiding steps.',
   active: {
     requires: 'Needs a free tile next to your head.',
     target: 'none',
@@ -394,7 +394,7 @@ defineItem({
   glyph: 'silk',
   color: '#7d6b91',
   rarity: 'signature',
-  activeText: 'Spin webs on the 3 tiles in a line from your head. Webs are coil walls.',
+  activeText: 'Spin webs on 3 tiles in line from your head (coil walls).',
   active: {
     target: 'dir',
     play(f, a) {
@@ -498,7 +498,7 @@ defineItem({
   glyph: 'hood',
   color: '#ffafcc',
   rarity: 'uncommon',
-  activeText: 'Flare: enemies within 2 tiles of your head are pushed back a tile and lose their intent.',
+  activeText: 'Push enemies within 2 tiles back a tile; they lose their intent.',
   active: {
     target: 'none',
     play(f) {
@@ -525,7 +525,7 @@ defineItem({
   glyph: 'egg',
   color: '#fefae0',
   rarity: 'uncommon',
-  passiveText: 'When this segment is destroyed, it hatches: grow 3 flesh.',
+  passiveText: 'Destroyed, it hatches: grow 3 flesh.',
   activeText: 'Grow 1 flesh.',
   onHit(f) {
     for (let i = 0; i < 3; i++) ops.addSeg(f, null, 'tail');
@@ -541,7 +541,7 @@ defineItem({
   glyph: 'gorge',
   color: '#ffd166',
   rarity: 'common',
-  activeText: 'Suck in all food within 3 tiles of your head: +1 flesh each.',
+  activeText: 'Suck in all food within 3 tiles: +1 flesh each.',
   active: {
     requires: 'Needs food within 3 tiles of your head.',
     target: 'none',
@@ -591,7 +591,7 @@ function allInLine(f: Fight, d: Dir, n: number): Enemy[] {
 
 defineUpgrade('lunge', {
   name: 'Striking Lunge',
-  activeText: 'Move: dash 2 tiles straight, the second step bites for +1. A kill regrows a temporary Lunge behind your head.',
+  activeText: 'Move: dash 2 straight, the 2nd step bites +1. Kills regrow a temp Lunge.',
   active: {
     target: 'dir',
     move: true,
@@ -614,7 +614,7 @@ defineUpgrade('fang', {
 
 defineUpgrade('scale', {
   name: 'Keeled Scale',
-  passiveText: 'Absorbs a hit on this segment, then becomes a regular Scale (two hits in total).',
+  passiveText: 'Absorbs a hit, then turns into a plain Scale.',
   activeText: 'Absorb the next 2 hits anywhere this turn.',
   onHit(f, k) {
     const p = segPosAt(f, k) ?? ops.head(f);
@@ -627,8 +627,8 @@ defineUpgrade('scale', {
 
 defineUpgrade('venom', {
   name: 'Venom Gland',
-  passiveText: 'Enemies next to this segment, diagonals included, get 1 poison each turn.',
-  activeText: 'Piercing spit: every enemy in a line (5 tiles) gets 3 poison.',
+  passiveText: 'Adjacent enemies (diagonals too) get 1 poison each turn.',
+  activeText: 'Piercing spit: every enemy in line (5 tiles) gets 3 poison.',
   bodyPhase(f, k) {
     const p = segPosAt(f, k);
     if (!p) return;
@@ -646,7 +646,7 @@ defineUpgrade('venom', {
 
 defineUpgrade('spine', {
   name: 'Barbed Spine',
-  activeText: 'Every enemy next to your body takes 1 — or 2 if it touches 3 or more of your tiles.',
+  activeText: 'Every enemy next to your body takes 1 — 2 if it touches 3+ tiles.',
   active: {
     target: 'none',
     play(f) {
@@ -660,7 +660,7 @@ defineUpgrade('spine', {
 
 defineUpgrade('heart', {
   name: 'Twin Heart',
-  activeText: 'Grow 2 flesh, and a temporary Heart regrows at your tail.',
+  activeText: 'Grow 2 flesh; a temporary Heart regrows at your tail.',
   active: {
     target: 'none',
     play(f) {
@@ -674,7 +674,7 @@ defineUpgrade('heart', {
 
 defineUpgrade('muscle', {
   name: 'Sinew',
-  passiveText: 'Ring: coils this segment borders crush +1. Wrapping needs one tile less.',
+  passiveText: 'Ring: coils it borders crush +1. Wrapping needs 1 tile less.',
   wrapBonus: 1,
   activeText: 'Crush every coiled or wrapped enemy right now.',
   active: {
@@ -687,7 +687,7 @@ defineUpgrade('muscle', {
 
 defineUpgrade('reverse', {
   name: 'Two-Headed',
-  activeText: 'Swap head and tail: your rearmost items become your hand. Every bite locked onto you fizzles.',
+  activeText: 'Swap head and tail: rear items become your hand. Locked bites fizzle.',
   active: {
     target: 'none',
     requires: 'Needs your whole body out of the burrow and at least 3 segments.',
@@ -704,7 +704,7 @@ defineUpgrade('reverse', {
 
 defineUpgrade('shed', {
   name: 'Clean Shed',
-  activeText: 'Your last 4 segments fall off as husks — then 2 fresh flesh grow back.',
+  activeText: 'Your last 4 segments fall off as husks, then 2 flesh grow back.',
   active: {
     target: 'none',
     play(f) {
@@ -717,7 +717,7 @@ defineUpgrade('shed', {
 
 defineUpgrade('rattle', {
   name: 'Tail Rattle',
-  activeText: 'Enemies within 3 tiles of your head or your tail tip lose their intent.',
+  activeText: 'Enemies within 3 tiles of your head or tail tip lose their intent.',
   active: {
     target: 'none',
     play(f) {
@@ -730,7 +730,7 @@ defineUpgrade('rattle', {
 
 defineUpgrade('tailwhip', {
   name: 'Whip Crack',
-  activeText: 'Your tail tip deals 2 to every enemy around it and cancels their intents.',
+  activeText: 'Your tail tip deals 2 to every enemy around it; they lose intent.',
   active: {
     target: 'none',
     play(f) {
@@ -747,7 +747,7 @@ defineUpgrade('tailwhip', {
 
 defineUpgrade('swallow', {
   name: 'Unhinged Jaw',
-  activeText: 'Swallow an adjacent enemy with ≤3 HP whole: +2 flesh, and graft its signature item.',
+  activeText: 'Swallow an adjacent enemy (≤3 HP): +2 flesh and its signature item.',
   active: {
     target: 'dir',
     requires: 'Needs an adjacent enemy with 3 HP or less.',
@@ -771,7 +771,7 @@ defineUpgrade('swallow', {
 
 defineUpgrade('molt', {
   name: 'Phantom Skin',
-  activeText: 'Leave your shape behind as a husk-skin for 3 turns. Every bite locked onto you fizzles.',
+  activeText: 'Leave a husk-skin of your shape for 3 turns. Locked bites fizzle.',
   active: {
     target: 'none',
     play(f) {
@@ -783,8 +783,8 @@ defineUpgrade('molt', {
 
 defineUpgrade('ouroboros', {
   name: 'Worldserpent',
-  passiveText: 'While your tail tip touches your head, coils crush +2 and hunger stands still.',
-  activeText: 'Every coiled or wrapped enemy takes 4 — or 6 if your tail tip touches your head.',
+  passiveText: 'Tail tip touching your head: coils crush +2, no hunger.',
+  activeText: 'Every coiled or wrapped enemy takes 4 — 6 if tail tip meets head.',
   bodyPhase(f) {
     const s = f.snake;
     if (s.body.length > 3 && manhattan(s.body[0], s.body[s.body.length - 1]) === 1) {
@@ -806,7 +806,7 @@ defineUpgrade('ouroboros', {
 
 defineUpgrade('kinetic', {
   name: 'Smart Kinetic Walk',
-  activeText: 'Move: take 4 self-avoiding steps that never enter a telegraphed tile and prefer food.',
+  activeText: 'Move: 4 self-avoiding steps that dodge red tiles and seek food.',
   active: {
     target: 'none',
     move: true,
@@ -829,7 +829,7 @@ defineUpgrade('kinetic', {
 
 defineUpgrade('strike', {
   name: 'Striking Coil',
-  activeText: 'Hit the first enemy within 2 tiles in a line for 2 and yank it next to your head. It loses its intent.',
+  activeText: 'Yank the first enemy in line (2 tiles) to you: 2 damage, loses intent.',
   active: {
     target: 'dir',
     requires: 'Needs an enemy within 2 tiles in a straight line.',
@@ -851,7 +851,7 @@ defineUpgrade('strike', {
 
 defineUpgrade('sprint', {
   name: 'Slipstream',
-  activeText: 'Move: slither up to 4 tiles straight ahead, tearing through webs.',
+  activeText: 'Move: slither up to 4 tiles straight, tearing through webs.',
   active: {
     target: 'dir',
     move: true,
@@ -871,13 +871,13 @@ defineUpgrade('sprint', {
 defineUpgrade('reserve', {
   name: 'Deep Reserve',
   hungerShield: true,
-  passiveText: 'When hunger bites, it eats this segment instead of your tail.',
+  passiveText: 'Hunger eats this segment instead of your tail.',
   activeText: 'Grow 2 flesh and reset your hunger.',
 });
 
 defineUpgrade('acid', {
   name: 'Stomach Acid',
-  activeText: 'Every coiled or wrapped enemy takes 2 and gets 3 poison.',
+  activeText: 'Every coiled or wrapped enemy takes 2 and 3 poison.',
   active: {
     target: 'none',
     requires: 'Needs a coiled or wrapped enemy.',
@@ -893,7 +893,7 @@ defineUpgrade('acid', {
 
 defineUpgrade('hood', {
   name: 'Spectacled Hood',
-  activeText: 'Flare: enemies within 2 tiles are pushed back and lose their intent. Enemies that can’t be pushed take 2.',
+  activeText: 'Push enemies within 2 tiles back; they lose intent. Stuck ones take 2.',
   active: {
     target: 'none',
     play(f) {
@@ -914,7 +914,7 @@ defineUpgrade('hood', {
 
 defineUpgrade('egg', {
   name: 'Clutch',
-  passiveText: 'When this segment is destroyed, it hatches: grow 3 flesh and a temporary Fang.',
+  passiveText: 'Destroyed, it hatches: 3 flesh and a temporary Fang.',
   activeText: 'Grow 2 flesh.',
   onHit(f) {
     for (let i = 0; i < 3; i++) ops.addSeg(f, null, 'tail');
@@ -927,7 +927,7 @@ defineUpgrade('egg', {
 
 defineUpgrade('gorge', {
   name: 'Bottomless Gorge',
-  activeText: 'Suck in all food and husks within 3 tiles: +1 flesh each, and husk items graft back on.',
+  activeText: 'Suck in food and husks within 3 tiles: +1 flesh each, items graft back.',
   active: {
     target: 'none',
     requires: 'Needs food or husks within 3 tiles of your head.',
@@ -1005,7 +1005,7 @@ defineItem({
   glyph: 'knot',
   color: '#b39ddb',
   rarity: 'rare',
-  passiveText: 'When an enemy is crushed to death in a coil this segment borders, a temporary copy of the next item behind it grows behind your head.',
+  passiveText: 'Coil kill beside it: temp copy of the item behind it.',
   activeText: 'Pull the next item behind this one right behind your head.',
   onEnemyDie: knotKill(false),
   active: {
@@ -1018,7 +1018,7 @@ defineItem({
 
 defineUpgrade('knot', {
   name: 'Double Knot',
-  passiveText: 'When an enemy is crushed to death in a coil this segment borders — or squeezed to death right next to it — a temporary copy of the next item behind it grows behind your head.',
+  passiveText: 'Coil or squeeze kill beside it: temp copy of item behind it.',
   activeText: 'Pull the next 2 items behind this one right behind your head.',
   onEnemyDie: knotKill(true),
   active: {
@@ -1036,7 +1036,7 @@ defineItem({
   color: '#a8dadc',
   rarity: 'common',
   guardsNeighbours: true,
-  passiveText: 'The segments right in front of and behind this one can’t be latched onto, severed or robbed.',
+  passiveText: 'Its neighbours can’t be latched onto, severed or robbed.',
   activeText: 'Every enemy latched onto you lets go.',
   active: {
     target: 'none',
@@ -1048,7 +1048,7 @@ defineItem({
 
 defineUpgrade('scute', {
   name: 'Armored Scute',
-  passiveText: 'The segments right in front of and behind this one can’t be latched onto, severed or robbed. Absorbs one hit on itself, then becomes a regular Scute.',
+  passiveText: 'Neighbours can’t be latched, severed, robbed. Absorbs 1 hit.',
   onHit(f, k) {
     f.snake.segs[k].item = 'scute';
     ops.emit(f, { t: 'absorb', at: segPosAt(f, k) ?? ops.head(f) });
@@ -1072,8 +1072,8 @@ defineItem({
   glyph: 'heatpit',
   color: '#ffcf99',
   rarity: 'common',
-  passiveText: 'Your bites deal +2 to enemies held in a coil this segment borders.',
-  activeText: 'Your next bite this turn deals +2 and ignores shells and curls.',
+  passiveText: 'Bites deal +2 to enemies coiled against it.',
+  activeText: 'Next bite this turn: +2, ignores shells and curls.',
   biteBonusVs: heatBonus(false),
   active: {
     target: 'none',
@@ -1086,8 +1086,8 @@ defineItem({
 
 defineUpgrade('heatpit', {
   name: 'Labial Pits',
-  passiveText: 'Your bites deal +2 to enemies held in a coil this segment borders, or wrapped and touching it.',
-  activeText: 'Your next bite this turn deals +3 and ignores shells and curls.',
+  passiveText: 'Bites deal +2 to enemies coiled or wrapped against it.',
+  activeText: 'Next bite this turn: +3, ignores shells and curls.',
   biteBonusVs: heatBonus(true),
   active: {
     target: 'none',

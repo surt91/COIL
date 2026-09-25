@@ -457,5 +457,9 @@ p.small { font-size: 13px; margin-top: -8px; }
 @keyframes hungry { 50% { opacity: 0.45; } }
 .hunger.warn .food-orb { background: #f4a261; box-shadow: 0 0 6px #f4a261; }
 .hud-stat.turn { font-size: 12px; }
-.card-passive, .card-why { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-why { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .passive-mark { color: var(--c, var(--dim)); }
+.hand .card-top { margin-bottom: 3px; }
+.hand .card-art { margin-bottom: 6px; }
+/* A warning line (targeted, can't play) replaces the passive text: it matters more right now. */
+.card.threatened .card-passive, .card.blocked .card-passive { display: none; }

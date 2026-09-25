@@ -150,3 +150,12 @@ describe('run', () => {
     expect(run.act).toBe(2);
   });
 });
+
+describe('card text', () => {
+  // Cards have room for about three lines of active text and two of passive text
+  // (checked in the browser at 1400×900); longer texts got clipped on the hand cards.
+  test.each([...ITEMS.values()].map((d) => [d.id, d] as const))('%s fits on a card', (_id, d) => {
+    expect(d.activeText?.length ?? 0).toBeLessThanOrEqual(72);
+    expect(d.passiveText?.length ?? 0).toBeLessThanOrEqual(60);
+  });
+});
