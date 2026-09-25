@@ -8,7 +8,7 @@ import { Tile } from '../core/types';
 import { drawCreature } from './creatures';
 import { drawGlyph, glyphOpts } from './glyphs';
 import { renderAscii } from './ascii';
-import { SPECIES_STYLES, SerpentStyle, drawBody, drawHead, sampleBody } from './serpent';
+import { OUROBOROS_STYLE, RIVAL_STYLE, SPECIES_STYLES, SerpentStyle, drawBody, drawHead, sampleBody } from './serpent';
 
 export const PAL = {
   bg: '#0d1321',
@@ -27,23 +27,9 @@ export const PAL = {
   text: '#e8f1f2',
 };
 
-function hexRgb(h: string): number[] {
-  const v = parseInt(h.slice(1), 16);
-  return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
-}
 
-const styleCache = new Map<string, SerpentStyle>();
-function enemySnakeStyle(color: string, kind = ''): SerpentStyle {
-  const k = `${kind}:${color}`;
-  let st = styleCache.get(k);
-  if (!st) {
-    const c = hexRgb(color);
-    st = kind === 'ouroboros'
-      ? { head: c, tail: c.map((v) => v * 0.5), outline: '#140c02', pattern: 'rgba(20, 8, 0, 0.9)', stripe: 'rgba(255,255,255,0.15)', markings: 'bands', headShape: 'round', girth: 1.15, eye: '#e63946', accent: 'rgba(255, 90, 60, 0.6)' }
-      : { head: c, tail: c.map((v) => v * 0.45), outline: '#0a0610', pattern: 'rgba(30, 0, 40, 0.7)', stripe: 'rgba(255,255,255,0.12)', markings: 'zigzag', headShape: 'arrow', girth: 0.95, eye: '#ff5d73', accent: 'rgba(255, 200, 255, 0.5)' };
-    styleCache.set(k, st);
-  }
-  return st;
+function enemySnakeStyle(_color: string, kind = ''): SerpentStyle {
+  return kind === 'ouroboros' ? OUROBOROS_STYLE : RIVAL_STYLE;
 }
 
 const SNAKE_STYLE: SerpentStyle = SPECIES_STYLES.garden;

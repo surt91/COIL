@@ -11,7 +11,7 @@ import { BoardRenderer } from '../render/board';
 import { drawCardArt } from '../render/cardArt';
 import { drawCreature } from '../render/creatures';
 import { drawGlyph } from '../render/glyphs';
-import { SPECIES_STYLES, drawBody, drawHead, sampleBody } from '../render/serpent';
+import { OUROBOROS_STYLE, RIVAL_STYLE, SPECIES_STYLES, drawBody, drawHead, sampleBody } from '../render/serpent';
 
 function Canvas({ w, h, draw }: { w: number; h: number; draw(ctx: CanvasRenderingContext2D): void }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -56,9 +56,9 @@ export function Gallery() {
   return (
     <div class="screen" style={{ padding: '24px' }}>
       <h1>COIL style sheet</h1>
-      <h2 style={sec}>Player snakes (species)</h2>
+      <h2 style={sec}>Snakes (player species and enemies)</h2>
       <div style={row}>
-        {Object.entries(SPECIES_STYLES).map(([id, st]) => (
+        {[...Object.entries(SPECIES_STYLES), ['rival', RIVAL_STYLE] as const, ['ouroboros (boss)', OUROBOROS_STYLE] as const].map(([id, st]) => (
           <div>
             <Canvas w={260} h={110} draw={(ctx) => {
               const T = 44;
@@ -66,7 +66,7 @@ export function Gallery() {
               const n = pts.length;
               drawBody(ctx, sampleBody(pts, (t) => (0.64 - 0.28 * t / (n - 1)) * T * (st.girth ?? 1), 0, 0, T * 0.45), n, st);
               ctx.translate(220, 55);
-              drawHead(ctx, T, st, 0, { tongue: true });
+              drawHead(ctx, T, st, 0, { tongue: true, crown: id.startsWith('ouroboros') });
             }} />
             <div style={label}>{id}</div>
           </div>
@@ -74,7 +74,7 @@ export function Gallery() {
       </div>
       <h2 style={sec}>Creatures (1 tile = 44 px and 88 px)</h2>
       <div style={row}>
-        {[...ENEMIES.values()].map((d) => (
+        {[...ENEMIES.values()].filter((d) => !d.snake).map((d) => (
           <div>
             <Canvas w={140} h={96} draw={(ctx) => {
               ctx.save(); ctx.translate(30, 60); drawCreature(ctx, d.kind, 44, d.color, 0.3); ctx.restore();

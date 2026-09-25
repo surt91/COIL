@@ -1,14 +1,18 @@
 /** Procedural creature drawings. Centred at (0,0), facing +x, tile size T. */
 type G = CanvasRenderingContext2D;
 
+/** Jointed insect legs: hip → knee → foot, gently walking. */
 function legs(ctx: G, n: number, len: number, spread: number, t: number, wiggle: number) {
+  ctx.lineJoin = 'round';
   for (let i = 0; i < n; i++) {
     const off = (i - (n - 1) / 2) * spread;
     const w = Math.sin(t * 8 + i * 1.7) * wiggle;
+    const splay = (i - (n - 1) / 2) * spread * 0.6;
     for (const s of [-1, 1]) {
       ctx.beginPath();
-      ctx.moveTo(off, 0);
-      ctx.quadraticCurveTo(off + w, s * len * 0.8, off + spread * 0.4 + w, s * len);
+      ctx.moveTo(off, s * len * 0.15);
+      ctx.lineTo(off + splay * 0.5 + w, s * len * 0.7);
+      ctx.lineTo(off + splay + w * 1.5, s * len);
       ctx.stroke();
     }
   }
@@ -23,7 +27,19 @@ function eyes(ctx: G, x: number, dy: number, r: number) {
   }
 }
 
+/**
+ * Draw a creature with the shared dark outline (drop-shadow filter; browsers
+ * without canvas filters simply get no outline).
+ */
 export function drawCreature(ctx: G, kind: string, T: number, color: string, t: number, curled = false) {
+  ctx.save();
+  const w = Math.max(0.8, T * 0.022);
+  ctx.filter = `drop-shadow(0 0 ${w}px #05080f) drop-shadow(0 0 ${w * 0.6}px #05080f)`;
+  drawCreatureInner(ctx, kind, T, color, t, curled);
+  ctx.restore();
+}
+
+function drawCreatureInner(ctx: G, kind: string, T: number, color: string, t: number, curled = false) {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   const dark = 'rgba(0,0,0,0.45)';
@@ -128,15 +144,18 @@ export function drawCreature(ctx: G, kind: string, T: number, color: string, t: 
       legs(ctx, 2, T * 0.3, T * 0.22, t * 0.5, T * 0.02);
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.ellipse(-T * 0.12, 0, T * 0.26, T * 0.08, 0, 0, Math.PI * 2);
+      ctx.ellipse(-T * 0.14, 0, T * 0.26, T * 0.12, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.fillRect(-T * 0.3, -T * 0.015, T * 0.3, T * 0.03);
+      ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.ellipse(T * 0.14, 0, T * 0.1, T * 0.05, 0, 0, Math.PI * 2);
+      ctx.ellipse(T * 0.14, 0, T * 0.12, T * 0.07, 0, 0, Math.PI * 2);
       ctx.fill();
-      poly3(ctx, [T * 0.3, 0], [T * 0.2, -T * 0.1], [T * 0.2, T * 0.1]);
+      poly3(ctx, [T * 0.36, 0], [T * 0.22, -T * 0.13], [T * 0.22, T * 0.13]);
       ctx.fill();
       ctx.strokeStyle = color;
-      ctx.lineWidth = T * 0.045;
+      ctx.lineWidth = Math.max(2.5, T * 0.06);
       const raise = Math.sin(t * 4) * 0.15;
       for (const s of [-1, 1]) {
         ctx.beginPath();
@@ -145,11 +164,11 @@ export function drawCreature(ctx: G, kind: string, T: number, color: string, t: 
         ctx.lineTo(T * 0.42, s * T * 0.08);
         ctx.stroke();
       }
-      eyes(ctx, T * 0.26, T * 0.06, T * 0.025);
+      eyes(ctx, T * 0.27, T * 0.08, T * 0.03);
       break;
     }
     case 'spider': {
-      ctx.strokeStyle = '#4a3f33';
+      ctx.strokeStyle = '#8a7560';
       ctx.lineWidth = T * 0.035;
       for (let i = 0; i < 4; i++) {
         const a = -0.9 + i * 0.6;
@@ -175,9 +194,16 @@ export function drawCreature(ctx: G, kind: string, T: number, color: string, t: 
         ctx.arc(T * x, T * y, T * 0.018, 0, Math.PI * 2);
         ctx.fill();
       }
-      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      // Pale hourglass on the abdomen.
+      ctx.fillStyle = 'rgba(240, 225, 200, 0.75)';
       ctx.beginPath();
-      ctx.arc(-T * 0.14, -T * 0.06, T * 0.06, 0, Math.PI * 2);
+      ctx.moveTo(-T * 0.2, -T * 0.06);
+      ctx.lineTo(-T * 0.1, 0);
+      ctx.lineTo(-T * 0.2, T * 0.06);
+      ctx.lineTo(-T * 0.0, T * 0.06);
+      ctx.lineTo(-T * 0.1, 0);
+      ctx.lineTo(-T * 0.0, -T * 0.06);
+      ctx.closePath();
       ctx.fill();
       break;
     }
@@ -270,7 +296,7 @@ export function drawCreature(ctx: G, kind: string, T: number, color: string, t: 
       break;
     }
     case 'ant': {
-      ctx.strokeStyle = '#5a1a14';
+      ctx.strokeStyle = '#3a2414';
       ctx.lineWidth = T * 0.03;
       legs(ctx, 3, T * 0.24, T * 0.1, t * 1.5, T * 0.03);
       ctx.fillStyle = color;
@@ -321,17 +347,20 @@ export function drawCreature(ctx: G, kind: string, T: number, color: string, t: 
       ctx.beginPath();
       ctx.ellipse(-T * 0.1, 0, T * 0.16, T * 0.1, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#222';
+      ctx.fillStyle = '#3a2a08';
       for (const x of [-0.16, -0.06]) ctx.fillRect(T * x, -T * 0.1, T * 0.035, T * 0.2);
+      ctx.fillStyle = '#8a5f14';
       ctx.beginPath();
       ctx.arc(T * 0.12, 0, T * 0.08, 0, Math.PI * 2);
       ctx.fill();
+      eyes(ctx, T * 0.15, T * 0.04, T * 0.02);
+      ctx.fillStyle = '#3a2a08';
       poly3(ctx, [-T * 0.34, 0], [-T * 0.24, -T * 0.03], [-T * 0.24, T * 0.03]);
       ctx.fill();
       break;
     }
     case 'queen': {
-      ctx.strokeStyle = '#5a1a14';
+      ctx.strokeStyle = '#3a2414';
       ctx.lineWidth = T * 0.05;
       legs(ctx, 3, T * 0.42, T * 0.16, t, T * 0.03);
       ctx.fillStyle = color;
@@ -363,6 +392,12 @@ export function drawCreature(ctx: G, kind: string, T: number, color: string, t: 
         ctx.arc(-T * 0.2 + i * T * 0.13, Math.sin(t * 4 + i) * T * 0.04, T * (0.07 + i * 0.01), 0, Math.PI * 2);
         ctx.fill();
       }
+      // Darker head with eyes.
+      ctx.fillStyle = '#5c8a80';
+      ctx.beginPath();
+      ctx.arc(T * 0.26, Math.sin(t * 4 + 4) * T * 0.04, T * 0.085, 0, Math.PI * 2);
+      ctx.fill();
+      eyes(ctx, T * 0.29, T * 0.035, T * 0.018);
       break;
     }
     case 'rival':

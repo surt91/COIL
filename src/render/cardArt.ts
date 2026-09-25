@@ -126,11 +126,26 @@ const SCENES: Record<string, Scene> = {
     ctx.stroke();
   },
   venom(ctx, w, h, c) {
-    SCENES.fang(ctx, w, h, [230, 240, 230]);
-    ctx.fillStyle = rgba(c, 0.95);
-    drop(ctx, w * 0.42, h * 0.82, 5);
-    drop(ctx, w * 0.62, h * 0.7, 4);
-    drop(ctx, w * 0.75, h * 0.9, 3);
+    // Green-glossed fangs dripping into a pooled puddle.
+    ctx.fillStyle = rgba(c, 0.25);
+    ctx.beginPath();
+    ctx.ellipse(w / 2, h * 0.95, w * 0.3, h * 0.12, 0, 0, Math.PI * 2);
+    ctx.fill();
+    for (const sgn of [-1, 1]) {
+      const x = w / 2 + sgn * w * 0.12;
+      const g = ctx.createLinearGradient(x, 0, x, h * 0.7);
+      g.addColorStop(0, '#f1faee');
+      g.addColorStop(0.6, '#f1faee');
+      g.addColorStop(1, rgba(c, 1));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(x - 10, 0);
+      ctx.quadraticCurveTo(x - 3, h * 0.4, x + sgn * 5, h * 0.7);
+      ctx.quadraticCurveTo(x + 3, h * 0.35, x + 10, 0);
+      ctx.fill();
+      ctx.fillStyle = rgba(c, 1);
+      drop(ctx, x + sgn * 5, h * 0.83, 5);
+    }
   },
   spine(ctx, w, h, c) {
     snake(ctx, wave(w * 0.95, w * 0.05, h * 0.75, h * 0.08, 7), h * 0.3, { head: false });
@@ -145,18 +160,20 @@ const SCENES: Record<string, Scene> = {
     }
   },
   heart(ctx, w, h, c) {
+    ctx.fillStyle = '#2a1426';
+    ctx.fillRect(0, 0, w, h);
     const g = ctx.createRadialGradient(w / 2, h / 2, 2, w / 2, h / 2, h * 0.7);
-    g.addColorStop(0, rgba(c, 0.5));
-    g.addColorStop(1, rgba(c, 0));
+    g.addColorStop(0, 'rgba(255, 209, 150, 0.45)');
+    g.addColorStop(1, 'rgba(255, 209, 150, 0)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, h);
     drawGlyph(ctx, 'heart', w / 2, h * 0.52, h * 0.55, rgba(c, 1));
-    ctx.strokeStyle = rgba(c, 0.5);
+    ctx.strokeStyle = 'rgba(255, 200, 150, 0.45)';
     ctx.lineWidth = 1.5;
-    for (const s of [-1, 1]) {
+    for (const sgn of [-1, 1]) {
       ctx.beginPath();
-      ctx.moveTo(w / 2 + s * h * 0.3, h * 0.45);
-      ctx.bezierCurveTo(w / 2 + s * h * 0.8, h * 0.2, w / 2 + s * h * 1.1, h * 0.9, w / 2 + s * w * 0.45, h * 0.6);
+      ctx.moveTo(w / 2 + sgn * h * 0.3, h * 0.45);
+      ctx.bezierCurveTo(w / 2 + sgn * h * 0.8, h * 0.2, w / 2 + sgn * h * 1.1, h * 0.9, w / 2 + sgn * w * 0.45, h * 0.6);
       ctx.stroke();
     }
   },
@@ -206,17 +223,24 @@ const SCENES: Record<string, Scene> = {
     void c;
   },
   rattle(ctx, w, h, c) {
+    // A tail tip ending in keratin rattle segments, buzzing.
+    snake(ctx, [{ x: w * 0.02, y: h * 0.75 }, { x: w * 0.2, y: h * 0.6 }, { x: w * 0.38, y: h * 0.52 }], h * 0.32, { head: false });
     for (let i = 0; i < 5; i++) {
-      ctx.fillStyle = rgba(c, 1 - i * 0.12);
+      const x = w * 0.45 + i * h * 0.17, r = h * (0.17 - i * 0.02);
+      ctx.fillStyle = '#05080f';
       ctx.beginPath();
-      ctx.ellipse(w * 0.3 + i * h * 0.22, h / 2, h * (0.16 - i * 0.015), h * (0.26 - i * 0.025), 0, 0, Math.PI * 2);
+      ctx.ellipse(x, h * 0.5, r * 0.75 + 1.5, r + 1.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = i % 2 ? '#c9a66b' : '#e0c48f';
+      ctx.beginPath();
+      ctx.ellipse(x, h * 0.5, r * 0.75, r, 0, 0, Math.PI * 2);
       ctx.fill();
     }
-    ctx.strokeStyle = rgba(c, 0.5);
+    ctx.strokeStyle = rgba(c, 0.6);
     ctx.lineWidth = 2;
     for (let i = 1; i <= 3; i++) {
       ctx.beginPath();
-      ctx.arc(w * 0.72, h / 2, i * h * 0.13, -0.7, 0.7);
+      ctx.arc(w * 0.82, h * 0.5, i * h * 0.12, -0.7, 0.7);
       ctx.stroke();
     }
   },
@@ -232,27 +256,24 @@ const SCENES: Record<string, Scene> = {
       ctx.stroke();
     }
   },
-  swallow(ctx, w, h, c) {
+  swallow(ctx, w, h) {
+    // Top-down snake head, jaws unhinged around a beetle.
+    snake(ctx, [{ x: w * 0.5, y: h * 0.5 }, { x: w * 0.3, y: h * 0.5 }, { x: w * 0.12, y: h * 0.55 }, { x: -w * 0.05, y: h * 0.6 }], h * 0.34, { head: false });
     ctx.save();
-    ctx.translate(w * 0.3, h * 0.5);
+    ctx.translate(w * 0.62, h * 0.5);
     ctx.fillStyle = '#48e2ba';
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.arc(0, 0, h * 0.42, -0.75, 0.75, true);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = '#2b0f18';
-    ctx.beginPath();
-    ctx.moveTo(h * 0.05, 0);
-    ctx.arc(h * 0.05, 0, h * 0.32, -0.65, 0.65);
-    ctx.closePath();
-    ctx.fill();
+    for (const sgn of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(-h * 0.2, sgn * h * 0.12);
+      ctx.quadraticCurveTo(h * 0.15, sgn * h * 0.5, h * 0.42, sgn * h * 0.3);
+      ctx.lineTo(h * 0.3, sgn * h * 0.18);
+      ctx.quadraticCurveTo(h * 0.1, sgn * h * 0.26, -h * 0.1, sgn * h * 0.05);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.translate(h * 0.22, 0);
+    drawCreature(ctx, 'beetle', h * 0.5, '#b0764a', 0.2);
     ctx.restore();
-    ctx.save();
-    ctx.translate(w * 0.68, h * 0.5);
-    drawCreature(ctx, 'beetle', h * 0.7, '#b0764a', 0.2);
-    ctx.restore();
-    void c;
   },
   molt(ctx, w, h) {
     // A glowing, empty ghost of a snake.
@@ -277,21 +298,11 @@ const SCENES: Record<string, Scene> = {
     snake(ctx, pts.reverse(), h * 0.22, { style: { ...SNAKE, head: [255, 200, 60], tail: [150, 100, 20] } });
   },
   kinetic(ctx, w, h, c) {
-    const s = h * 0.14;
+    const s2 = h * 0.14;
     ctx.fillStyle = rgba(c, 0.18);
-    for (let x = s; x < w; x += s) for (let y = s; y < h; y += s) ctx.fillRect(x - 1, y - 1, 2, 2);
-    const walk = [[2, 5], [3, 5], [3, 4], [4, 4], [4, 3], [3, 3], [3, 2], [4, 2], [5, 2], [5, 3], [6, 3], [6, 4], [7, 4], [7, 3], [8, 3], [8, 2]];
-    ctx.strokeStyle = rgba(c, 0.95);
-    ctx.lineWidth = 3;
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
-    walk.forEach(([x, y], i) => (i ? ctx.lineTo(x * s * 1.35, y * s) : ctx.moveTo(x * s * 1.35, y * s)));
-    ctx.stroke();
-    const [ex, ey] = walk[walk.length - 1];
-    ctx.fillStyle = '#48e2ba';
-    ctx.beginPath();
-    ctx.arc(ex * s * 1.35, ey * s, 5, 0, Math.PI * 2);
-    ctx.fill();
+    for (let x = s2; x < w; x += s2) for (let y = s2; y < h; y += s2) ctx.fillRect(x - 1, y - 1, 2, 2);
+    const walk = [[8, 2], [8, 3], [7, 3], [7, 4], [6, 4], [6, 3], [5, 3], [5, 2], [4, 2], [3, 2], [3, 3], [3, 4], [4, 4], [4, 5]];
+    snake(ctx, walk.map(([x, y]) => ({ x: x * s2 * 1.35, y: y * s2 })), h * 0.2, { tongue: true });
   },
   strike(ctx, w, h, c) {
     const pts: V[] = [{ x: w * 0.72, y: h * 0.32 }, { x: w * 0.55, y: h * 0.3 }, { x: w * 0.45, y: h * 0.45 }, { x: w * 0.55, y: h * 0.62 }, { x: w * 0.42, y: h * 0.78 }, { x: w * 0.25, y: h * 0.72 }];
@@ -370,77 +381,141 @@ const SCENES: Record<string, Scene> = {
     drawGlyph(ctx, 'egg', w / 2, h * 0.48, h * 0.42, rgba(c, 1));
   },
   gorge(ctx, w, h, c) {
-    // An open mouth inhaling a spiral of food.
-    for (let i = 0; i < 14; i++) {
-      const t = i / 14, a = t * Math.PI * 3.2 + 0.5, r = h * (0.08 + t * 0.55);
-      const x = w * 0.34 + Math.cos(a) * r * 1.6, y = h / 2 + Math.sin(a) * r * 0.7;
-      ctx.fillStyle = `rgba(255, 209, 102, ${0.95 - t * 0.6})`;
+    // A swollen snake inhaling a stream of food.
+    const pts = wave(w * 0.4, w * 0.05, h * 0.55, h * 0.06, 5);
+    const n = pts.length;
+    const ss = sampleBody(pts, (t) => (0.55 + 0.45 * Math.max(0, 1 - Math.abs(t - 2) / 1.5)) * h * 0.34, 0, 0, h * 0.2);
+    drawBody(ctx, ss, n, SNAKE);
+    ctx.save();
+    ctx.translate(pts[0].x, pts[0].y);
+    drawHead(ctx, h * 0.34, SNAKE, 0, { tongue: false });
+    ctx.restore();
+    for (let i = 0; i < 7; i++) {
+      const t = i / 7;
+      ctx.fillStyle = `rgba(255, 209, 102, ${1 - t * 0.5})`;
       ctx.beginPath();
-      ctx.arc(x, y, 2 + t * 3.5, 0, Math.PI * 2);
+      ctx.arc(w * (0.58 + t * 0.4), h * (0.55 + Math.sin(t * 6) * 0.2), 3 + t * 2.5, 0, Math.PI * 2);
       ctx.fill();
     }
-    ctx.save();
-    ctx.translate(w * 0.3, h / 2);
-    ctx.fillStyle = '#48e2ba';
-    ctx.beginPath();
-    ctx.moveTo(-h * 0.5, -h * 0.2);
-    ctx.quadraticCurveTo(0, -h * 0.55, h * 0.18, -h * 0.28);
-    ctx.lineTo(-h * 0.05, 0);
-    ctx.lineTo(h * 0.18, h * 0.28);
-    ctx.quadraticCurveTo(0, h * 0.55, -h * 0.5, h * 0.2);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = '#f7e36b';
-    ctx.beginPath();
-    ctx.arc(-h * 0.12, -h * 0.25, h * 0.05, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
     void c;
   },
-  python(ctx, w, h, c) {
+  python(ctx, w, h) {
     const pts: V[] = [];
     for (let i = 0; i <= 24; i++) {
       const a = (i / 24) * Math.PI * 3.6;
       const r = h * (0.12 + (i / 24) * 0.3);
       pts.push({ x: w / 2 + Math.cos(a) * r * 1.4, y: h / 2 + Math.sin(a) * r });
     }
-    snake(ctx, pts.reverse(), h * 0.2, { style: { ...SNAKE, head: hexRgb('#c9a0a8'), tail: [90, 50, 60] } });
-    void c;
+    snake(ctx, pts.reverse(), h * 0.2, { style: SPECIES_STYLES.python });
   },
 };
 
+SCENES.carapace = (ctx, w, h) => {
+  // A shell plate catching a strike: spark burst on the rim.
+  ctx.save();
+  ctx.translate(w * 0.45, h * 0.62);
+  ctx.fillStyle = '#b0764a';
+  ctx.beginPath();
+  ctx.arc(0, 0, h * 0.42, Math.PI, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, -h * 0.42);
+  ctx.lineTo(0, 0);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.beginPath();
+  ctx.ellipse(-h * 0.15, -h * 0.25, h * 0.12, h * 0.05, -0.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = '#fff3b0';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 7; i++) {
+    const a = -0.6 - i * 0.35;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.72 + Math.cos(a) * 5, h * 0.25 + Math.sin(a) * 5);
+    ctx.lineTo(w * 0.72 + Math.cos(a) * 15, h * 0.25 + Math.sin(a) * 15);
+    ctx.stroke();
+  }
+};
+SCENES.tongue = (ctx, w, h) => {
+  ctx.save();
+  ctx.translate(w * 0.18, h * 0.55);
+  drawCreature(ctx, 'frog', h * 0.8, '#6aa84f', 0.2);
+  ctx.restore();
+  ctx.strokeStyle = '#ef8fb2';
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(w * 0.3, h * 0.55);
+  ctx.quadraticCurveTo(w * 0.6, h * 0.35, w * 0.85, h * 0.5);
+  ctx.stroke();
+  ctx.fillStyle = '#ef8fb2';
+  ctx.beginPath();
+  ctx.arc(w * 0.86, h * 0.5, 6, 0, Math.PI * 2);
+  ctx.fill();
+};
+SCENES.scythe = (ctx, w, h) => {
+  ctx.strokeStyle = 'rgba(210, 255, 170, 0.8)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(w * 0.55, h * 1.1, h * 0.95, Math.PI * 1.15, Math.PI * 1.7);
+  ctx.stroke();
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(w * 0.55, h * 1.1, h * 0.8, Math.PI * 1.2, Math.PI * 1.65);
+  ctx.stroke();
+  ctx.save();
+  ctx.translate(w * 0.25, h * 0.6);
+  drawCreature(ctx, 'mantis', h * 0.8, '#9bc53d', 0.2);
+  ctx.restore();
+};
+SCENES.quill = (ctx, w, h) => {
+  ctx.save();
+  ctx.translate(w * 0.3, h * 0.55);
+  drawCreature(ctx, 'hedgehog', h * 0.8, '#8a7a6a', 0.2);
+  ctx.restore();
+  ctx.strokeStyle = '#e9c46a';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 5; i++) {
+    const y = h * (0.25 + i * 0.12), x = w * (0.55 + (i % 2) * 0.08);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + w * 0.2, y - h * 0.05);
+    ctx.stroke();
+  }
+};
 SCENES.silk = (ctx, w, h) => {
-  ctx.strokeStyle = 'rgba(230, 225, 255, 0.7)';
+  // A quarter web in the corner with a snake tangled in it.
+  ctx.strokeStyle = 'rgba(230, 225, 255, 0.4)';
   ctx.lineWidth = 1.2;
-  const cx = w * 0.4, cy = h * 0.45;
-  for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * Math.PI * 2;
+  const cx = w, cy = 0;
+  for (let i = 0; i <= 6; i++) {
+    const a = Math.PI / 2 + (i / 6) * (Math.PI / 2);
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.lineTo(cx + Math.cos(a) * w, cy + Math.sin(a) * w);
     ctx.stroke();
   }
-  for (let r = 8; r < w; r += 11) {
+  for (let r = 14; r < w * 0.8; r += 14) {
     ctx.beginPath();
-    for (let i = 0; i <= 8; i++) {
-      const a = (i / 8) * Math.PI * 2;
+    for (let i = 0; i <= 6; i++) {
+      const a = Math.PI / 2 + (i / 6) * (Math.PI / 2);
       const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
       i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
     }
     ctx.stroke();
   }
+  snake(ctx, wave(w * 0.1, w * 0.62, h * 0.62, h * 0.12, 6), h * 0.26, { alpha: 0.9 });
   ctx.save();
-  ctx.translate(w * 0.72, h * 0.5);
-  drawCreature(ctx, 'spider', h * 0.7, '#b5a48f', 0.4);
+  ctx.translate(w * 0.85, h * 0.28);
+  drawCreature(ctx, 'spider', h * 0.55, '#8d7b68', 0.4);
   ctx.restore();
 };
 
-const CREATURE_OF: Record<string, [string, string]> = {
-  carapace: ['beetle', '#b0764a'],
-  quill: ['hedgehog', '#8a7a6a'],
-  tongue: ['frog', '#6aa84f'],
-  scythe: ['mantis', '#9bc53d'],
-};
+const CREATURE_OF: Record<string, [string, string]> = {};
 
 /** Draw the art for an item (or charm) id into a w×h area at the origin. */
 export function drawCardArt(ctx: G, id: string, w: number, h: number) {

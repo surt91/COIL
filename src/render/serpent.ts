@@ -14,15 +14,19 @@ export interface SerpentStyle {
   pattern: string;
   stripe: string;
   /** Dorsal markings. Default: diamonds. */
-  markings?: 'diamond' | 'zigzag' | 'blotch' | 'bands' | 'none';
+  markings?: 'diamond' | 'zigzag' | 'blotch' | 'bands' | 'saddle' | 'rings' | 'none';
   /** Head silhouette. Default: wedge. */
-  headShape?: 'wedge' | 'arrow' | 'blunt' | 'round';
+  headShape?: 'wedge' | 'arrow' | 'blunt' | 'round' | 'long';
   /** Body thickness multiplier (callers apply it to widths). */
   girth?: number;
   eye?: string;
   /** Second marking colour (bands, blotch rims). */
   accent?: string;
 }
+
+/** Enemy snakes. */
+export const RIVAL_STYLE: SerpentStyle = { head: [122, 132, 80], tail: [52, 58, 40], outline: '#0b0d06', pattern: 'rgba(22, 26, 12, 0.85)', stripe: 'rgba(240, 232, 190, 0.22)', markings: 'saddle', headShape: 'long', girth: 0.95, eye: '#ff5d73' };
+export const OUROBOROS_STYLE: SerpentStyle = { head: [217, 210, 195], tail: [58, 49, 64], outline: '#0a070d', pattern: 'rgba(30, 22, 36, 0.8)', stripe: 'rgba(255, 255, 255, 0.12)', markings: 'rings', headShape: 'round', girth: 1.3, eye: '#e63946' };
 
 /** Player snake styles per species. */
 export const SPECIES_STYLES: Record<string, SerpentStyle> = {
@@ -204,6 +208,30 @@ function drawMarkings(ctx: G, ss: Sample[], n: number, st: SerpentStyle) {
       ctx.beginPath();
       ctx.ellipse(cx, cy, s.w * 0.3, s.w * 0.24, a, 0, Math.PI * 2);
       ctx.fill();
+    } else if (kind === 'saddle') {
+      // Dark crossbars that narrow toward the flanks (hourglass saddles).
+      const W = s.w * 0.5, L = s.w * 0.22;
+      ctx.beginPath();
+      ctx.moveTo(s.x + s.nx * W + tx * L * 0.5, s.y + s.ny * W + ty * L * 0.5);
+      ctx.lineTo(s.x + tx * L, s.y + ty * L);
+      ctx.lineTo(s.x - s.nx * W + tx * L * 0.5, s.y - s.ny * W + ty * L * 0.5);
+      ctx.lineTo(s.x - s.nx * W - tx * L * 0.5, s.y - s.ny * W - ty * L * 0.5);
+      ctx.lineTo(s.x - tx * L, s.y - ty * L);
+      ctx.lineTo(s.x + s.nx * W - tx * L * 0.5, s.y + s.ny * W - ty * L * 0.5);
+      ctx.closePath();
+      ctx.fill();
+    } else if (kind === 'rings') {
+      // Thin double rings (bone serpent).
+      ctx.lineCap = 'butt';
+      ctx.strokeStyle = st.pattern;
+      ctx.lineWidth = Math.max(1, s.w * 0.07);
+      const W = s.w * 0.5;
+      for (const o of [-0.12, 0.12]) {
+        ctx.beginPath();
+        ctx.moveTo(s.x + s.nx * W + tx * s.w * o, s.y + s.ny * W + ty * s.w * o);
+        ctx.lineTo(s.x - s.nx * W + tx * s.w * o, s.y - s.ny * W + ty * s.w * o);
+        ctx.stroke();
+      }
     } else if (kind === 'bands') {
       // Rings across the body.
       const W = s.w * 0.5;
@@ -250,6 +278,13 @@ export function drawHead(ctx: G, T0: number, st: SerpentStyle, now: number, opts
       ctx.quadraticCurveTo(0.58 * T + g, 0, 0.52 * T + g, 0.16 * T);
       ctx.bezierCurveTo(0.4 * T, 0.32 * T + g, 0, 0.36 * T + g, -0.32 * T, 0.26 * T + g);
       ctx.quadraticCurveTo(-0.42 * T - g, 0, -0.32 * T, -0.26 * T - g);
+    } else if (hs === 'long') {
+      // Slender head with a long snout (rat snake / rival).
+      ctx.moveTo(-0.3 * T, -0.2 * T - g);
+      ctx.bezierCurveTo(-0.1 * T, -0.34 * T - g, 0.35 * T, -0.26 * T - g, 0.62 * T + g, -0.08 * T);
+      ctx.quadraticCurveTo(0.68 * T + g, 0, 0.62 * T + g, 0.08 * T);
+      ctx.bezierCurveTo(0.35 * T, 0.26 * T + g, -0.1 * T, 0.34 * T + g, -0.3 * T, 0.2 * T + g);
+      ctx.quadraticCurveTo(-0.38 * T - g, 0, -0.3 * T, -0.2 * T - g);
     } else if (hs === 'round') {
       ctx.ellipse(0.08 * T, 0, 0.44 * T + g, 0.36 * T + g, 0, 0, Math.PI * 2);
     } else {
@@ -294,15 +329,27 @@ export function drawHead(ctx: G, T0: number, st: SerpentStyle, now: number, opts
       ctx.fill();
     }
   }
-  // V-shaped crown marking behind the eyes (top-down view).
-  ctx.strokeStyle = st.pattern;
-  ctx.lineWidth = Math.max(1.5, T * 0.05);
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(-0.22 * T, -0.16 * T);
-  ctx.lineTo(0.02 * T, 0);
-  ctx.lineTo(-0.22 * T, 0.16 * T);
-  ctx.stroke();
+  // Head markings (top-down view), per species.
+  ctx.fillStyle = st.pattern;
+  if (hs === 'wedge') {
+    for (const s2 of [-1, 1]) {
+      ctx.beginPath();
+      ctx.ellipse(-0.14 * T, s2 * 0.1 * T, 0.09 * T, 0.05 * T, s2 * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (hs === 'arrow') {
+    ctx.beginPath();
+    ctx.moveTo(0.18 * T, 0);
+    ctx.lineTo(-0.2 * T, -0.2 * T);
+    ctx.lineTo(-0.1 * T, 0);
+    ctx.lineTo(-0.2 * T, 0.2 * T);
+    ctx.closePath();
+    ctx.fill();
+  } else if (hs === 'round' || hs === 'long') {
+    ctx.beginPath();
+    ctx.ellipse(-0.08 * T, 0, 0.14 * T, 0.05 * T, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
   // Eyes with slit pupils; occasional blink.
   const blink = Math.sin(now / 1700) > 0.985;
   for (const s of [-1, 1]) {
@@ -321,20 +368,36 @@ export function drawHead(ctx: G, T0: number, st: SerpentStyle, now: number, opts
       ctx.fill();
     }
   }
+  // Mouth line along the snout tip.
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+  ctx.lineWidth = Math.max(1, T * 0.02);
+  ctx.beginPath();
+  const tip = hs === 'long' ? 0.6 : hs === 'blunt' ? 0.52 : 0.47;
+  ctx.moveTo((tip - 0.14) * T, -0.14 * T);
+  ctx.quadraticCurveTo((tip + 0.04) * T, 0, (tip - 0.14) * T, 0.14 * T);
+  ctx.stroke();
   // Nostrils.
   ctx.fillStyle = 'rgba(0,0,0,0.45)';
   for (const s of [-1, 1]) {
     ctx.beginPath();
-    ctx.arc(0.42 * T, s * 0.055 * T, 0.017 * T, 0, Math.PI * 2);
+    ctx.arc((tip - 0.06) * T, s * 0.055 * T, 0.017 * T, 0, Math.PI * 2);
     ctx.fill();
   }
   if (opts.crown) {
-    ctx.fillStyle = '#ffd166';
-    for (let i = -1; i <= 1; i++) {
+    // Three bone horns sweeping back from the crown.
+    for (const [i, len] of [[-1, 0.3], [0, 0.4], [1, 0.3]] as const) {
+      ctx.fillStyle = st.outline;
       ctx.beginPath();
-      ctx.moveTo(-0.12 * T, i * 0.13 * T - 0.04 * T);
-      ctx.lineTo(-0.34 * T, i * 0.16 * T);
-      ctx.lineTo(-0.12 * T, i * 0.13 * T + 0.04 * T);
+      ctx.moveTo(-0.05 * T, i * 0.14 * T - 0.07 * T);
+      ctx.lineTo(-(0.05 + len + 0.04) * T, i * 0.24 * T);
+      ctx.lineTo(-0.05 * T, i * 0.14 * T + 0.07 * T);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#efe6d2';
+      ctx.beginPath();
+      ctx.moveTo(-0.05 * T, i * 0.14 * T - 0.05 * T);
+      ctx.lineTo(-(0.05 + len) * T, i * 0.22 * T);
+      ctx.lineTo(-0.05 * T, i * 0.14 * T + 0.05 * T);
       ctx.closePath();
       ctx.fill();
     }

@@ -317,3 +317,30 @@ Deployment: GitHub Actions baut und testet bei jedem Push und deployt auf
 GitHub Pages. Eine `CLAUDE.md` hält fest, wie hier gearbeitet wird — inklusive
 der Regel, dass dies *mein* Spiel ist und Vorschläge des Auftraggebers
 Denkanstöße eines Spielers sind.
+
+## 2026-09-25 — Ein Art-Director-Agent und das Handy
+
+**"Alle Schlangen sehen gleich aus."** Stimmt: Jede Spezies war dieselbe
+türkise Schlange. Jetzt hat jede eine eigene Anatomie: Garden (Rauten, Keilkopf),
+Viper (Zickzack-Band, Pfeilkopf, schlank), Python (Sattelflecken mit hellem
+Rand, stumpfer Kopf mit Wärmegruben, 22 % dicker), Ouroboros (Ringe, runder Kopf).
+
+Dafür gibt es jetzt einen **Art-Critic-Agenten** (`.claude/agents/art-critic.md`)
+und eine Style-Sheet-Seite (`?gallery`), die jede Grafik des Spiels auf einer
+Seite zeigt. Seine härtesten Befunde:
+- Der Rivale war "ein umgefärbter Spieler-Viper", der Endboss ein goldener
+  Spieler-Ouroboros — *Gold bedeutet aber Futter/Belohnung*. Jetzt: Rivale
+  olivgrün mit Sattelmuster und langer Schnauze, Boss knochenweiß-obsidian mit
+  Doppelringen und Hörnerkrone.
+- Das ">" im Schlangengesicht las sich wie ein UI-Pfeil → Maullinie, Nasenlöcher,
+  Kopfzeichnung pro Spezies.
+- Drei verschiedene Outline-Regime → alle Kreaturen bekommen denselben dunklen
+  Rand (per Canvas-`drop-shadow`-Filter, eine Zeile statt 15 Pfade).
+- Glyphen-Kollisionen bei 16 px (drei "Kreise", drei "Ovale").
+- Pac-Man-Kiefer auf der Swallow-Karte: "an off-style meme icon".
+
+**Mobil:** Bisher unspielbar (Hover-Vorschau, feste Seitenleiste). Jetzt:
+Tippen/Wischen zeigt die Vorschau, nochmal bestätigt; Infos als Bottom-Sheet;
+und im Hochformat wird das 17×13-Brett um 90° gedreht dargestellt (Kacheln
+~40 % größer). Texte und Glyphen werden dabei per gepatchtem `fillText`
+zurückgedreht, Wischrichtungen umgerechnet — die Spiellogik merkt nichts davon.

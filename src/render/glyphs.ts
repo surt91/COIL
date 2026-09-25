@@ -340,13 +340,58 @@ Object.assign(glyphs, {
 /** Extra rotation applied to every glyph (the board sets this when it is drawn rotated). */
 export const glyphOpts = { rotation: 0 };
 
+Object.assign(glyphs, {
+  ouroboros(ctx: G, r: number) {
+    ctx.lineWidth *= 1.3;
+    ctx.beginPath();
+    ctx.arc(0, 0, 0.5 * r, 0.9, Math.PI * 2 - 0.1);
+    ctx.stroke();
+    // Head biting the tail.
+    ctx.beginPath();
+    ctx.ellipse(0.42 * r, 0.3 * r, 0.26 * r, 0.18 * r, 0.9, 0, Math.PI * 2);
+    ctx.fill();
+  },
+  hood(ctx: G, r: number) {
+    // Flared cobra hood silhouette.
+    ctx.beginPath();
+    ctx.moveTo(-0.15 * r, -0.7 * r);
+    ctx.lineTo(0.15 * r, -0.7 * r);
+    ctx.quadraticCurveTo(0.75 * r, -0.2 * r, 0.25 * r, 0.7 * r);
+    ctx.lineTo(-0.25 * r, 0.7 * r);
+    ctx.quadraticCurveTo(-0.75 * r, -0.2 * r, -0.15 * r, -0.7 * r);
+    ctx.fill();
+  },
+  wide(ctx: G, r: number) {
+    ctx.beginPath();
+    ctx.moveTo(-0.7 * r, 0);
+    ctx.lineTo(0.7 * r, 0);
+    ctx.moveTo(-0.4 * r, -0.3 * r);
+    ctx.lineTo(-0.7 * r, 0);
+    ctx.lineTo(-0.4 * r, 0.3 * r);
+    ctx.moveTo(0.4 * r, -0.3 * r);
+    ctx.lineTo(0.7 * r, 0);
+    ctx.lineTo(0.4 * r, 0.3 * r);
+    ctx.stroke();
+  },
+  muscle(ctx: G, r: number) {
+    // Flexed coil: two stacked filled lobes.
+    ctx.beginPath();
+    ctx.ellipse(-0.2 * r, 0.1 * r, 0.35 * r, 0.42 * r, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(0.3 * r, -0.2 * r, 0.25 * r, 0.3 * r, 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  },
+});
+
 export function drawGlyph(ctx: G, key: string, x: number, y: number, r: number, color: string) {
   ctx.save();
   ctx.translate(x, y);
   if (glyphOpts.rotation) ctx.rotate(glyphOpts.rotation);
   ctx.fillStyle = color;
   ctx.strokeStyle = color;
-  ctx.lineWidth = Math.max(1.5, r * 0.18);
+  // Thicker strokes at small sizes so glyphs stay legible at 16 px.
+  ctx.lineWidth = r < 8 ? Math.max(1.6, r * 0.26) : Math.max(1.5, r * 0.18);
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   (glyphs[key] ?? glyphs.shed)(ctx, r);
