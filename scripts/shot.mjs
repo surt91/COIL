@@ -1,10 +1,14 @@
 // Usage: node scripts/shot.mjs <url> <out.png> [actions...]
-// actions: key:ArrowUp  wait:200  click:x,y  eval:js  shot:name.png
-import { chromium } from 'playwright';
+// actions: key:ArrowUp  wait:200  click:x,y  tap:x,y  eval:js  shot:name.png
+// env: W/H viewport (default 1400x900); MOBILE=1 emulates an iPhone 13 (touch).
+import { chromium, devices } from 'playwright';
 
 const [url, out, ...actions] = process.argv.slice(2);
 const browser = await chromium.launch({ executablePath: '/usr/bin/chromium' });
-const page = await browser.newPage({ viewport: { width: Number(process.env.W ?? 1400), height: Number(process.env.H ?? 900) } });
+const context = process.env.MOBILE
+  ? await browser.newContext({ ...devices['iPhone 13'] })
+  : await browser.newContext({ viewport: { width: Number(process.env.W ?? 1400), height: Number(process.env.H ?? 900) } });
+const page = await context.newPage();
 const logs = [];
 page.on('console', (m) => logs.push(`[${m.type()}] ${m.text()}`));
 page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`));
@@ -16,6 +20,7 @@ for (const a of actions) {
   if (kind === 'key') await page.keyboard.press(arg);
   else if (kind === 'wait') await page.waitForTimeout(Number(arg));
   else if (kind === 'click') { const [x, y] = arg.split(',').map(Number); await page.mouse.click(x, y); }
+  else if (kind === 'tap') { const [x, y] = arg.split(',').map(Number); await page.touchscreen.tap(x, y); }
   else if (kind === 'eval') console.log('eval:', JSON.stringify(await page.evaluate(arg)));
   else if (kind === 'shot') await page.screenshot({ path: arg });
   await page.waitForTimeout(60);

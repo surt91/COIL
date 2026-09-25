@@ -39,6 +39,10 @@ Explain the reasoning when doing so.
   | `art-critic` | after visual changes (uses `?gallery`) |
   | `code-guardian` | every few larger features, or before refactors |
   Keep the roster small: every role answers one distinct question.
+- **Skills** (`.claude/skills/`) for recurring procedures: `ship` (verify →
+  commit → push → confirm deploy), `look` (screenshots incl. phone and
+  `?gallery`), `balance-check` (bot runs vs. targets), `add-content` (checklist
+  for items/enemies/events/…), `devlog` (entry format).
 - **Three kinds of testing, three kinds of bugs:**
   - `npm test` (Vitest): rule tests, fuzzing over all encounters/events,
     invariants. Must stay green.
@@ -61,9 +65,18 @@ Explain the reasoning when doing so.
 `src/core` is a pure deterministic engine (`step(fight, action) → fight`,
 seeded RNG in the state): previews, undo, saves, bots and tests all rely on
 that — keep it pure. Content is data in `src/content` (items, upgrades,
-enemies, charms, events, layouts, encounters, species). Rendering
+enemies, charms, events, layouts, encounters, species); enemy brains share
+`src/content/ai.ts`. Anything about "is this enemy coiled / wrapped" must go
+through `coiledEnemies` / `isWrapped` in `src/core/coil.ts` (one source of
+truth — copies drifted apart before). Rendering
 (`src/render`) only reads state and events. UI in `src/ui`, synthesized audio
 in `src/audio`.
+
+## Platforms
+
+Desktop (keyboard + mouse, hover previews) and phones (tap/swipe to preview,
+again to confirm; the board is drawn rotated in portrait). Check both when
+touching UI.
 
 ## Style
 
