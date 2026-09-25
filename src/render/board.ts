@@ -272,7 +272,7 @@ export class BoardRenderer {
         this.burst(e.at, '#6d5a4f', 14, 2.5);
         break;
       case 'msg':
-        this.float(f.snake.body[0], e.text, '#fff');
+        this.float(f.snake.body[0], e.text, e.text === 'riposte!' ? PAL.danger : '#fff');
         break;
     }
   }
@@ -647,7 +647,7 @@ export class BoardRenderer {
     ctx.translate(X, Y);
     if (this.rotated) ctx.rotate(-Math.PI / 2);
     this.textUpright = false;
-    if (e.maxHp <= 6) {
+    if (e.maxHp <= 4) {
       for (let i = 0; i < e.maxHp; i++) {
         ctx.fillStyle = i < e.hp ? '#f1faee' : 'rgba(255,255,255,0.18)';
         ctx.beginPath();
@@ -1004,10 +1004,10 @@ export class BoardRenderer {
       const t = fl.life / fl.max;
       ctx.globalAlpha = Math.max(0, 1 - t * t);
       ctx.fillStyle = fl.color;
-      ctx.font = `bold ${Math.round(T * (fl.big ? 0.6 : 0.32))}px system-ui, sans-serif`;
+      ctx.font = `bold ${Math.round(T * (fl.big ? 0.6 : 0.4))}px system-ui, sans-serif`;
       ctx.textAlign = 'center';
-      ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+      ctx.lineWidth = 4;
       const X = this.cx(fl.x), Y = this.cy(fl.y) - T * 0.3 - t * T * (fl.big ? 0.3 : 0.8);
       ctx.strokeText(fl.text, X, Y);
       ctx.fillText(fl.text, X, Y);
