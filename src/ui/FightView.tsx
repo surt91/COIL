@@ -330,6 +330,7 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
         )}
         {(f.snake.segs.length === 0 || (f.breath ?? BREATH) < BREATH) && (
           <div class={`hud-stat breath ${f.snake.segs.length === 0 ? 'warn' : ''}`} title="Breath: every turn with nothing behind your head costs one, for the whole fight. None left: you die.">
+            <span class="breath-label">breath</span>
             {Array.from({ length: BREATH }, (_, i) => <span class={`pip ${i < (f.breath ?? BREATH) ? 'on' : ''}`} />)}
           </div>
         )}

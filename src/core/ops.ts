@@ -174,7 +174,8 @@ export function hitSnake(f: Fight, bi: number, dmg: number, source: Enemy | null
   }
   const k = bi - 1;
   if (k >= s.segs.length) return;
-  if (opts.sever) {
+  // While you are still emerging, a sever only bites: what is left in the burrow can't be cut off.
+  if (opts.sever && pending(f) === 0) {
     const it = s.segs[k].item;
     if (it && item(it).onHit?.(f, k, source)) return;
     return sever(f, k);

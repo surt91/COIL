@@ -605,29 +605,6 @@ export class BoardRenderer {
         ctx.strokeStyle = col;
         ctx.lineWidth = 2;
         for (const t of it.tiles) ctx.strokeRect(this.ox + t.x * T + 2, this.oy + t.y * T + 2, T - 4, T - 4);
-        if (it.lunge) {
-          // A snake's lunge: a chevron from its head into the tile (and ✂ if it severs).
-          const t = it.tiles[0];
-          const ax = this.cx(e.pos.x), ay = this.cy(e.pos.y), bx = this.cx(t.x), by = this.cy(t.y);
-          const mx = (ax + bx) / 2, my = (ay + by) / 2, ux = (bx - ax) / T, uy = (by - ay) / T;
-          ctx.save();
-          ctx.globalAlpha = pulse + 0.1;
-          ctx.fillStyle = col;
-          ctx.beginPath();
-          ctx.moveTo(mx + ux * T * 0.14, my + uy * T * 0.14);
-          ctx.lineTo(mx - ux * T * 0.08 - uy * T * 0.13, my - uy * T * 0.08 + ux * T * 0.13);
-          ctx.lineTo(mx - ux * T * 0.08 + uy * T * 0.13, my - uy * T * 0.08 - ux * T * 0.13);
-          ctx.closePath();
-          ctx.fill();
-          if (it.sever) {
-            ctx.font = `bold ${Math.round(T * 0.34)}px system-ui, sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('✂', bx + T * 0.28, by - T * 0.28);
-            ctx.textBaseline = 'alphabetic';
-          }
-          ctx.restore();
-        }
       } else if (it.t === 'web') {
         ctx.strokeStyle = 'rgba(225, 230, 235, 0.7)';
         ctx.setLineDash([4, 4]);
@@ -875,6 +852,53 @@ export class BoardRenderer {
         }
         continue;
       }
+      if (it0.t === 'strike' && it0.lunge) {
+        // A snake's lunge, drawn over your body (the tile usually holds a segment): corner
+        // brackets on the tile, a chevron from its head, ✂ beside the tile if it severs.
+        const col = this.willMiss(f, e) ? MISS : PAL.danger;
+        const t = it0.tiles[0], last = it0.tiles[it0.tiles.length - 1];
+        const ax = this.cx(e.pos.x), ay = this.cy(e.pos.y), bx = this.cx(t.x), by = this.cy(t.y);
+        const ux = Math.sign(bx - ax), uy = Math.sign(by - ay);
+        const pulse = 0.75 + 0.25 * Math.sin(now / 140);
+        ctx.save();
+        ctx.globalAlpha = pulse;
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 3;
+        for (const q of it0.tiles) {
+          const x0 = this.ox + q.x * T + 3, y0 = this.oy + q.y * T + 3, s = T - 6, c = T * 0.28;
+          ctx.beginPath();
+          for (const [cx, cy, dx, dy] of [[x0, y0, 1, 1], [x0 + s, y0, -1, 1], [x0, y0 + s, 1, -1], [x0 + s, y0 + s, -1, -1]]) {
+            ctx.moveTo(cx + dx * c, cy);
+            ctx.lineTo(cx, cy);
+            ctx.lineTo(cx, cy + dy * c);
+          }
+          ctx.stroke();
+        }
+        // Chevron on the edge between its head and the first tile.
+        const mx = (ax + bx) / 2, my = (ay + by) / 2, k = T * 0.22;
+        ctx.fillStyle = col;
+        ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(mx + ux * k, my + uy * k);
+        ctx.lineTo(mx - ux * k * 0.6 - uy * k, my - uy * k * 0.6 + ux * k);
+        ctx.lineTo(mx - ux * k * 0.6 + uy * k, my - uy * k * 0.6 - ux * k);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        if (it0.sever) {
+          ctx.font = `bold ${Math.round(T * 0.4)}px system-ui, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.lineWidth = 3;
+          const sx = this.cx(last.x) + ux * T * 0.75, sy = this.cy(last.y) + uy * T * 0.75;
+          ctx.strokeText('✂', sx, sy);
+          ctx.fillText('✂', sx, sy);
+          ctx.textBaseline = 'alphabetic';
+        }
+        ctx.restore();
+        continue;
+      }
       if (it0.t === 'emerge') {
         this.hatch([it0.at], PAL.danger, 0.7, now);
         ctx.strokeStyle = PAL.danger;
@@ -1079,7 +1103,7 @@ export class BoardRenderer {
       ctx.save();
       for (let i = 0; i < BREATH; i++) {
         const a = -Math.PI / 2 + (i / BREATH) * Math.PI * 2;
-        const x = h.x + Math.cos(a) * T * 0.62, y = h.y + Math.sin(a) * T * 0.62;
+        const x = h.x + Math.cos(a) * T * 0.82, y = h.y + Math.sin(a) * T * 0.82;
         ctx.beginPath();
         ctx.arc(x, y, T * 0.095, 0, Math.PI * 2);
         if (i < left) {

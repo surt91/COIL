@@ -652,7 +652,7 @@ function lunge(f: Fight, e: Enemy, tiles: Pos[], dmg: number, sever: boolean): f
     }
     ops.emit(f, { t: 'strike', enemy: e.id, tiles: [{ ...at }] });
     ops.hitSnake(f, bi, dmg, e, { sever });
-    if (!enemyDef(e.kind).boss) e.mem.recoil = 1;
+    e.mem.recoil = 1;
     return false;
   }
   if (ops.freeForEnemy(f, tiles[0])) ops.moveEnemy(f, e, tiles[0]);
