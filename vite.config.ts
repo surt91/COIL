@@ -6,5 +6,7 @@ export default defineConfig({
   plugins: [preact()],
   test: {
     include: ['tests/**/*.test.ts'],
+    // The content fuzzers take seconds locally and longer on CI runners.
+    testTimeout: 60000,
   },
 });
