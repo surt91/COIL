@@ -28,7 +28,7 @@ export interface ShopSlot { item: ItemId; price: number; sold: boolean }
 export type Screen =
   | { t: 'map' }
   | { t: 'fight'; node: number; encounter: string; layout: string; fight: Fight; mods?: string[]; arcStart?: number }
-  | { t: 'reward'; options: ItemId[]; skipFlesh: number; title: string; charms?: string[]; charmTaken?: boolean; itemTaken?: boolean }
+  | { t: 'reward'; options: ItemId[]; skipFlesh: number; title: string; charms?: string[]; charmTaken?: boolean; itemTaken?: boolean; boss?: boolean }
   | { t: 'pool'; stock: ShopSlot[]; removePrice: number; removed: boolean; charm?: { id: string; price: number; sold: boolean }; moltPrice?: number; molted?: boolean }
   | { t: 'bask'; done: boolean }
   | { t: 'event'; id: string; result: string | null }
@@ -42,6 +42,11 @@ export interface RunStats {
   eaten: number;
   coilKills: number;
   lostSegments: number;
+  poisonKills?: number;
+  biteKills?: number;
+  absorbed?: number;
+  /** Plays per item id (base id, molted counts as its base). */
+  played?: Record<string, number>;
 }
 
 /** Ascension-style difficulty levels ("Depths"), cumulative. */
@@ -89,6 +94,8 @@ export interface RunState {
   bossBonus?: number;
   /** Ledger of the last cleared room (shown on the reward screen). */
   lastRoom?: { played: number; wasted: number; regrown: number; kept: number; body: number; fleshLost?: number };
+  /** Profile snapshot when the run began (UI only: what did this run earn?). */
+  meta?: { unlocksBefore: string[]; bestBefore?: number; moltUnlockedBefore: number };
 }
 
 export const MAP_ROWS = 10; // rows 0..8 regular, row 9 boss
@@ -117,6 +124,10 @@ export function drawArc(run: RunState): { items: ItemId[]; start: number } {
   const start = int(run.rng, 0, n - 1);
   return { items: Array.from({ length: d }, (_, i) => run.genome[(start + i) % n]), start };
 }
+
+/** Progress as one number: 10 per act plus the map row (30 = victory). */
+export const progressOf = (run: RunState) =>
+  run.screen.t === 'victory' ? 30 : run.act * MAP_ROWS + (run.at !== null ? run.map[run.at].row : 0);
 
 /** Genome indices of the arc that grew on you this room (in body order). */
 export const arcIndices = (run: RunState, start: number) =>
@@ -361,6 +372,7 @@ export function finishFight(prev: RunState, fight: Fight): RunState {
       options: rollItems(run.rng, 3, 'boss'),
       skipFlesh: 6,
       title: `${ACT_NAMES[run.act]} conquered — descend`,
+      boss: true,
       charms: rollCharms(run, 'boss', 2),
     };
     run.act++;
@@ -391,6 +403,14 @@ export function recordEvents(prev: RunState, events: Fight['events']): RunState 
     if (e.t === 'enemyDie') {
       stats.kills++;
       if (lastCause === 'crush') stats.coilKills++;
+      if (lastCause === 'poison') stats.poisonKills = (stats.poisonKills ?? 0) + 1;
+      if (lastCause === 'bite') stats.biteKills = (stats.biteKills ?? 0) + 1;
+      changed = true;
+    }
+    if (e.t === 'absorb') { stats.absorbed = (stats.absorbed ?? 0) + 1; changed = true; }
+    if (e.t === 'play') {
+      const id = ITEMS.get(e.item)?.base ?? e.item;
+      stats.played = { ...stats.played, [id]: (stats.played?.[id] ?? 0) + 1 };
       changed = true;
     }
     if (e.t === 'eat') { stats.eaten++; changed = true; }

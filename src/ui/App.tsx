@@ -4,7 +4,7 @@ import { LAYOUTS } from '../content/layouts';
 import { createFight } from '../core/fight';
 import { MOLTS, RunState, createRun, fleshCap, finishFight, recordEvents, updateFight } from '../core/run';
 import { seedFromString } from '../core/rng';
-import { loadProfile, loadRun, recordRun, saveRun, todayKey, unlock } from '../save/storage';
+import { loadProfile, loadRun, markSpeciesSeen, recordRun, saveRun, todayKey, unlock } from '../save/storage';
 import { Codex } from './Codex';
 import { Gallery } from './Gallery';
 import { SPECIES } from '../content/species';
@@ -20,6 +20,11 @@ export function App() {
 
   const setRun = (r: RunState | null) => {
     const prev = runRef.current;
+    if (r && !r.meta) {
+      // Remember where the profile stood, so the end screen can show what this run earned.
+      const p = loadProfile();
+      r = { ...r, meta: { unlocksBefore: [...p.unlocks], bestBefore: p.best ?? 0, moltUnlockedBefore: p.moltUnlocked } };
+    }
     runRef.current = r;
     setRunState(r);
     saveRun(r);
@@ -113,7 +118,14 @@ export function App() {
       break;
     case 'victory':
     case 'dead':
-      body = <EndScreen run={run} onDone={() => setRun(null)} />;
+      body = (
+        <EndScreen
+          run={run}
+          onDone={() => setRun(null)}
+          onAgain={() => setRun(createRun(Math.floor(Math.random() * 2 ** 31), run.daily ? 0 : run.molt, undefined, run.daily ? 'garden' : run.species))}
+          onDaily={loadProfile().dailies[todayKey()] ? undefined : () => setRun(createRun(seedFromString(`coil-daily-${todayKey()}`), 0, todayKey()))}
+        />
+      );
       break;
   }
   return <>{body}{muteBtn}</>;
@@ -129,6 +141,7 @@ function Title({ onStart }: { onStart(r: RunState): void }) {
   const [species, setSpecies] = useState('garden');
   const start = () => {
     uiClick();
+    markSpeciesSeen(species);
     const s = seed.trim();
     onStart(createRun(s ? (/^\d+$/.test(s) ? Number(s) : seedFromString(s)) : Math.floor(Math.random() * 2 ** 31), molt, undefined, species));
   };
@@ -158,6 +171,7 @@ function Title({ onStart }: { onStart(r: RunState): void }) {
           const c = CHARMS.get(sp.charm);
           return (
             <button class={`card species-card ${species === sp.id ? 'selected' : ''} ${ok ? '' : 'disabled'}`} style={{ '--c': sp.color }} onClick={() => ok && setSpecies(sp.id)}>
+              {ok && sp.unlock && !(profile.seenSpecies ?? []).includes(sp.id) && <span class="new-ribbon">NEW</span>}
               <div class="card-top">{c && <GlyphIcon glyph={c.glyph} color={sp.color} size={26} />}<span class="card-name">{sp.name}</span></div>
               <div class="card-text">{ok ? sp.text : `Locked — ${sp.unlockText}`}</div>
               {ok && c && <div class="card-passive">{c.text}</div>}

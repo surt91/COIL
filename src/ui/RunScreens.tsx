@@ -3,14 +3,21 @@ import { stinger, uiClick } from '../audio/audio';
 import { EVENTS } from '../content/events';
 import { CHARMS, ITEMS, item } from '../core/registry';
 import {
-  ACT_NAMES, BASK_FLESH, MAP_COLS, MOLTS, MAP_ROWS, NodeKind, RunState, Screen,
+  ACT_NAMES, BASK_FLESH, MAP_COLS, MOLTS, MAP_ROWS, NodeKind, RunState, Screen, progressOf,
   bask, buy, buyCharm, canUpgrade, arcIndices, describeNextFight, enterNode, eventChoice, fleshCap, genomeDraw, moveGenome, reachable, removeItem, takeCharm, takeReward, toMap, upgradeItem,
 } from '../core/run';
 import type { ItemId } from '../core/types';
+import { epithetOf, loadProfile } from '../save/storage';
 import { CardArt } from './CardArt';
 import { GlyphIcon } from './GlyphIcon';
 
 type SetRun = (r: RunState) => void;
+
+const SPECIES_GOALS = [
+  { unlock: 'act1', species: 'Viper', goal: 'defeat the Mongoose to wake the Viper', stirs: 'A new species stirs: the Viper. Short and venomous — pick it on the title screen next run.' },
+  { unlock: 'act2', species: 'Python', goal: 'defeat the Ant Queen to wake the Python', stirs: 'A new species stirs: the Python. Long and heavy — pick it on the title screen next run.' },
+  { unlock: 'victory', species: 'Ouroboros', goal: 'win a run to wake the Ouroboros', stirs: 'The Ouroboros wakes. It feeds on its own husks — pick it on the title screen next run.' },
+];
 
 export function ItemCard({ id, onClick, footer, disabled, compact }: {
   id: ItemId; onClick?: () => void; footer?: preact.ComponentChildren; disabled?: boolean; compact?: boolean;
@@ -265,6 +272,7 @@ export function RewardScreen({ run, setRun, screen }: { run: RunState; setRun: S
   return (
     <div class="screen center-screen">
       <h2>{screen.title}</h2>
+      {screen.boss && run.meta && SPECIES_GOALS.filter((g) => g.unlock === (run.act >= 2 ? 'act2' : 'act1') && !run.meta!.unlocksBefore.includes(g.unlock)).map((g) => <p class="unlock-banner">{g.stirs}</p>)}
       <p class="dim">Choose an item to add to your genome. It will grow on your body in every room from now on.</p>
       {run.lastRoom && (
         <div class="ledger">
@@ -428,28 +436,88 @@ export function EventScreen({ run, setRun, screen }: { run: RunState; setRun: Se
   );
 }
 
-export function EndScreen({ run, onDone }: { run: RunState; onDone: () => void }) {
+
+const placeText = (p: number) => (p >= 30 ? 'victory' : `Act ${Math.floor(p / MAP_ROWS) + 1}, ${p % MAP_ROWS === MAP_ROWS - 1 ? 'the boss' : `room ${(p % MAP_ROWS) + 1}`}`);
+
+export function EndScreen({ run, onDone, onAgain, onDaily }: { run: RunState; onDone: () => void; onAgain: () => void; onDaily?: () => void }) {
   const s = run.stats;
   const won = run.screen.t === 'victory';
+  const profile = loadProfile();
+  const meta = run.meta;
+  const prog = progressOf(run);
+  const bestBefore = meta?.bestBefore ?? 0;
+  const record = !!meta && prog > bestBefore && prog > 0;
+  const newUnlocks = meta ? SPECIES_GOALS.filter((g) => profile.unlocks.includes(g.unlock) && !meta.unlocksBefore.includes(g.unlock)) : [];
+  const newDepth = meta && profile.moltUnlocked > meta.moltUnlockedBefore ? profile.moltUnlocked : null;
+  const nextSpecies = SPECIES_GOALS.find((g) => !profile.unlocks.includes(g.unlock));
+  const next = nextSpecies
+    ? `Next: ${nextSpecies.goal}.`
+    : profile.moltUnlocked < MOLTS.length
+      ? profile.moltUnlocked < MOLTS.length - 1
+        ? `Next: win at Depth ${profile.moltUnlocked} to open Depth ${profile.moltUnlocked + 1} — ${MOLTS[profile.moltUnlocked + 1]}`
+        : `Next: win at Depth ${profile.moltUnlocked}, the bottom.`
+      : 'You have reached the bottom.';
+  const ep = epithetOf(run);
+  const node = run.at !== null ? run.map[run.at] : null;
+  const where = node ? `Act ${run.act + 1} · ${ACT_NAMES[run.act]}, ${node.row === MAP_ROWS - 1 ? 'the boss' : `room ${node.row + 1}`}` : '';
+  const again = () => { uiClick(); onAgain(); };
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => { if (e.key === 'Enter') again(); };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, []);
+  const cause = run.screen.t === 'dead' ? run.screen.cause : '';
   return (
-    <div class="screen center-screen">
+    <div class="screen center-screen end-screen">
       <h1 class={won ? 'win' : 'lose'}>{won ? 'The circle is complete' : 'Your coil unwinds'}</h1>
-      {won && <p>You devoured the Ouroboros. {(run.molt ?? 0) + 1 < MOLTS.length ? `Depth ${(run.molt ?? 0) + 1} unlocked: ${MOLTS[(run.molt ?? 0) + 1]}` : 'You have reached the bottom.'}</p>}
-      {run.screen.t === 'dead' && <p>Killed by <b>{run.screen.cause}</b> in {run.screen.where}.</p>}
-      <table class="stats">
-        <tbody>
-          <tr><td>Rooms cleared</td><td>{s.rooms}</td></tr>
-          <tr><td>Enemies killed</td><td>{s.kills}</td></tr>
-          <tr><td>…of those crushed in coils</td><td>{s.coilKills}</td></tr>
-          <tr><td>Things eaten</td><td>{s.eaten}</td></tr>
-          <tr><td>Segments lost</td><td>{s.lostSegments}</td></tr>
-          <tr><td>Turns</td><td>{s.turns}</td></tr>
-          <tr><td>Seed</td><td>{run.seed}</td></tr>
-          <tr><td>Depth</td><td>{run.molt ?? 0}</td></tr>
-        </tbody>
-      </table>
-      <GenomePanel run={run} />
-      <button class="btn primary" onClick={onDone}>Back to title</button>
+      {won && <p>You devoured the Ouroboros.</p>}
+      {won && meta && !meta.unlocksBefore.includes('victory') && <p class="unlock-banner">{SPECIES_GOALS[2].stirs}</p>}
+      {run.screen.t === 'dead' && (
+        <p>{cause === 'starvation' ? <>You <b>starved</b></> : cause === 'stalled' ? <>You <b>ran out of time</b></> : <>Killed by <b>{cause}</b></>} in {run.screen.where}{where ? ` — ${where}` : ''}.</p>
+      )}
+      {meta && (record
+        ? <p class="record">Deepest yet: {placeText(prog)}{bestBefore > 0 ? ` (previous best: ${placeText(bestBefore)})` : ''}.</p>
+        : <p class="dim">Your best: {placeText(profile.best ?? prog)}.</p>)}
+      {(newUnlocks.length > 0 || newDepth !== null) && (
+        <div class="earned">
+          {newUnlocks.map((g) => <span class="earn-chip">Unlocked: {g.species}</span>)}
+          {newDepth !== null && <span class="earn-chip">Depth {newDepth} unlocked: {MOLTS[newDepth]?.split(':')[0]}</span>}
+        </div>
+      )}
+      <div class="milestones">
+        {SPECIES_GOALS.map((g) => {
+          const ok = profile.unlocks.includes(g.unlock);
+          return <span class={`ms ${ok ? 'ok' : nextSpecies === g ? 'next' : ''}`} title={ok ? `${g.species} unlocked` : g.goal}>{g.species}</span>;
+        })}
+        {MOLTS.slice(1).map((m, i) => {
+          const d = i + 1;
+          const ok = profile.moltUnlocked >= d;
+          return <span class={`ms depth ${ok ? 'ok' : !nextSpecies && profile.moltUnlocked + 1 === d ? 'next' : ''}`} title={`Depth ${d}: ${m}`}>{d}</span>;
+        })}
+      </div>
+      <p class="next-goal">{next}</p>
+      {ep && <p class="epithet">You fought like <b>{ep.name}</b> — {ep.why}.</p>}
+      <div class="title-buttons">
+        <button class="btn primary" onClick={again}>Shed your skin and go again <kbd>Enter</kbd></button>
+        {onDaily && <button class="btn" onClick={() => { uiClick(); onDaily(); }}>Try today’s Daily</button>}
+        <button class="btn" onClick={() => { uiClick(); onDone(); }}>Back to title</button>
+      </div>
+      <details class="end-details">
+        <summary>Run details</summary>
+        <table class="stats">
+          <tbody>
+            <tr><td>Rooms cleared</td><td>{s.rooms}</td></tr>
+            <tr><td>Enemies killed</td><td>{s.kills}</td></tr>
+            <tr><td>…of those crushed in coils</td><td>{s.coilKills}</td></tr>
+            <tr><td>Things eaten</td><td>{s.eaten}</td></tr>
+            <tr><td>Segments lost</td><td>{s.lostSegments}</td></tr>
+            <tr><td>Turns</td><td>{s.turns}</td></tr>
+            <tr><td>Seed</td><td>{run.seed}</td></tr>
+            <tr><td>Depth</td><td>{run.molt ?? 0}</td></tr>
+          </tbody>
+        </table>
+        <GenomePanel run={run} />
+      </details>
     </div>
   );
 }
