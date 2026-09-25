@@ -446,7 +446,7 @@ p.small { font-size: 13px; margin-top: -8px; }
 .pips i.over { opacity: 0.4; }
 .hud-items { gap: 2px; }
 .hud-item { display: inline-flex; border-radius: 50%; transition: opacity 0.3s; }
-.hud-item.spent { opacity: 0.22; filter: grayscale(1); }
+.hud-item.spent { opacity: 0.3; filter: grayscale(1); }
 .hud-item.temp { outline: 1px dashed rgba(255, 255, 255, 0.4); outline-offset: 1px; }
 .hud-return { color: var(--dim); margin-left: 2px; }
 .hud-bonus { color: #ff9fb2; font-size: 12px; }
@@ -481,3 +481,13 @@ p.small { font-size: 13px; margin-top: -8px; }
 .map-legend .k-fight { --k: #9aa8b8; } .map-legend .k-elite { --k: #e07a3f; } .map-legend .k-nest { --k: var(--gold); }
 .map-legend .k-pool { --k: #4cc9f0; } .map-legend .k-bask { --k: #f4a261; } .map-legend .k-event { --k: #b8c0cc; } .map-legend .k-boss { --k: #ef476f; }
 b.flesh { color: #ff9fb2; }
+@media (max-width: 820px), (pointer: coarse) and (max-height: 520px) {
+  /* A fixed-height HUD: more items or a buff chip must not resize (or re-orient) the board. */
+  .hud { height: 58px; box-sizing: border-box; overflow: hidden; align-content: center; }
+  .hud-item .glyph { width: 17px !important; height: 17px !important; }
+  .hud .hud-bonus, .hand .temp-mark { display: none; }
+  .hand .card-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  /* A card that can't be played says why, in place of what it would do. */
+  .hand .card.blocked .card-text { display: none; }
+  .hand .card.blocked .card-why { display: block; white-space: normal; font-size: 10.5px; }
+}

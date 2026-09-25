@@ -613,3 +613,16 @@ Außerdem:
 - Der Belohnungsbildschirm ist kürzer.
 - Der Coil-Tipp drängelt sich jetzt vor.
 - Der Hand-Tipp wartet bis Zug 5, damit Raum 1 nicht vier Tipps in vier Zügen zeigt.
+
+**Nachtrag, Handy-Playtest.** Die Kinderstube funktioniert: *"Ich habe 'die Nische
+zu versiegeln hat ihn getötet' verstanden, ohne zu lesen."* Der schlimmste Fund war
+aber hausgemacht. Das neue Bilder-HUD bricht bei mehr Items in eine zweite Zeile um,
+die Brettfläche wird dadurch ein paar Pixel flacher, und der Renderer entscheidet die
+Drehung neu. *Das Brett kippte mitten im Elite-Kampf ins Hochformat.* Jetzt fällt die
+Drehung nur noch, wenn sich die Bildschirmausrichtung selbst ändert, und das HUD hat
+auf dem Handy eine feste Höhe. Außerdem:
+- Leere Coils versprechen in der Vorschau nichts mehr.
+- Eine gezielte, aber unspielbare Karte sagt nicht mehr "play it!".
+- Blockierte Karten nennen auf dem Handy den Grund.
+- Der Passivtext steht jetzt im Tipp-Popup.
+- Die Haut sieht aus wie Haut und nicht wie ein Knopf.

@@ -128,6 +128,7 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
     setSelected(null);
     setHint(null);
     setPending(null);
+    if (isTouch) setHover(null); // a tapped tile's preview ring must not outlive the action
     commit(next, endsTurn);
   }
 
@@ -344,6 +345,7 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
         {isTouch && pending === null && selected !== null && preview && (
           <div class="touch-confirm">
             <MoveHint f={f} dir={hoverDir} card={hoverDir === null} preview={preview} spent={ops.hand(f)[selected] !== undefined ? f.snake.segs[ops.hand(f)[selected]].uid : undefined} />
+            {item(f.snake.segs[ops.hand(f)[selected]].item!).passiveText && <div class="dim">◇ While carried: {item(f.snake.segs[ops.hand(f)[selected]].item!).passiveText}</div>}
             <div class="dim">Tap the card again to play it{item(f.snake.segs[ops.hand(f)[selected]].item!).active?.target === 'dir' ? ' — or pick a direction' : ''}</div>
           </div>
         )}
@@ -394,12 +396,12 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
               <div class="card-top">
                 <span class="key">{slot + 1}</span>
                 <GlyphIcon glyph={d.glyph} color={d.color} size={28} />
-                <span class="card-name">{d.name}{seg.temp ? ' ·temp' : ''}</span>
+                <span class="card-name">{d.name}{seg.temp && <span class="temp-mark"> ·temp</span>}</span>
               </div>
               {d.activeText && <div class="card-text">{d.activeText}</div>}
               {d.passiveText && <div class="card-passive" title={`While carried: ${d.passiveText}`}><span class="passive-mark">◇</span> {d.passiveText}</div>}
               {d.active?.move && <div class="card-tag">MOVE</div>}
-              {threatened && <div class="card-threat">Targeted — play it!</div>}
+              {threatened && <div class="card-threat">{playable ? 'Targeted — play it!' : 'Targeted!'}</div>}
               {!playable && d.active && <div class="card-why">{d.active.requires ?? (d.active.target === 'dir' ? 'No valid direction right now.' : 'Can’t be played right now.')}</div>}
               {!d.active && <div class="card-why">Passive — tuck (T) to cycle</div>}
             </button>

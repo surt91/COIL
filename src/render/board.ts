@@ -108,6 +108,8 @@ export class BoardRenderer {
   private textUpright = true;
   private rx = 0;
   private ry = 0;
+  /** Screen orientation the rotation was decided for (null: not decided yet). */
+  private portrait: boolean | null = null;
 
   private layout() {
     const f = this.shown;
@@ -115,7 +117,13 @@ export class BoardRenderer {
     const w = this.canvas.width / this.dpr, h = this.canvas.height / this.dpr;
     const flat = Math.floor(Math.min(w / f.w, h / f.h));
     const turned = Math.floor(Math.min(w / f.h, h / f.w));
-    this.rotated = f.w !== f.h && turned > flat * 1.15;
+    // Decide the rotation only when the screen itself turns: a HUD that grows by a
+    // line must not flip the board in the middle of a fight.
+    const portrait = h > w;
+    if (portrait !== this.portrait) {
+      this.portrait = portrait;
+      this.rotated = f.w !== f.h && turned > flat * 1.15;
+    }
     if (this.rotated) {
       this.T = turned;
       this.ox = 0;
@@ -461,7 +469,7 @@ export class BoardRenderer {
   private drawCoils(f: Fight, now: number) {
     const coils = computeCoils(f);
     const occupied = new Set(occupiedCoils(f, coils));
-    for (const c of coils) this.hatch(c.tiles, PAL.coil, occupied.has(c) ? 0.5 : 0.14, now);
+    for (const c of coils) if (occupied.has(c) || !f.cleared) this.hatch(c.tiles, PAL.coil, occupied.has(c) ? 0.5 : 0.14, now);
     if (this.pocket && !this.preview) this.hatch(this.pocket.tiles, PAL.coil, 0.1 + 0.06 * Math.sin(now / 300), now);
   }
 
@@ -505,18 +513,26 @@ export class BoardRenderer {
     }
     for (const hk of f.husks) {
       const X = this.cx(hk.pos.x), Y = this.cy(hk.pos.y);
-      ctx.fillStyle = '#3b4148';
-      ctx.strokeStyle = '#6c757d';
-      ctx.lineWidth = 2;
+      // A piece of shed skin: a pale, translucent body segment with its scale diamonds.
       ctx.beginPath();
-      ctx.arc(X, Y, T * 0.3, 0, Math.PI * 2);
+      ctx.roundRect(X - T * 0.4, Y - T * 0.24, T * 0.8, T * 0.48, T * 0.24);
+      ctx.fillStyle = 'rgba(214, 226, 220, 0.16)';
       ctx.fill();
+      ctx.strokeStyle = 'rgba(214, 226, 220, 0.6)';
+      ctx.lineWidth = 1.5;
       ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(X - T * 0.15, Y - T * 0.1);
-      ctx.lineTo(X, Y + T * 0.02);
-      ctx.lineTo(X + T * 0.12, Y - T * 0.14);
-      ctx.stroke();
+      ctx.strokeStyle = 'rgba(214, 226, 220, 0.45)';
+      ctx.lineWidth = 1;
+      for (const dx of [-0.2, 0, 0.2]) {
+        const cx = X + dx * T, s = T * 0.07;
+        ctx.beginPath();
+        ctx.moveTo(cx - s, Y);
+        ctx.lineTo(cx, Y - s * 1.4);
+        ctx.lineTo(cx + s, Y);
+        ctx.lineTo(cx, Y + s * 1.4);
+        ctx.closePath();
+        ctx.stroke();
+      }
       if (hk.item) {
         const d = ITEMS.get(hk.item);
         if (d) drawGlyph(ctx, d.glyph, X, Y + T * 0.05, T * 0.18, d.color);
@@ -983,7 +999,10 @@ export class BoardRenderer {
     const g = this.preview;
     if (!g) return;
     const ctx = this.ctx, T = this.T;
-    for (const c of computeCoils(g)) {
+    // Only coils that will hold or crush something: an empty enclosure promises nothing.
+    const crushedAt = g.events.flatMap((e) => (e.t === 'enemyHurt' && e.cause === 'crush' ? [e.at] : []));
+    const held = new Set(occupiedCoils(g));
+    for (const c of computeCoils(g).filter((cc) => held.has(cc) || cc.tiles.some((t) => crushedAt.some((p) => eq(p, t))))) {
       ctx.strokeStyle = PAL.coil;
       ctx.lineWidth = 2;
       ctx.setLineDash([4, 3]);
