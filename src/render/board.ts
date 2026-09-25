@@ -1,6 +1,6 @@
 import { coilDamage, coiledEnemies, computeCoils, occupiedCoils, touchCount } from '../core/coil';
 import { Dir, Pos, eq } from '../core/geom';
-import { bossExposed, hungerTarget, riposteTile, wrapMin } from '../core/fight';
+import { BREATH, bossExposed, hungerTarget, riposteTile, wrapMin } from '../core/fight';
 import { regrowFromPlayed } from '../core/run';
 import * as ops from '../core/ops';
 import { ENEMIES, ITEMS } from '../core/registry';
@@ -281,6 +281,9 @@ export class BoardRenderer {
         if (regrowFromPlayed(n) > regrowFromPlayed(n - 1)) this.float(f.snake.body[0], '+1♥ at room end', '#ff9fb2');
         break;
       }
+      case 'gasp':
+        this.float(e.at, e.left > 0 ? `${e.left} breath${e.left === 1 ? '' : 's'} left` : 'out of breath', '#f1faee');
+        break;
       case 'webbed':
         this.float(e.at, 'stuck!', '#d0c8ff');
         break;
@@ -1025,6 +1028,30 @@ export class BoardRenderer {
       ctx.strokeText(String(hungerLeft), t.x, t.y);
       ctx.fillText(String(hungerLeft), t.x, t.y);
       ctx.textBaseline = 'alphabetic';
+      ctx.restore();
+    }
+    // Last breaths: a bare head wears its remaining breaths as a ring of pips (white, not red:
+    // no one is hitting you, you are running out).
+    if (f.snake.segs.length === 0 && !f.cleared && f.status === 'play') {
+      const left = f.breath ?? BREATH;
+      const pl = 0.8 + 0.2 * Math.sin(now / 120);
+      ctx.save();
+      for (let i = 0; i < BREATH; i++) {
+        const a = -Math.PI / 2 + (i / BREATH) * Math.PI * 2;
+        const x = h.x + Math.cos(a) * T * 0.62, y = h.y + Math.sin(a) * T * 0.62;
+        ctx.beginPath();
+        ctx.arc(x, y, T * 0.095, 0, Math.PI * 2);
+        if (i < left) {
+          ctx.globalAlpha = pl;
+          ctx.fillStyle = '#f1faee';
+          ctx.fill();
+        } else {
+          ctx.globalAlpha = 0.35;
+          ctx.strokeStyle = '#f1faee';
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+        }
+      }
       ctx.restore();
     }
     // pending segments count at the burrow

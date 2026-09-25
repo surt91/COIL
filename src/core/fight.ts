@@ -56,6 +56,7 @@ export function createFight(spec: RoomSpec): Fight {
     snake: { body: [], segs: [], dir: 0 },
     turn: 0,
     hunger: 0,
+    breath: BREATH,
     cleared: false,
     status: 'play',
     tuckUsed: false,
@@ -453,6 +454,11 @@ function enemyPhase(f: Fight) {
   for (const e of f.enemies) {
     if (keep.has(e.id)) continue;
     e.intent = think(f, e);
+    if (e.mem.gulp) {
+      delete e.mem.gulp;
+      e.mem.swallowing = 1;
+      if (e.intent.t === 'lock') e.intent = { t: 'wait' };
+    } else delete e.mem.swallowing;
     delete e.mem.interrupted;
     if (e.mem.escaped) ops.emit(f, { t: 'msg', text: `${enemyDef(e.kind).name} escaped!` });
   }
@@ -575,6 +581,8 @@ function resolveIntent(f: Fight, e: Enemy): boolean {
       ops.emit(f, { t: 'strike', enemy: e.id, tiles: [p] });
       const bi = it.seg === 0 ? 0 : f.snake.segs.findIndex((s) => s.uid === it.seg) + 1;
       ops.hitSnake(f, bi, it.dmg, e, { sever: it.sever });
+      // A boss that bit a segment spends its next turn swallowing it: no grinding a body sliding past.
+      if (d.boss && bi > 0) e.mem.gulp = 1;
       return false;
     }
     case 'web': {
@@ -634,6 +642,9 @@ function neighborsRing(p: Pos): Pos[] {
   return out;
 }
 
+/** Bare-head turns allowed per fight (see upkeep). */
+export const BREATH = 6;
+
 /** A husk with this ttl never decays (layout skins, e.g. the Nursery plug). A number, so saves stay JSON. */
 export const HUSK_PERMANENT = 999;
 
@@ -652,10 +663,18 @@ function upkeep(f: Fight) {
   if (f.hunger >= f.opts.hungerEvery) {
     f.hunger = 0;
     const k = hungerTarget(f);
-    ops.emit(f, { t: 'hunger', at: f.snake.body[Math.min(k + 1, f.snake.body.length - 1)] });
-    if (k >= 0) ops.removeSeg(f, k, 'hunger');
-    else ops.kill(f, 'starvation');
-    if (f.status !== 'play') return;
+    // A bare head has nothing left to digest: its breath is already running out (below).
+    if (k >= 0) {
+      ops.emit(f, { t: 'hunger', at: f.snake.body[Math.min(k + 1, f.snake.body.length - 1)] });
+      ops.removeSeg(f, k, 'hunger');
+    }
+  }
+  // Last breaths: a bare head can dodge everything, so it may not linger. Eating ends
+  // the gasp, but spent breath never comes back (at most BREATH bare turns per fight).
+  if (f.snake.segs.length === 0 && !f.cleared) {
+    f.breath = (f.breath ?? BREATH) - 1;
+    ops.emit(f, { t: 'gasp', at: { ...f.snake.body[0] }, left: f.breath });
+    if (f.breath <= 0) return ops.kill(f, 'suffocation');
   }
 
   f.turn++;

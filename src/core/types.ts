@@ -88,6 +88,8 @@ export interface Fight {
   turn: number;
   /** Turns since the snake last ate. */
   hunger: number;
+  /** Breaths left this fight: each turn ending with no segments costs one; none left = death. (Absent in old saves = full.) */
+  breath?: number;
   cleared: boolean;
   status: FightStatus;
   tuckUsed: boolean;
@@ -148,6 +150,7 @@ export type GameEvent =
   | { t: 'webbed'; at: Pos }
   | { t: 'spawn'; enemy: number; at: Pos }
   | { t: 'hunger'; at: Pos }
+  | { t: 'gasp'; at: Pos; left: number }
   | { t: 'cleared' }
   | { t: 'exit' }
   | { t: 'death'; cause: string }

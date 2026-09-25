@@ -47,6 +47,8 @@ export function freeForEnemy(f: Fight, p: Pos, flies = false): boolean {
   const t = tileAt(f, p);
   if (t === Tile.Wall || t === Tile.Exit) return false;
   if (enemyAt(f, p)) return false;
+  // Nothing stands on a buried enemy's hole (it would surface into it).
+  if (f.enemies.some((o) => o.under && o.hp > 0 && eq(o.pos, p))) return false;
   if (!flies && (bodyIndexAt(f, p) >= 0 || huskAt(f, p) >= 0)) return false;
   if (flies && eq(p, f.snake.body[0])) return false;
   return true;

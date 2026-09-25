@@ -493,7 +493,7 @@ export function EndScreen({ run, onDone, onAgain, onDaily }: { run: RunState; on
       {won && <p>You devoured the Ouroboros.</p>}
       {won && meta && !meta.unlocksBefore.includes('victory') && <p class="unlock-banner">{SPECIES_GOALS[2].stirs}</p>}
       {run.screen.t === 'dead' && (
-        <p>{cause === 'starvation' ? <>You <b>starved</b></> : cause === 'stalled' ? <>You <b>ran out of time</b></> : <>Killed by <b>{cause}</b></>} in {run.screen.where}{where ? ` — ${where}` : ''}.</p>
+        <p>{cause === 'starvation' ? <>You <b>starved</b></> : cause === 'suffocation' ? <>You <b>ran out of breath</b></> : cause === 'stalled' ? <>You <b>ran out of time</b></> : <>Killed by <b>{cause}</b></>} in {run.screen.where}{where ? ` — ${where}` : ''}.</p>
       )}
       {meta && (record
         ? <p class="record">Deepest yet: {placeText(prog)}{bestBefore > 0 ? ` (previous best: ${placeText(bestBefore)})` : ''}.</p>

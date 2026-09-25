@@ -47,7 +47,7 @@ export function App() {
       r.at = r.map.find((n) => n.row === 0)!.id;
       r.screen = {
         t: 'fight', node: r.at, encounter: 'debug', layout: layout.id,
-        fight: createFight({ rows: layout.rows, genome: r.genome, flesh: r.flesh, seed: Number(params.get('seed') ?? 1), place: (params.get('enemies') ?? 'beetle').split(',').filter(Boolean) }),
+        fight: createFight({ rows: layout.rows, genome: params.has('genome') ? params.get('genome')!.split(',').filter(Boolean) : r.genome, flesh: Number(params.get('flesh') ?? r.flesh), seed: Number(params.get('seed') ?? 1), place: (params.get('enemies') ?? 'beetle').split(',').filter(Boolean) }),
       };
       setRun(r);
     } else if (params.has('seed')) {

@@ -3,7 +3,7 @@
  * Higher is better for the snake. Pure: never mutates the fight.
  */
 import { coilDamage, computeCoils } from '../core/coil';
-import { legalMoves } from '../core/fight';
+import { BREATH, legalMoves } from '../core/fight';
 import { Pos, chebyshev, key, manhattan, neighbors4 } from '../core/geom';
 import * as ops from '../core/ops';
 import { ENEMIES } from '../core/registry';
@@ -148,6 +148,8 @@ export function evaluate(f: Fight, w: Weights = DEFAULT_WEIGHTS): number {
   const s = f.snake;
   let v = 0;
   for (const sg of s.segs) v += segValue(sg, w);
+  // Spent breath never returns: each one is worth about a flesh.
+  v += w.flesh * (f.breath ?? BREATH);
   if (f.status === 'won') return WIN + v;
 
   // Enemies: remaining HP, count, poison that will tick. Once cleared, leftover minions don't matter.
@@ -181,7 +183,8 @@ export function evaluate(f: Fight, w: Weights = DEFAULT_WEIGHTS): number {
   if (f.food.length) {
     let dmin = Infinity;
     for (const p of f.food) dmin = Math.min(dmin, manhattan(p, h));
-    const left = f.opts.hungerEvery - f.hunger;
+    // A bare head's clock is its breath, not its hunger.
+    const left = s.segs.length ? f.opts.hungerEvery - f.hunger : Math.min(f.opts.hungerEvery - f.hunger, f.breath ?? BREATH);
     const tail = s.segs.length ? segValue(s.segs[s.segs.length - 1], w) : w.flesh * 4;
     const risk = Math.min(1, Math.max(0, (dmin - left + 3) / 4));
     const scarce = s.segs.length < 5 ? 1.5 : 0.4;

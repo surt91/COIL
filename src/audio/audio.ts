@@ -200,6 +200,10 @@ function playOne(ev: GameEvent, dt: number): void {
       return tone(55, 0.6, dt, { gain: 0.12, attack: 0.08 });
     case 'hunger':
       return sHunger(dt);
+    case 'gasp':
+      // A heartbeat that climbs as the breaths run out.
+      tone(60 + (6 - ev.left) * 8, 0.12, dt, { gain: 0.16, lp: 300 });
+      return tone(55 + (6 - ev.left) * 8, 0.14, dt + 0.16, { gain: 0.12, lp: 300 });
     case 'cleared':
       return sCleared(dt);
     case 'exit':

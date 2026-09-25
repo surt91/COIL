@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { coilDamage, coiledEnemies, computeCoils, occupiedCoils } from '../core/coil';
 import { coilWithin } from '../core/hints';
 import { regrowFromPlayed } from '../core/run';
-import { bossExposed, canPlay, legalMoves, moveOutcome, riposteTile, step, wrapMin } from '../core/fight';
+import { BREATH, bossExposed, canPlay, legalMoves, moveOutcome, riposteTile, step, wrapMin } from '../core/fight';
 import { DIRS, Dir, Pos, eq, step as stepPos } from '../core/geom';
 import * as ops from '../core/ops';
 import { ENEMIES, ITEMS, item } from '../core/registry';
@@ -328,6 +328,11 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
             {f.buffs.absorb > 0 && <span class="buff">Absorb ×{f.buffs.absorb}</span>}
           </div>
         )}
+        {(f.snake.segs.length === 0 || (f.breath ?? BREATH) < BREATH) && (
+          <div class={`hud-stat breath ${f.snake.segs.length === 0 ? 'warn' : ''}`} title="Breath: every turn with nothing behind your head costs one, for the whole fight. None left: you die.">
+            {Array.from({ length: BREATH }, (_, i) => <span class={`pip ${i < (f.breath ?? BREATH) ? 'on' : ''}`} />)}
+          </div>
+        )}
         <div class={`hud-stat hunger ${hungerLeft <= 3 ? 'warn' : ''}`} title="Hunger: when the meter runs out, you lose your tail. Eating refills it.">
           <span class="food-orb" />
           <span class="meter"><span style={{ width: `${(100 * Math.max(0, hungerLeft)) / f.opts.hungerEvery}%` }} /></span>
@@ -443,7 +448,7 @@ function describeAction(f: Fight, a: Action): string {
 function describeIntent(f: Fight, e: Enemy): string {
   const it = e.intent;
   switch (it.t) {
-    case 'wait': return e.held ? 'Held in your coil' : 'Waiting';
+    case 'wait': return e.held ? 'Held in your coil' : e.mem.swallowing ? 'Swallowing — it won’t bite this turn' : 'Waiting';
     case 'move': return `Moving ${dirName(it.dir)}${it.steps > 1 ? ` ×${it.steps}` : ''}`;
     case 'strike': return `Striking ${it.tiles.length} tile${it.tiles.length > 1 ? 's' : ''} for ${it.dmg}`;
     case 'lock': {

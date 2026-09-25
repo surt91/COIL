@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import '../src/content';
 import { computeCoils } from '../src/core/coil';
-import { createFight, legalMoves, step } from '../src/core/fight';
+import { BREATH, createFight, legalMoves, step } from '../src/core/fight';
 import { Dir, Pos, manhattan } from '../src/core/geom';
 import { hand } from '../src/core/ops';
 import { makeRng, pick } from '../src/core/rng';
@@ -234,6 +234,29 @@ describe('body is the deck', () => {
     for (const e of f.enemies) { e.pos = P(10, 6); e.intent = { t: 'wait' }; }
     for (let i = 0; i < 3; i++) f = step(f, { t: 'move', dir: i < 2 ? R : D });
     expect(f.snake.segs.length).toBe(0);
+  });
+
+  test('a bare head has BREATH turns per fight, and eating does not refill them', () => {
+    const bare = (food: Pos[] = []) => {
+      const f = createFight({ rows: open(14, 8), genome: [], flesh: 0, seed: 1, place: ['tortoise'], snake: { body: [P(2, 3)], items: [], dir: R }, opts: { minFood: 0, hungerEvery: 1000 } });
+      for (const e of f.enemies) { e.pos = P(12, 6); e.intent = { t: 'wait' }; }
+      f.food = food;
+      return f;
+    };
+    const loop: Dir[] = [R, D, L, U, R, D, L, U];
+    let f = bare();
+    for (let i = 0; i < BREATH - 1; i++) f = step(f, { t: 'move', dir: loop[i] });
+    expect(f.status).toBe('play');
+    expect(f.breath).toBe(1);
+    f = step(f, { t: 'move', dir: loop[BREATH - 1] });
+    expect(f.status).toBe('dead');
+    expect(f.events).toContainEqual({ t: 'death', cause: 'suffocation' });
+    // Food ends the gasp (a segment again), but the spent breath stays spent.
+    f = step(bare([P(4, 3)]), { t: 'move', dir: R });
+    expect(f.breath).toBe(BREATH - 1);
+    f = step(f, { t: 'move', dir: R });
+    expect(f.snake.segs.length).toBe(1);
+    expect(f.breath).toBe(BREATH - 1);
   });
 
   test('hunger stands still once the room is cleared', () => {

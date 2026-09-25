@@ -169,7 +169,9 @@ defineEnemy({
 function snakeThink(f: Fight, e: Enemy, opts: { sever: boolean; hunt: 'tail' | 'body' }): Intent {
   const s = f.snake;
   // Bite an adjacent segment (never the head: it prefers to cut you).
-  const adj = adjacentParts(f, e.pos).filter((x) => x.bi > 0);
+  // A bare head is fair game: otherwise it could circle the boss forever.
+  const parts = adjacentParts(f, e.pos);
+  const adj = f.snake.segs.length ? parts.filter((x) => x.bi > 0) : parts;
   if (adj.length) {
     const t = adj.sort((a, b) => a.bi - b.bi)[0];
     return { t: 'lock', seg: t.uid, dmg: 1, sever: opts.sever, windup: 1, reach: 1 };

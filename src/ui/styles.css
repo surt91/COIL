@@ -457,6 +457,10 @@ p.small { font-size: 13px; margin-top: -8px; }
 .hud-item.spent { opacity: 0.3; filter: grayscale(1); }
 .hud-item.temp { outline: 1px dashed rgba(255, 255, 255, 0.4); outline-offset: 1px; }
 .food-orb { width: 10px; height: 10px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 6px var(--gold); }
+.breath { display: inline-flex; gap: 3px; align-items: center; }
+.breath .pip { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid rgba(241, 250, 238, 0.5); }
+.breath .pip.on { background: #f1faee; border-color: #f1faee; }
+.breath.warn .pip.on { animation: hungry 0.9s ease-in-out infinite; }
 .hunger .meter { display: inline-block; width: 64px; height: 7px; border-radius: 4px; background: rgba(255, 209, 102, 0.14); overflow: hidden; }
 .hunger .meter span { display: block; height: 100%; background: var(--gold); transition: width 0.25s; }
 .hunger.warn .meter span { background: #f4a261; animation: hungry 0.9s ease-in-out infinite; }
