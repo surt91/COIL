@@ -9,7 +9,7 @@ import { hand } from '../src/core/ops';
 import { ENEMIES, ITEMS } from '../src/core/registry';
 import { makeRng, pick } from '../src/core/rng';
 import { coilWithin } from '../src/core/hints';
-import { PLAYED_REGROW_MAX, STARTER, createRun, enterNode, eventChoice, finishFight, generateMap, reachable, regrowFromPlayed, startFight, takeCharm, takeReward } from '../src/core/run';
+import { PLAYED_REGROW_MAX, STARTER, createRun, enterNode, eventChoice, finishFight, generateMap, reachable, regrowFromPlayed, rollItems, startFight, takeCharm, takeReward } from '../src/core/run';
 import type { Action, Fight } from '../src/core/types';
 
 const ALL_ITEMS = [...ITEMS.keys()].filter((k) => ITEMS.get(k)!.rarity !== 'signature');
@@ -233,4 +233,15 @@ test('room end regrows one flesh per two items played, capped', () => {
   const after = finishFight(run, f);
   expect(after.lastRoom?.regrown).toBe(1);
   expect(after.flesh).toBe(Math.min(body + 1, 8));
+});
+
+test('recently offered items come up less often', () => {
+  const r = makeRng(9);
+  const recent = rollItems(makeRng(1), 3, 'fight');
+  let again = 0, base = 0;
+  for (let i = 0; i < 2000; i++) {
+    again += rollItems(r, 3, 'fight', recent).filter((x) => recent.includes(x)).length;
+    base += rollItems(r, 3, 'fight').filter((x) => recent.includes(x)).length;
+  }
+  expect(again).toBeLessThan(base * 0.5);
 });

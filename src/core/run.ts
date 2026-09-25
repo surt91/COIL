@@ -96,6 +96,8 @@ export interface RunState {
   lastRoom?: { played: number; wasted: number; regrown: number; kept: number; body: number; fleshLost?: number };
   /** The previous fight's room (the next one differs). */
   lastLayout?: string;
+  /** Items offered on the last two reward/shop screens (they come up less often next). */
+  recentOffers?: ItemId[][];
   /** A player's very first run: the first easy fight is the Nursery (it teaches the coil). */
   teach?: boolean;
   /** Profile snapshot when the run began (UI only: what did this run earn?). */
@@ -359,10 +361,10 @@ export function enterNode(prev: RunState, nodeId: number): RunState {
     case 'boss':
       return startFight(run, nodeId, 'boss');
     case 'nest':
-      run.screen = { t: 'reward', options: rollItems(run.rng, 3, 'nest'), skipFlesh: 3, title: 'A nest of strange eggs' };
+      run.screen = { t: 'reward', options: offerItems(run, 3, 'nest'), skipFlesh: 3, title: 'A nest of strange eggs' };
       return run;
     case 'pool':
-      run.screen = { t: 'pool', stock: rollShop(run.rng), removePrice: 3, removed: false, moltPrice: MOLT_PRICE, molted: false };
+      run.screen = { t: 'pool', stock: rollShop(run), removePrice: 3, removed: false, moltPrice: MOLT_PRICE, molted: false };
       {
         const c = rollCharms(run, 'common', 1)[0];
         if (c) run.screen.charm = { id: c, price: 6, sold: false };
@@ -414,7 +416,7 @@ export function finishFight(prev: RunState, fight: Fight): RunState {
     }
     run.screen = {
       t: 'reward',
-      options: rollItems(run.rng, 3, 'boss'),
+      options: offerItems(run, 3, 'boss'),
       skipFlesh: 6,
       title: `${ACT_NAMES[run.act]} conquered — descend`,
       boss: true,
@@ -430,7 +432,7 @@ export function finishFight(prev: RunState, fight: Fight): RunState {
   const elite = node.kind === 'elite';
   run.screen = {
     t: 'reward',
-    options: rollItems(run.rng, 3, elite ? 'elite' : 'fight'),
+    options: offerItems(run, 3, elite ? 'elite' : 'fight'),
     skipFlesh: elite ? 4 : 2,
     title: elite ? 'Elite defeated' : 'Room cleared',
     charms: elite ? rollCharms(run, 'common', 2) : undefined,
@@ -469,7 +471,17 @@ export function recordEvents(prev: RunState, events: Fight['events']): RunState 
 
 type RollKind = 'fight' | 'elite' | 'nest' | 'shop' | 'boss';
 
-export function rollItems(r: Rng, n: number, kind: RollKind): ItemId[] {
+/** Weight of an item offered on one of the last two screens: repeats stay possible, just rarer. */
+export const RECENT_OFFER_WEIGHT = 0.2;
+
+/** rollItems with the run's memory of recent offers (mutates run: call on a clone). */
+function offerItems(run: RunState, n: number, kind: RollKind): ItemId[] {
+  const out = rollItems(run.rng, n, kind, (run.recentOffers ?? []).flat());
+  run.recentOffers = [...(run.recentOffers ?? []), out].slice(-2);
+  return out;
+}
+
+export function rollItems(r: Rng, n: number, kind: RollKind, recent: ItemId[] = []): ItemId[] {
   const weights: Record<string, number> =
     kind === 'fight' ? { starter: 3, common: 10, uncommon: 4, rare: 1 }
     : kind === 'elite' ? { common: 3, uncommon: 8, rare: 4 }
@@ -479,7 +491,7 @@ export function rollItems(r: Rng, n: number, kind: RollKind): ItemId[] {
   const pool = [...ITEMS.values()].filter((d) => d.rarity !== 'signature' && !d.base && weights[d.rarity]);
   const out: ItemId[] = [];
   for (let guard = 0; out.length < n && guard < 100; guard++) {
-    const d = weighted(r, pool.map((x) => [x, weights[x.rarity]] as const));
+    const d = weighted(r, pool.map((x) => [x, weights[x.rarity] * (recent.includes(x.id) ? RECENT_OFFER_WEIGHT : 1)] as const));
     if (!out.includes(d.id)) out.push(d.id);
   }
   return out;
@@ -517,8 +529,8 @@ export function buyCharm(prev: RunState): RunState {
   return run;
 }
 
-function rollShop(r: Rng): ShopSlot[] {
-  return rollItems(r, 4, 'shop').map((item) => ({ item, price: PRICE[ITEMS.get(item)!.rarity] ?? 5, sold: false }));
+function rollShop(run: RunState): ShopSlot[] {
+  return offerItems(run, 4, 'shop').map((item) => ({ item, price: PRICE[ITEMS.get(item)!.rarity] ?? 5, sold: false }));
 }
 
 export function takeReward(prev: RunState, idx: number | null): RunState {
