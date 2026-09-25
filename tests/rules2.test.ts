@@ -354,3 +354,12 @@ describe('boss rules', () => {
     expect(o2.hp - after.hp).toBe(5);
   });
 });
+
+test('a Clutch hit on the head hatches once and is gone (no infinite hatching)', () => {
+  const f = fight([P(3, 2), P(2, 2), P(1, 2)], ['egg+', 'fang', null, null], [], 12, 9);
+  const b = enemy(f, 'beetle', P(4, 2));
+  b.hp = b.maxHp = 10;
+  b.intent = { t: 'lock', seg: 0, dmg: 1, windup: 1, reach: 1 };
+  const g = step(f, { t: 'move', dir: D });
+  expect(g.snake.segs.some((x) => x.item === 'egg+')).toBe(false);
+});

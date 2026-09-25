@@ -181,9 +181,10 @@ export function hitSnake(f: Fight, bi: number, dmg: number, source: Enemy | null
 }
 
 function hitSeg(f: Fight, k: number, source: Enemy | null, cause: string) {
-  const it = f.snake.segs[k].item;
-  if (it && item(it).onHit?.(f, k, source)) return;
-  removeSeg(f, k, cause);
+  const seg = f.snake.segs[k];
+  if (seg.item && item(seg.item).onHit?.(f, k, source)) return;
+  // onHit may have grown segments in front (Clutch's Fang): remove the segment that was hit, not its index.
+  removeSeg(f, f.snake.segs.indexOf(seg), cause);
 }
 
 // ---------------------------------------------------------------- enemies

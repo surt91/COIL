@@ -185,42 +185,70 @@ export function generateMap(r: Rng): MapNode[] {
     }
     return n;
   };
-  const starts = shuffle(r, [0, 1, 2, 3, 4]).slice(0, 3);
-  starts.push(pick(r, [0, 1, 2, 3, 4]));
+  const at = (row: number, col: number) => nodes.get(`${row},${col}`);
+  // Six wandering paths (the first two start apart), never crossing an existing edge.
+  const starts = [...shuffle(r, [0, 1, 2, 3, 4]).slice(0, 2)];
+  while (starts.length < 6) starts.push(int(r, 0, MAP_COLS - 1));
   for (const s of starts) {
     let col = s;
     let prev = get(0, col);
     for (let row = 1; row < MAP_ROWS - 1; row++) {
-      col = Math.max(0, Math.min(MAP_COLS - 1, col + int(r, -1, 1)));
+      let d = int(r, -1, 1);
+      if (col + d < 0 || col + d >= MAP_COLS) d = 0;
+      // Moving diagonally across an existing opposite diagonal would draw an X: go straight instead.
+      const other = d !== 0 ? at(row - 1, col + d) : undefined;
+      if (other && other.next.includes(at(row, col)?.id ?? -1)) d = 0;
+      col += d;
       const n = get(row, col);
       if (!prev.next.includes(n.id)) prev.next.push(n.id);
       prev = n;
+    }
+  }
+  // Extra forks: link to a diagonal neighbour in the next row when that draws no X.
+  for (const n of [...nodes.values()]) {
+    if (n.row >= MAP_ROWS - 2) continue;
+    for (const d of shuffle(r, [-1, 1])) {
+      const t = at(n.row + 1, n.col + d);
+      const side = at(n.row, n.col + d), below = at(n.row + 1, n.col);
+      if (!t || n.next.includes(t.id) || (side && below && side.next.includes(below.id))) continue;
+      if (chance(r, 0.7)) n.next.push(t.id);
     }
   }
   const boss = get(MAP_ROWS - 1, 2);
   boss.kind = 'boss';
   const all = [...nodes.values()];
   for (const n of all) if (n.row === MAP_ROWS - 2) n.next = [boss.id];
-  // Kinds.
-  for (const n of all) {
+  const parents = new Map<number, MapNode[]>();
+  for (const n of all) for (const c of n.next) parents.set(c, [...(parents.get(c) ?? []), n]);
+  // Kinds, row by row: no special node right after the same special, and siblings differ.
+  const SPECIAL: NodeKind[] = ['elite', 'pool', 'bask', 'event', 'nest'];
+  for (const n of [...all].sort((x, y) => x.row - y.row || x.col - y.col)) {
     if (n.kind === 'boss') continue;
-    if (n.row === 0) n.kind = 'fight';
-    else if (n.row === MAP_ROWS - 2) n.kind = 'bask';
-    else if (n.row === 4 && chance(r, 0.5)) n.kind = 'nest';
-    else {
-      const opts: [NodeKind, number][] = [['fight', 52], ['event', 15], ['pool', 11], ['nest', 6]];
-      if (n.row >= 2) opts.push(['elite', 14]);
-      if (n.row >= 3) opts.push(['bask', 8]);
-      n.kind = weighted(r, opts);
+    if (n.row === 0) { n.kind = 'fight'; continue; }
+    if (n.row === MAP_ROWS - 2) { n.kind = 'bask'; continue; }
+    const ps = parents.get(n.id) ?? [];
+    const banned = new Set<NodeKind>();
+    for (const p of ps) {
+      if (SPECIAL.includes(p.kind)) banned.add(p.kind);
+      for (const sib of p.next) if (sib !== n.id && SPECIAL.includes(nodeById(all, sib).kind)) banned.add(nodeById(all, sib).kind);
     }
+    if (n.row === MAP_ROWS - 3) banned.add('bask'); // the row before the boss is always a bask
+    let opts: [NodeKind, number][] = [['fight', 45], ['event', 16], ['pool', 10], ['nest', 7]];
+    if (n.row >= 2) opts.push(['elite', 13]);
+    if (n.row >= 3) opts.push(['bask', 8]);
+    if (n.row === 4) opts.push(['nest', 12]);
+    opts = opts.filter(([k]) => !banned.has(k));
+    n.kind = weighted(r, opts);
   }
   // Every act gets at least one Molting Pool.
   if (!all.some((n) => n.kind === 'pool')) {
-    const mid = all.filter((n) => n.row >= 3 && n.row <= MAP_ROWS - 4 && n.kind !== 'elite');
+    const mid = all.filter((n) => n.row >= 3 && n.row <= MAP_ROWS - 4 && n.kind === 'fight');
     if (mid.length) pick(r, mid).kind = 'pool';
   }
   return all.sort((a, b) => a.id - b.id);
 }
+
+const nodeById = (all: MapNode[], id: number) => all.find((n) => n.id === id)!;
 
 export function reachable(run: RunState): number[] {
   if (run.at === null) return run.map.filter((n) => n.row === 0).map((n) => n.id);
@@ -239,7 +267,7 @@ function fightOpts(pool: Pool, row: number, molt: number): Partial<FightOpts> {
 export function startFight(run: RunState, nodeId: number, pool: Pool): RunState {
   const encs = ENCOUNTERS.filter((e) => e.act === run.act && e.pool === pool);
   const enc = pick(run.rng, encs);
-  const layouts = LAYOUTS.filter((l) => (enc.layouts ? enc.layouts.includes(l.id) : !l.boss));
+  const layouts = LAYOUTS.filter((l) => (enc.layouts ? enc.layouts.includes(l.id) : !l.boss && (!l.acts || l.acts.includes(run.act))));
   const layout = pick(run.rng, layouts);
   const node = run.map[nodeId];
   const arc = drawArc(run);

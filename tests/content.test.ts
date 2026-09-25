@@ -37,6 +37,29 @@ describe('content', () => {
     }
   });
 
+  test('every layout is one connected room with a reachable exit, and every act has its own rooms', () => {
+    for (const l of LAYOUTS) {
+      const open = (x: number, y: number) => y >= 0 && y < 13 && x >= 0 && x < 17 && l.rows[y][x] !== '#';
+      let start: [number, number] | null = null;
+      let floor = 0;
+      l.rows.forEach((r, y) => [...r].forEach((c, x) => { if (c === 'S') start = [x, y]; if (c !== '#') floor++; }));
+      expect(start, l.id).not.toBeNull();
+      const seen = new Set<number>();
+      const stack = [start!];
+      let exit = false;
+      while (stack.length) {
+        const [x, y] = stack.pop()!;
+        if (!open(x, y) || seen.has(y * 17 + x)) continue;
+        seen.add(y * 17 + x);
+        if (l.rows[y][x] === 'E') exit = true;
+        stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+      }
+      expect(seen.size, l.id).toBe(floor);
+      expect(exit || !!l.boss, l.id).toBe(true);
+    }
+    for (const act of [0, 1, 2]) expect(LAYOUTS.filter((l) => !l.boss && (!l.acts || l.acts.includes(act))).length).toBeGreaterThanOrEqual(5);
+  });
+
   test('every encounter survives random play without breaking invariants', () => {
     for (const enc of ENCOUNTERS) {
       for (let seed = 1; seed <= 6; seed++) {

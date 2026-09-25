@@ -173,7 +173,10 @@ Enemy HP scales +1 per act (non-bosses).
 ## Run structure
 
 Branching map à la Slay the Spire, 10 rows per act, 3 acts ("The Garden",
-"The Roots", "The Deep"). Nodes: Fight, Elite (+charm), Nest (item),
+"The Roots", "The Deep"). Six non-crossing paths plus extra forks; no
+special node (elite, pool, bask, event, nest) follows the same kind, and
+siblings differ. Every act has its own rooms: open garden beds, tangled roots
+with choke points, deep caverns with pillars, a chasm and a grotto. Nodes: Fight, Elite (+charm), Nest (item),
 Molting Pool (shop: items, a charm, remove an item — paid in flesh),
 Bask (rest), Event, Boss (+boss charm).
 

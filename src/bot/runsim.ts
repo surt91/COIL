@@ -22,6 +22,8 @@ export interface RunResult {
   fights: number;
   stalled: boolean;
   stalledIn: string[];
+  /** One entry per fight: encounter, act, turns, flesh at start / lowest / end, food and enemies eaten, outcome. */
+  fightLog: { enc: string; act: number; turns: number; start: number; low: number; end: number; ate: number; hunger: number; out: string }[];
 }
 
 /** Rough item tier list for the reward picker. */
@@ -65,6 +67,7 @@ export function simulateRun(seed: number, policy: Policy, turnCap = 300, species
   let run = createRun(seed, molt, undefined, species);
   const fleshAtAct = [run.flesh];
   let fights = 0, stalled = false;
+  const fightLog: RunResult['fightLog'] = [];
   const stalledIn: string[] = [];
   for (let guard = 0; guard < 500; guard++) {
     const sc = run.screen;
@@ -75,10 +78,19 @@ export function simulateRun(seed: number, policy: Policy, turnCap = 300, species
     } else if (sc.t === 'fight') {
       let f: Fight = sc.fight;
       fights++;
+      const fleshOf = (x: Fight) => x.snake.segs.filter((g) => !g.item).length;
+      const entry = { enc: sc.encounter, act: run.act, turns: 0, start: fleshOf(f), low: fleshOf(f), end: 0, ate: 0, hunger: 0, out: '' };
       for (let i = 0; i < turnCap * 3 && f.status === 'play' && f.turn < turnCap; i++) {
         f = step(f, policy(f, r));
         run = recordEvents(run, f.events);
+        entry.low = Math.min(entry.low, fleshOf(f));
+        for (const e of f.events) {
+          if (e.t === 'eat') entry.ate++;
+          if (e.t === 'hunger') entry.hunger++;
+        }
       }
+      Object.assign(entry, { turns: f.turn, end: fleshOf(f), out: f.status });
+      fightLog.push(entry);
       if (f.status === 'play') {
         stalled = true;
         stalledIn.push(sc.encounter);
@@ -119,6 +131,7 @@ export function simulateRun(seed: number, policy: Policy, turnCap = 300, species
     fights,
     stalled,
     stalledIn,
+    fightLog,
   };
 }
 
