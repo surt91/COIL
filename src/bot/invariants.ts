@@ -41,7 +41,7 @@ export function checkInvariants(f: Fight): string[] {
   }
   for (const p of f.food) if (seen.has(key(p))) out.push(`food under body at (${p.x},${p.y})`);
   for (const p of f.webs) if (seen.has(key(p))) out.push(`web under body at (${p.x},${p.y})`);
-  for (const hk of f.husks) if (seen.has(key(hk.pos))) out.push(`husk under body at (${hk.pos.x},${hk.pos.y})`);
+  // Husks under the body are allowed: Ghost Skin leaves the current shape behind as husks.
   if (f.status === 'play' && f.food.length < f.opts.minFood) out.push(`food ${f.food.length} < minFood`);
   return out;
 }

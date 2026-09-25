@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { computeCoils } from '../core/coil';
+import { computeCoils, occupiedCoils } from '../core/coil';
 import { canPlay, legalMoves, moveOutcome, step, wrapMin } from '../core/fight';
 import { DIRS, Dir, Pos, eq, step as stepPos } from '../core/geom';
 import * as ops from '../core/ops';
@@ -66,7 +66,8 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
     r.act = actNo;
     r.style = SPECIES_STYLES[species] ?? SPECIES_STYLES.garden;
     renderer.current = r;
-    (window as any).__coil = { get fight() { return fightRef.current; }, dispatch, renderer: r };
+    // Debug/test hook (dev builds only).
+    if (import.meta.env.DEV) (window as unknown as { __coil: unknown }).__coil = { get fight() { return fightRef.current; }, dispatch, renderer: r };
     r.instant = new URLSearchParams(location.search).has('instant');
     try { r.terminal = localStorage.getItem('coil.terminal') === '1'; } catch { /* ignore */ }
     r.push(initial);
@@ -522,7 +523,7 @@ function MoveHint({ f, dir, preview, spent, card }: { f: Fight; dir: Dir | null;
     if (fizzles) lines.push(`${fizzles} attack${fizzles > 1 ? 's' : ''} will miss`);
     const kills = preview.events.filter((e) => e.t === 'enemyDie').length;
     if (kills) lines.push(`${kills} kill${kills > 1 ? 's' : ''}`);
-    const coils = computeCoils(preview).filter((c) => c.tiles.some((t) => preview.enemies.some((e) => eq(e.pos, t))));
+    const coils = occupiedCoils(preview);
     for (const c of coils) lines.push(`Coil: ${c.area} tile${c.area > 1 ? 's' : ''} → ${c.crush ? `${c.crush} crush/turn` : 'held only'}`);
   }
   return (

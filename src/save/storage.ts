@@ -1,3 +1,5 @@
+import { EVENTS } from '../content/events';
+import { CHARMS, ITEMS } from '../core/registry';
 import type { RunState } from '../core/run';
 
 const KEY = 'coil.run.v1';
@@ -16,7 +18,11 @@ export function loadRun(): RunState | null {
     const s = localStorage.getItem(KEY);
     if (!s) return null;
     const run = JSON.parse(s) as RunState;
-    return run.version === 1 ? run : null;
+    if (run.version !== 1) return null;
+    // Discard saves that reference content that no longer exists.
+    const ok = run.genome.every((g) => ITEMS.has(g)) && (run.charms ?? []).every((c) => CHARMS.has(c)) &&
+      (run.screen.t !== 'event' || EVENTS.some((e) => e.id === (run.screen as { id: string }).id));
+    return ok ? run : null;
   } catch {
     return null;
   }

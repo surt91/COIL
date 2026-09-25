@@ -1,5 +1,4 @@
-import { computeCoils } from '../core/coil';
-import { eq } from '../core/geom';
+import { coiledEnemies, touchCount } from '../core/coil';
 import * as ops from '../core/ops';
 import type { Fight } from '../core/types';
 
@@ -15,8 +14,8 @@ const TIPS: { id: string; when(f: Fight): boolean; text: string }[] = [
   { id: 'strike', when: (f) => f.enemies.some((e) => e.intent.t === 'strike'), text: 'Red tiles will be struck after your move. Your head can step out of the way — but your body follows into the tiles your head just left.' },
   { id: 'sever', when: (f) => f.enemies.some((e) => e.intent.t === 'lock' && !!e.intent.sever), text: 'A mantis is winding up to SEVER you. Everything behind the cut falls off as husks. Get that segment out of reach (2 tiles), or kill the mantis first. You can eat husks to reattach them.' },
   { id: 'spiky', when: (f) => f.enemies.some((e) => e.kind === 'hedgehog'), text: 'Hedgehogs are spiny: biting one costs you your neck segment, and it curls up. Coil it instead — enclose it with your body.' },
-  { id: 'coil', when: (f) => computeCoils(f).some((c) => c.tiles.some((t) => f.enemies.some((e) => eq(e.pos, t)))), text: 'Coiled! Enemies enclosed by your body (walls help) can’t move or attack and are crushed every turn. The tighter the coil, the harder the crush: 1 tile = 3 damage, 2–3 = 2, 4–8 = 1, 9–12 = held only. You must keep moving — to keep a coil closed, chase your own tail.' },
-  { id: 'wrap', when: (f) => f.enemies.some((e) => f.snake.body.filter((b) => Math.max(Math.abs(b.x - e.pos.x), Math.abs(b.y - e.pos.y)) === 1).length >= 2), text: 'The violet arcs around an enemy count how many of your tiles touch it (diagonals count). At 4 it is wrapped and squeezed for 1 damage every turn. A fully closed coil is much stronger: coiled enemies can’t move or attack at all.' },
+  { id: 'coil', when: (f) => coiledEnemies(f).size > 0, text: 'Coiled! Enemies enclosed by your body (walls help) can’t move or attack and are crushed every turn. The tighter the coil, the harder the crush: 1 tile = 3 damage, 2–3 = 2, 4–8 = 1, 9–12 = held only. You must keep moving — to keep a coil closed, chase your own tail.' },
+  { id: 'wrap', when: (f) => f.enemies.some((e) => !e.under && touchCount(f, e) >= 2), text: 'The violet arcs around an enemy count how many of your tiles touch it (diagonals count). At 4 it is wrapped and squeezed for 1 damage every turn. A fully closed coil is much stronger: coiled enemies can’t move or attack at all.' },
   { id: 'hunger', when: (f) => f.opts.hungerEvery - f.hunger <= 3 && f.status === 'play', text: 'You are getting hungry. If the hunger counter runs out, you lose your tail segment. Eat food, husks or enemies to reset it.' },
   { id: 'web', when: (f) => f.webs.length > 0 || f.enemies.some((e) => e.intent.t === 'web'), text: 'Webs: moving your head into one wastes your move. But webs also count as walls for your coils.' },
   { id: 'cleared', when: (f) => f.cleared && f.status === 'play', text: 'Room cleared! The exits are open. Flesh carries over (your health and currency), so grab food on the way out. Items don’t need saving — they all come back — and every 2 items you played regrow 1 flesh.' },

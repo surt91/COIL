@@ -1,51 +1,8 @@
-import { DIRS, Dir, Pos, chebyshev, dirTo, manhattan, step } from '../core/geom';
+import { DIRS, Pos, chebyshev, dirTo, manhattan, step } from '../core/geom';
 import { protectedSeg } from '../core/fight';
 import * as ops from '../core/ops';
 import { defineEnemy } from '../core/registry';
-import type { Enemy, Fight, Intent } from '../core/types';
-
-/** Snake parts orthogonally adjacent to p: uid (0 = head) and body index. */
-function adjacentParts(f: Fight, p: Pos, reach = 1): { uid: number; bi: number }[] {
-  const out: { uid: number; bi: number }[] = [];
-  f.snake.body.forEach((b, bi) => {
-    const uid = bi === 0 ? 0 : f.snake.segs[bi - 1].uid;
-    if (manhattan(b, p) <= reach && manhattan(b, p) > 0 && !protectedSeg(f, uid)) out.push({ uid, bi });
-  });
-  return out;
-}
-
-/** Prefer item segments, then flesh, then the head; ties to the segment nearest the head. */
-function juiciest(f: Fight, parts: { uid: number; bi: number }[]) {
-  const score = (x: { bi: number }) =>
-    x.bi === 0 ? 0 : f.snake.segs[x.bi - 1].item ? 100 - x.bi : 50 - x.bi;
-  return [...parts].sort((a, b) => score(b) - score(a))[0];
-}
-
-const approach = (f: Fight, e: Enemy, goals: Pos[], steps = 1): Intent => {
-  const d = ops.pathStep(f, e.pos, goals);
-  return d === null ? { t: 'wait' } : { t: 'move', dir: d, steps, chase: steps > 1 };
-};
-
-function retreat(f: Fight, e: Enemy, from: Pos): Intent {
-  let best: Dir | null = null, bestD = manhattan(e.pos, from);
-  for (const d of DIRS) {
-    const p = step(e.pos, d);
-    if (ops.freeForEnemy(f, p) && manhattan(p, from) > bestD) { best = d; bestD = manhattan(p, from); }
-  }
-  return best === null ? { t: 'wait' } : { t: 'move', dir: best, steps: 1 };
-}
-
-/** Tiles on the straight line from `from` in `d`, up to n, stopping at terrain. */
-function line(f: Fight, from: Pos, d: Dir, n: number): Pos[] {
-  const out: Pos[] = [];
-  let p = from;
-  for (let i = 0; i < n; i++) {
-    p = step(p, d);
-    if (!ops.inBounds(f, p) || ops.isSolid(f, p)) break;
-    out.push(p);
-  }
-  return out;
-}
+import { adjacentParts, approach, juiciest, line, retreat } from './ai';
 
 defineEnemy({
   kind: 'beetle',

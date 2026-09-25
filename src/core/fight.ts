@@ -2,8 +2,8 @@
  * The fight reducer: (Fight, Action) -> Fight (+ events in fight.events).
  * Pure with respect to its input: `step` clones before mutating.
  */
-import { computeCoils, enemyCoilsHead } from './coil';
-import { DIRS, Dir, Pos, chebyshev, eq, key, manhattan, step as stepPos } from './geom';
+import { coiledEnemies, computeCoils, enemyCoilsHead, isWrapped } from './coil';
+import { DIRS, Dir, Pos, chebyshev, eq, manhattan, step as stepPos } from './geom';
 import * as ops from './ops';
 import { CHARMS, ENEMIES, charmSum, enemyDef, item } from './registry';
 import { Rng, int, makeRng, pick, shuffle } from './rng';
@@ -193,10 +193,6 @@ export function legalMoves(f: Fight): Dir[] {
   return outs.filter(([, o]) => o.k === 'neck').map(([d]) => d);
 }
 
-export const isTrapped = (f: Fight) => {
-  const l = legalMoves(f);
-  return l.length > 0 && l.every((d) => ['body', 'neck'].includes(moveOutcome(f, d).k));
-};
 
 /**
  * Execute one step of movement in `dir`. Returns true if the head advanced.
@@ -349,6 +345,7 @@ export function step(prev: Fight, a: Action): Fight {
       d.active!.play(f, { dir: a.dir, seg: k });
       ops.removeDead(f);
       checkCleared(f);
+      ensureFood(f);
       if (d.active!.move && f.status === 'play') endTurn(f);
       break;
     }
@@ -393,29 +390,22 @@ function bodyPhase(f: Fight) {
 function constrictPhase(f: Fight) {
   const coils = computeCoils(f);
   const bonus = ops.bodyBonus(f, 'crushBonus') + (f.buffs.crush ?? 0);
-  const where = new Map<number, (typeof coils)[number]>();
-  for (const c of coils) for (const t of c.tiles) where.set(key(t), c);
+  const held = coiledEnemies(f, coils);
   for (const e of f.enemies) {
-    if (e.under) continue;
-    let c = where.get(key(e.pos));
-    const maxArea = enemyDef(e.kind).heldMaxArea;
-    if (c && maxArea !== undefined && c.area > maxArea) c = undefined;
+    const c = held.get(e);
     e.held = !!c;
-    if (c) {
-      // Coiled enemies are helpless: no moving, no attacking out of the ring.
-      e.intent = { t: 'wait' };
-      const dmg = c.crush > 0 ? c.crush + bonus : 0;
-      if (dmg > 0) ops.damageEnemy(f, e, dmg, 'crush');
-    }
+    if (!c) continue;
+    // Coiled enemies are helpless: no moving, no attacking out of the ring.
+    e.intent = { t: 'wait' };
+    const dmg = c.crush > 0 ? c.crush + bonus : 0;
+    if (dmg > 0) ops.damageEnemy(f, e, dmg, 'crush');
   }
-  // Wrap: an enemy touching 4+ of your tiles (diagonals count) is squeezed even without a closed coil.
+  // Wrap: an enemy touching enough of your tiles (diagonals count) is squeezed even without a closed coil.
   for (const e of f.enemies) {
-    if (e.held || e.under || e.hp <= 0 || e.body) continue;
-    const touching = f.snake.body.filter((b) => chebyshev(b, e.pos) === 1).length;
-    if (touching >= wrapMin(f)) ops.damageEnemy(f, e, 1, 'crush');
+    if (e.held || e.hp <= 0) continue;
+    if (isWrapped(f, e, wrapMin(f))) ops.damageEnemy(f, e, 1, 'crush');
   }
-  const active = coils.filter((c) => c.tiles.some((t) => f.enemies.some((e) => eq(e.pos, t))));
-  for (const c of active) ops.emit(f, { t: 'coil', tiles: c.tiles });
+  for (const c of new Set(held.values())) ops.emit(f, { t: 'coil', tiles: c.tiles });
   ops.removeDead(f);
 }
 

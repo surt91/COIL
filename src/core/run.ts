@@ -311,7 +311,6 @@ export function finishFight(prev: RunState, fight: Fight): RunState {
   const run = clone(prev);
   if (run.screen.t !== 'fight') return run;
   const node = run.map[run.screen.node];
-  const kills = countKills(fight);
   run.stats.turns += fight.turn;
   if (fight.status === 'dead') {
     const d = fight.events.find((e) => e.t === 'death');
@@ -353,7 +352,6 @@ export function finishFight(prev: RunState, fight: Fight): RunState {
     title: elite ? 'Elite defeated' : 'Room cleared',
     charms: elite ? rollCharms(run, 'common', 2) : undefined,
   };
-  void kills;
   return run;
 }
 
@@ -375,9 +373,6 @@ export function recordEvents(prev: RunState, events: Fight['events']): RunState 
   return changed ? { ...prev, stats } : prev;
 }
 
-function countKills(f: Fight) {
-  return f.events.filter((e) => e.t === 'enemyDie').length;
-}
 
 // ---------------------------------------------------------------- rewards
 
@@ -506,8 +501,8 @@ export function bask(prev: RunState): RunState {
 
 export function eventChoice(prev: RunState, choice: number): RunState {
   if (prev.screen.t !== 'event' || prev.screen.result !== null) return prev;
-  const ev = EVENTS.find((e) => e.id === (prev.screen as { id: string }).id)!;
-  const c = ev.choices[choice];
+  const ev = EVENTS.find((e) => e.id === (prev.screen as { id: string }).id);
+  const c = ev?.choices[choice];
   if (!c || (c.canChoose && !c.canChoose(prev))) return prev;
   const run = clone(prev);
   const before = run.flesh;

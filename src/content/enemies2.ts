@@ -4,43 +4,7 @@ import { protectedSeg } from '../core/fight';
 import * as ops from '../core/ops';
 import { defineEnemy } from '../core/registry';
 import type { Enemy, Fight, Intent } from '../core/types';
-
-function adjacentParts(f: Fight, p: Pos) {
-  const out: { uid: number; bi: number }[] = [];
-  f.snake.body.forEach((b, bi) => {
-    const uid = bi === 0 ? 0 : f.snake.segs[bi - 1].uid;
-    if (manhattan(b, p) === 1 && !protectedSeg(f, uid)) out.push({ uid, bi });
-  });
-  return out;
-}
-
-const approach = (f: Fight, e: Enemy, goals: Pos[], steps = 1, flies = false): Intent => {
-  const d = ops.pathStep(f, e.pos, goals, flies);
-  return d === null ? { t: 'wait' } : { t: 'move', dir: d, steps, chase: steps > 1 };
-};
-
-function retreat(f: Fight, e: Enemy, from: Pos, flies = false): Intent {
-  let best = null as null | 0 | 1 | 2 | 3, bestD = manhattan(e.pos, from);
-  for (const d of DIRS) {
-    const p = step(e.pos, d);
-    if (ops.freeForEnemy(f, p, flies) && manhattan(p, from) > bestD) { best = d; bestD = manhattan(p, from); }
-  }
-  return best === null ? { t: 'wait' } : { t: 'move', dir: best, steps: 1 };
-}
-
-const lockAdjacent = (f: Fight, e: Enemy, dmg = 1): Intent | null => {
-  const adj = adjacentParts(f, e.pos);
-  if (!adj.length) return null;
-  const pick = adj.sort((a, b) => (b.bi === 0 ? -1 : 1) - (a.bi === 0 ? -1 : 1))[0];
-  return { t: 'lock', seg: pick.uid, dmg, windup: 1, reach: 1 };
-};
-
-/** Where the head will probably be in two turns (straight ahead, else current). */
-function predictHead(f: Fight): Pos {
-  const h = ops.head(f);
-  const a = step(h, f.snake.dir, 2);
-  return ops.inBounds(f, a) && !ops.isSolid(f, a) ? a : h;
-}
+import { adjacentParts, approach, lockAdjacent, predictHead, retreat } from './ai';
 
 defineEnemy({
   kind: 'mole',

@@ -1,5 +1,5 @@
-import { computeCoils } from '../core/coil';
-import { Dir, Pos, chebyshev, eq } from '../core/geom';
+import { computeCoils, occupiedCoils, touchCount } from '../core/coil';
+import { Dir, Pos, eq } from '../core/geom';
 import { wrapMin } from '../core/fight';
 import * as ops from '../core/ops';
 import { ENEMIES, ITEMS } from '../core/registry';
@@ -453,10 +453,9 @@ export class BoardRenderer {
   }
 
   private drawCoils(f: Fight, now: number) {
-    for (const c of computeCoils(f)) {
-      const occupied = c.tiles.some((t) => f.enemies.some((e) => eq(e.pos, t)));
-      this.hatch(c.tiles, PAL.coil, occupied ? 0.5 : 0.14, now);
-    }
+    const coils = computeCoils(f);
+    const occupied = new Set(occupiedCoils(f, coils));
+    for (const c of coils) this.hatch(c.tiles, PAL.coil, occupied.has(c) ? 0.5 : 0.14, now);
   }
 
   private drawWebsFoodHusks(f: Fight, now: number) {
@@ -589,7 +588,7 @@ export class BoardRenderer {
         ctx.stroke();
       } else if (!e.body) {
         // Wrap progress: how many of your tiles touch it (4 = squeezed).
-        const touching = f.snake.body.filter((b) => chebyshev(b, e.pos) === 1).length;
+        const touching = touchCount(f, e);
         if (touching >= 2) {
           const full = touching >= wrapMin(f);
           ctx.strokeStyle = PAL.coil;

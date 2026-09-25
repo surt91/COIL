@@ -1,5 +1,6 @@
 import { Pos, adjacent } from './geom';
-import type { Fight } from './types';
+import type { Enemy, Fight } from './types';
+import { ENEMIES } from './registry';
 import { bodyBonus } from './ops';
 import { Tile } from './types';
 
@@ -105,3 +106,33 @@ export function enemyCoilsHead(f: Fight): boolean {
   const size = cur.sizes[c];
   return size <= MAX_COIL_AREA && size < base.sizes[base.comp[i]];
 }
+
+/**
+ * The single source of truth for "which enemies does a coil hold": respects
+ * buried enemies (never held) and bosses that only tight coils can hold.
+ */
+export function coiledEnemies(f: Fight, coils: Coil[] = computeCoils(f)): Map<Enemy, Coil> {
+  const out = new Map<Enemy, Coil>();
+  for (const e of f.enemies) {
+    if (e.under || e.hp <= 0) continue;
+    const c = coils.find((cc) => cc.tiles.some((t) => t.x === e.pos.x && t.y === e.pos.y));
+    if (!c) continue;
+    const maxArea = ENEMIES.get(e.kind)?.heldMaxArea;
+    if (maxArea !== undefined && c.area > maxArea) continue;
+    out.set(e, c);
+  }
+  return out;
+}
+
+/** Coils that currently hold at least one enemy. */
+export const occupiedCoils = (f: Fight, coils: Coil[] = computeCoils(f)) => {
+  const held = new Set(coiledEnemies(f, coils).values());
+  return coils.filter((c) => held.has(c));
+};
+
+/** Snake tiles touching an enemy (8-neighbourhood). */
+export const touchCount = (f: Fight, e: Enemy) =>
+  f.snake.body.filter((b) => Math.max(Math.abs(b.x - e.pos.x), Math.abs(b.y - e.pos.y)) === 1).length;
+
+/** Wrapped: touching at least `wrapMin` snake tiles (not buried, not an enemy snake). */
+export const isWrapped = (f: Fight, e: Enemy, wrapMin: number) => !e.under && !e.body && e.hp > 0 && touchCount(f, e) >= wrapMin;

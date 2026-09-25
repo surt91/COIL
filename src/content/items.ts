@@ -1,6 +1,6 @@
-import { computeCoils } from '../core/coil';
+import { coiledEnemies, isWrapped } from '../core/coil';
 import { doMove, legalMoves, moveOutcome, wrapMin } from '../core/fight';
-import { DIRS, Dir, Pos, chebyshev, dirTo, eq, key, manhattan, neighbors4, step } from '../core/geom';
+import { DIRS, Dir, Pos, chebyshev, dirTo, key, manhattan, neighbors4, step } from '../core/geom';
 import * as ops from '../core/ops';
 import { ENEMIES, defineItem, defineUpgrade } from '../core/registry';
 import { pick } from '../core/rng';
@@ -45,15 +45,16 @@ function spineBurst(f: Fight) {
   }
 }
 
+/** Crush every coiled enemy right now (same holding rules as the constrict phase). */
 function crushNow(f: Fight, extra = 0) {
-  const bonus = ops.bodyBonus(f, 'crushBonus');
-  for (const c of computeCoils(f)) {
-    for (const e of f.enemies) {
-      if (c.tiles.some((t) => eq(t, e.pos))) ops.damageEnemy(f, e, Math.max(c.crush, 1) + bonus + extra, 'crush');
-    }
-    ops.emit(f, { t: 'coil', tiles: c.tiles });
-  }
+  const bonus = ops.bodyBonus(f, 'crushBonus') + (f.buffs.crush ?? 0);
+  const held = coiledEnemies(f);
+  for (const [e, c] of held) ops.damageEnemy(f, e, Math.max(c.crush, 1) + bonus + extra, 'crush');
+  for (const c of new Set(held.values())) ops.emit(f, { t: 'coil', tiles: c.tiles });
 }
+
+/** Coiled (and held) or wrapped. */
+const wrapped = (f: Fight, e: Enemy) => coiledEnemies(f).has(e) || isWrapped(f, e, wrapMin(f));
 
 // ---------------------------------------------------------------- starters & commons
 
@@ -289,10 +290,9 @@ defineItem({
   active: {
     requires: 'Needs a coiled or wrapped enemy.',
     target: 'none',
-    canPlay: (f) => f.enemies.some((e) => e.held || f.snake.body.filter((b) => chebyshev(b, e.pos) === 1).length >= wrapMin(f)),
+    canPlay: (f) => f.enemies.some((e) => wrapped(f, e)),
     play(f) {
-      for (const e of f.enemies)
-        if (e.held || f.snake.body.filter((b) => chebyshev(b, e.pos) === 1).length >= wrapMin(f)) ops.damageEnemy(f, e, 4, 'crush');
+      for (const e of f.enemies.filter((x) => wrapped(f, x))) ops.damageEnemy(f, e, 4, 'crush');
     },
   },
   bodyPhase(f) {
@@ -480,14 +480,12 @@ defineItem({
   active: {
     requires: 'Needs an enemy inside one of your coils.',
     target: 'none',
-    canPlay: (f) => computeCoils(f).some((c) => c.tiles.some((t) => f.enemies.some((e) => eq(e.pos, t)))),
+    canPlay: (f) => coiledEnemies(f).size > 0,
     play(f) {
-      for (const c of computeCoils(f))
-        for (const e of f.enemies)
-          if (c.tiles.some((t) => eq(t, e.pos))) {
-            ops.damageEnemy(f, e, 2, 'acid');
-            e.poison += 2;
-          }
+      for (const e of coiledEnemies(f).keys()) {
+        ops.damageEnemy(f, e, 2, 'acid');
+        e.poison += 2;
+      }
     },
   },
 });
@@ -577,7 +575,6 @@ defineItem({
 const locksFizzle = (f: Fight) => {
   for (const e of f.enemies) if (e.intent.t === 'lock' || e.intent.t === 'steal') e.intent = { t: 'wait' };
 };
-const wrapped = (f: Fight, e: Enemy) => e.held || f.snake.body.filter((b) => chebyshev(b, e.pos) === 1).length >= wrapMin(f);
 function allInLine(f: Fight, d: Dir, n: number): Enemy[] {
   const out: Enemy[] = [];
   let p = ops.head(f);
@@ -681,7 +678,7 @@ defineUpgrade('muscle', {
   active: {
     target: 'none',
     play(f) {
-      for (const e of f.enemies) if (wrapped(f, e)) ops.damageEnemy(f, e, 2 + ops.bodyBonus(f, 'crushBonus'), 'crush');
+      for (const e of f.enemies.filter((x) => wrapped(f, x))) ops.damageEnemy(f, e, 2 + ops.bodyBonus(f, 'crushBonus'), 'crush');
     },
   },
 });
@@ -800,7 +797,7 @@ defineUpgrade('ouroboros', {
     play(f) {
       const s = f.snake;
       const loop = s.body.length > 3 && manhattan(s.body[0], s.body[s.body.length - 1]) === 1;
-      for (const e of f.enemies) if (wrapped(f, e)) ops.damageEnemy(f, e, loop ? 6 : 4, 'crush');
+      for (const e of f.enemies.filter((x) => wrapped(f, x))) ops.damageEnemy(f, e, loop ? 6 : 4, 'crush');
     },
   },
 });
@@ -884,11 +881,10 @@ defineUpgrade('acid', {
     requires: 'Needs a coiled or wrapped enemy.',
     canPlay: (f) => f.enemies.some((e) => wrapped(f, e)),
     play(f) {
-      for (const e of f.enemies)
-        if (wrapped(f, e)) {
-          ops.damageEnemy(f, e, 2, 'acid');
-          e.poison += 3;
-        }
+      for (const e of f.enemies.filter((x) => wrapped(f, x))) {
+        ops.damageEnemy(f, e, 2, 'acid');
+        e.poison += 3;
+      }
     },
   },
 });
@@ -959,7 +955,7 @@ defineUpgrade('python', {
   active: {
     target: 'none',
     play(f) {
-      for (const e of f.enemies) if (wrapped(f, e)) ops.damageEnemy(f, e, 3, 'crush');
+      for (const e of f.enemies.filter((x) => wrapped(f, x))) ops.damageEnemy(f, e, 3, 'crush');
     },
   },
 });

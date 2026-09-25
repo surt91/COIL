@@ -285,6 +285,3 @@ export function pathStep(f: Fight, from: Pos, goals: Pos[], flies = false): Dir 
   }
   return null;
 }
-
-/** All snake positions (head first). */
-export const snakeTiles = (f: Fight): Pos[] => f.snake.body;
