@@ -27,7 +27,7 @@ defineCharm({
   fightStart: (f) => void (f.shield = (f.shield ?? 0) + 1),
 });
 defineCharm({
-  id: 'hunter', name: "Hunter's Gut", pool: 'common', glyph: 'swallow', color: '#06d6a0',
+  id: 'hunter', name: "Hunter's Gut", pool: 'common', glyph: 'gorge', color: '#06d6a0',
   text: 'Killing an enemy with a bite grows 1 extra flesh.',
   onKill: (f, _e, cause) => {
     if (cause === 'bite') ops.addSeg(f, null, 'tail');
@@ -66,7 +66,7 @@ defineCharm({
 defineCharm({ id: 'queen-jelly', name: 'Royal Jelly', pool: 'boss', glyph: 'heart', color: '#d9822b', text: 'Carry 5 more flesh between rooms. But hunger bites 3 turns sooner.', fleshCapBonus: 5, hungerBonus: -3 });
 defineCharm({ id: 'crushing-coils', name: 'Crushing Coils', pool: 'boss', glyph: 'crush', color: '#9b5de5', text: 'Coils crush +1 and wrap needs one tile less. But your bites never interrupt.', crushBonus: 1, wrapBonus: 1, noInterrupt: true });
 defineCharm({
-  id: 'glass-scales', name: 'Glass Scales', pool: 'boss', glyph: 'scale', color: '#caf0f8',
+  id: 'glass-scales', name: 'Glass Scales', pool: 'boss', glyph: 'carapace', color: '#caf0f8',
   text: 'The first two hits in every room are absorbed. But you carry 3 less flesh.',
   fleshCapBonus: -3,
   fightStart: (f) => void (f.shield = (f.shield ?? 0) + 2),

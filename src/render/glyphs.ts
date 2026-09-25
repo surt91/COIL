@@ -341,6 +341,33 @@ Object.assign(glyphs, {
 export const glyphOpts = { rotation: 0 };
 
 Object.assign(glyphs, {
+  tooth(ctx: G, r: number) {
+    // A curved molar with two roots.
+    ctx.beginPath();
+    ctx.moveTo(-0.5 * r, -0.2 * r);
+    ctx.quadraticCurveTo(-0.5 * r, -0.65 * r, 0, -0.55 * r);
+    ctx.quadraticCurveTo(0.5 * r, -0.65 * r, 0.5 * r, -0.2 * r);
+    ctx.lineTo(0.35 * r, 0.65 * r);
+    ctx.lineTo(0.1 * r, 0.1 * r);
+    ctx.lineTo(-0.1 * r, 0.1 * r);
+    ctx.lineTo(-0.35 * r, 0.65 * r);
+    ctx.closePath();
+    ctx.fill();
+  },
+  tailwhip(ctx: G, r: number) {
+    // A J-shaped tail with impact ticks.
+    ctx.beginPath();
+    ctx.moveTo(-0.3 * r, -0.7 * r);
+    ctx.lineTo(-0.3 * r, 0.2 * r);
+    ctx.quadraticCurveTo(-0.3 * r, 0.6 * r, 0.15 * r, 0.55 * r);
+    ctx.stroke();
+    ctx.beginPath();
+    for (const a of [-0.6, 0, 0.6]) {
+      ctx.moveTo(0.35 * r + Math.cos(a) * 0.15 * r, 0.45 * r + Math.sin(a) * 0.15 * r);
+      ctx.lineTo(0.35 * r + Math.cos(a) * 0.4 * r, 0.45 * r + Math.sin(a) * 0.4 * r);
+    }
+    ctx.stroke();
+  },
   ouroboros(ctx: G, r: number) {
     ctx.lineWidth *= 1.3;
     ctx.beginPath();
@@ -352,13 +379,14 @@ Object.assign(glyphs, {
     ctx.fill();
   },
   hood(ctx: G, r: number) {
-    // Flared cobra hood silhouette.
+    // Flared cobra hood with a notch at the top where the head sits.
     ctx.beginPath();
-    ctx.moveTo(-0.15 * r, -0.7 * r);
-    ctx.lineTo(0.15 * r, -0.7 * r);
-    ctx.quadraticCurveTo(0.75 * r, -0.2 * r, 0.25 * r, 0.7 * r);
-    ctx.lineTo(-0.25 * r, 0.7 * r);
-    ctx.quadraticCurveTo(-0.75 * r, -0.2 * r, -0.15 * r, -0.7 * r);
+    ctx.moveTo(-0.2 * r, -0.7 * r);
+    ctx.lineTo(0, -0.45 * r);
+    ctx.lineTo(0.2 * r, -0.7 * r);
+    ctx.quadraticCurveTo(0.85 * r, -0.3 * r, 0.3 * r, 0.7 * r);
+    ctx.lineTo(-0.3 * r, 0.7 * r);
+    ctx.quadraticCurveTo(-0.85 * r, -0.3 * r, -0.2 * r, -0.7 * r);
     ctx.fill();
   },
   wide(ctx: G, r: number) {

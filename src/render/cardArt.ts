@@ -126,26 +126,24 @@ const SCENES: Record<string, Scene> = {
     ctx.stroke();
   },
   venom(ctx, w, h, c) {
-    // Green-glossed fangs dripping into a pooled puddle.
-    ctx.fillStyle = rgba(c, 0.25);
-    ctx.beginPath();
-    ctx.ellipse(w / 2, h * 0.95, w * 0.3, h * 0.12, 0, 0, Math.PI * 2);
-    ctx.fill();
-    for (const sgn of [-1, 1]) {
-      const x = w / 2 + sgn * w * 0.12;
-      const g = ctx.createLinearGradient(x, 0, x, h * 0.7);
-      g.addColorStop(0, '#f1faee');
-      g.addColorStop(0.6, '#f1faee');
-      g.addColorStop(1, rgba(c, 1));
-      ctx.fillStyle = g;
+    // A single fat drop falling onto a beetle, with a green splash.
+    ctx.save();
+    ctx.translate(w * 0.62, h * 0.72);
+    drawCreature(ctx, 'beetle', h * 0.55, '#b0764a', 0.2);
+    ctx.restore();
+    ctx.fillStyle = rgba(c, 0.95);
+    drop(ctx, w * 0.62, h * 0.3, 9);
+    ctx.strokeStyle = rgba(c, 0.8);
+    ctx.lineWidth = 2;
+    for (const a of [-2.4, -1.9, -1.2, -0.7]) {
       ctx.beginPath();
-      ctx.moveTo(x - 10, 0);
-      ctx.quadraticCurveTo(x - 3, h * 0.4, x + sgn * 5, h * 0.7);
-      ctx.quadraticCurveTo(x + 3, h * 0.35, x + 10, 0);
-      ctx.fill();
-      ctx.fillStyle = rgba(c, 1);
-      drop(ctx, x + sgn * 5, h * 0.83, 5);
+      ctx.moveTo(w * 0.62 + Math.cos(a) * h * 0.25, h * 0.66 + Math.sin(a) * h * 0.25);
+      ctx.lineTo(w * 0.62 + Math.cos(a) * h * 0.38, h * 0.66 + Math.sin(a) * h * 0.38);
+      ctx.stroke();
     }
+    ctx.fillStyle = rgba(c, 0.5);
+    drop(ctx, w * 0.2, h * 0.45, 4);
+    drop(ctx, w * 0.3, h * 0.2, 3);
   },
   spine(ctx, w, h, c) {
     snake(ctx, wave(w * 0.95, w * 0.05, h * 0.75, h * 0.08, 7), h * 0.3, { head: false });
@@ -324,28 +322,27 @@ const SCENES: Record<string, Scene> = {
     drop(ctx, w * 0.2, h * 0.3, 3);
   },
   acid(ctx, w, h, c) {
-    // A coil around a dissolving beetle, acid bubbling inside the ring.
-    ctx.fillStyle = rgba(c, 0.35);
+    // A beetle sinking into a bubbling acid pool.
+    ctx.fillStyle = rgba(c, 0.3);
     ctx.beginPath();
-    ctx.ellipse(w / 2, h / 2, h * 0.3, h * 0.26, 0, 0, Math.PI * 2);
+    ctx.ellipse(w / 2, h * 0.75, w * 0.42, h * 0.28, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.save();
-    ctx.translate(w / 2, h / 2);
-    ctx.globalAlpha = 0.6;
-    drawCreature(ctx, 'beetle', h * 0.55, '#b0764a', 0.1);
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h * 0.7);
+    ctx.clip();
+    ctx.translate(w / 2, h * 0.7);
+    ctx.rotate(-Math.PI / 2);
+    drawCreature(ctx, 'beetle', h * 0.6, '#8a6a4a', 0.1);
     ctx.restore();
+    ctx.fillStyle = rgba(c, 0.55);
+    ctx.fillRect(w * 0.08, h * 0.7, w * 0.84, h * 0.3);
     ctx.fillStyle = rgba(c, 0.95);
-    for (const [x, y, r] of [[-0.18, -0.1, 3], [0.1, -0.15, 2.5], [0.15, 0.1, 3.5], [-0.05, 0.16, 2]]) {
+    for (const [x, y, r] of [[0.3, 0.62, 5], [0.42, 0.45, 3], [0.62, 0.55, 6], [0.7, 0.35, 3], [0.55, 0.25, 2]]) {
       ctx.beginPath();
-      ctx.arc(w / 2 + x * h * 1.6, h / 2 + y * h * 1.6, r, 0, Math.PI * 2);
+      ctx.arc(w * x, h * y, r, 0, Math.PI * 2);
       ctx.fill();
     }
-    const pts: V[] = [];
-    for (let i = 0; i <= 14; i++) {
-      const a = (i / 14) * Math.PI * 1.9 + 0.2;
-      pts.push({ x: w / 2 + Math.cos(a) * h * 0.42, y: h / 2 + Math.sin(a) * h * 0.38 });
-    }
-    snake(ctx, pts.reverse(), h * 0.2);
   },
   hood(ctx, w, h, c) {
     ctx.save();
@@ -559,10 +556,8 @@ export function drawCardArt(ctx: G, id: string, w: number, h: number) {
     ctx.lineWidth = 2;
     ctx.beginPath();
     const R = h * 0.36;
-    if (frame === 1) for (let i = 0; i <= 6; i++) { const a = (i / 6) * Math.PI * 2 + Math.PI / 6; i ? ctx.lineTo(w / 2 + Math.cos(a) * R, h / 2 + Math.sin(a) * R) : ctx.moveTo(w / 2 + Math.cos(a) * R, h / 2 + Math.sin(a) * R); }
-    else if (frame === 2) { ctx.moveTo(w / 2, h / 2 - R); ctx.lineTo(w / 2 + R, h / 2); ctx.lineTo(w / 2, h / 2 + R); ctx.lineTo(w / 2 - R, h / 2); ctx.closePath(); }
-    else if (frame === 3) { ctx.ellipse(w / 2, h / 2, R * 1.6, R * 0.8, 0, 0, Math.PI * 2); }
-    else ctx.arc(w / 2, h / 2, R, 0, Math.PI * 2);
+    void frame;
+    ctx.arc(w / 2, h / 2, R, 0, Math.PI * 2);
     ctx.stroke();
     if (charm?.pool === 'boss') {
       ctx.fillStyle = '#ffd166';

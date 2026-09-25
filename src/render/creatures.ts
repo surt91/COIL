@@ -31,11 +31,46 @@ function eyes(ctx: G, x: number, dy: number, r: number) {
  * Draw a creature with the shared dark outline (drop-shadow filter; browsers
  * without canvas filters simply get no outline).
  */
+let off: HTMLCanvasElement | null = null;
+let sil: HTMLCanvasElement | null = null;
+
 export function drawCreature(ctx: G, kind: string, T: number, color: string, t: number, curled = false) {
+  // Render into an offscreen canvas, then stamp a dark silhouette at eight
+  // offsets underneath: a crisp outline that needs no canvas filters.
+  if (typeof document === 'undefined') return drawCreatureInner(ctx, kind, T, color, t, curled);
+  const m = ctx.getTransform();
+  const scale = Math.hypot(m.a, m.b) || 1;
+  const size = Math.ceil(T * 1.6 * scale);
+  off ??= document.createElement('canvas');
+  sil ??= document.createElement('canvas');
+  for (const c of [off, sil]) {
+    if (c.width < size || c.height < size) {
+      c.width = size;
+      c.height = size;
+    }
+  }
+  const o = off.getContext('2d')!;
+  o.setTransform(1, 0, 0, 1, 0, 0);
+  o.clearRect(0, 0, off.width, off.height);
+  o.setTransform(scale, 0, 0, scale, size / 2, size / 2);
+  drawCreatureInner(o, kind, T, color, t, curled);
+  const q = sil.getContext('2d')!;
+  q.setTransform(1, 0, 0, 1, 0, 0);
+  q.clearRect(0, 0, sil.width, sil.height);
+  q.globalCompositeOperation = 'source-over';
+  q.drawImage(off, 0, 0);
+  q.globalCompositeOperation = 'source-in';
+  q.fillStyle = '#05080f';
+  q.fillRect(0, 0, size, size);
+  q.globalCompositeOperation = 'source-over';
+  const half = size / 2 / scale, dim = size / scale;
+  const w = Math.max(1, T * 0.035);
   ctx.save();
-  const w = Math.max(0.8, T * 0.022);
-  ctx.filter = `drop-shadow(0 0 ${w}px #05080f) drop-shadow(0 0 ${w * 0.6}px #05080f)`;
-  drawCreatureInner(ctx, kind, T, color, t, curled);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    ctx.drawImage(sil, 0, 0, size, size, -half + Math.cos(a) * w, -half + Math.sin(a) * w, dim, dim);
+  }
+  ctx.drawImage(off, 0, 0, size, size, -half, -half, dim, dim);
   ctx.restore();
 }
 
@@ -251,19 +286,27 @@ function drawCreatureInner(ctx: G, kind: string, T: number, color: string, t: nu
       break;
     }
     case 'mole': {
-      ctx.fillStyle = '#e8b4a0';
+      // Big pink spade paws with claws.
+      ctx.fillStyle = '#f0b8a8';
       for (const s of [-1, 1]) {
         ctx.beginPath();
-        ctx.ellipse(T * 0.18, s * T * 0.2, T * 0.1, T * 0.06, s * 0.6, 0, Math.PI * 2);
+        ctx.ellipse(T * 0.2, s * T * 0.22, T * 0.13, T * 0.09, s * 0.5, 0, Math.PI * 2);
         ctx.fill();
+        ctx.strokeStyle = '#fff4ea';
+        ctx.lineWidth = Math.max(1, T * 0.02);
+        for (let k = -1; k <= 1; k++) {
+          ctx.beginPath();
+          ctx.moveTo(T * 0.28, s * T * 0.22 + k * T * 0.04);
+          ctx.lineTo(T * 0.36, s * T * 0.24 + k * T * 0.05);
+          ctx.stroke();
+        }
       }
       ctx.fillStyle = color;
       ctx.beginPath();
       ctx.ellipse(-T * 0.02, 0, T * 0.3, T * 0.24, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = '#f4a6a6';
-      ctx.beginPath();
-      ctx.arc(T * 0.3, 0, T * 0.06, 0, Math.PI * 2);
+      poly3(ctx, [T * 0.4, 0], [T * 0.24, -T * 0.07], [T * 0.24, T * 0.07]);
       ctx.fill();
       eyes(ctx, T * 0.18, T * 0.08, T * 0.015);
       break;

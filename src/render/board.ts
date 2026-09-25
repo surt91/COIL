@@ -101,6 +101,8 @@ export class BoardRenderer {
    * fills the screen. Board coordinates stay the same; only the view turns.
    */
   rotated = false;
+  /** Counter-rotate text when rotated (off while drawing in a screen-space frame). */
+  private textUpright = true;
   private rx = 0;
   private ry = 0;
 
@@ -148,7 +150,7 @@ export class BoardRenderer {
     ctx.__patched = true;
     const fill = ctx.fillText.bind(ctx), stroke = ctx.strokeText.bind(ctx);
     const upright = (orig: typeof fill) => (text: string, x: number, y: number, maxW?: number) => {
-      if (!this.rotated) return orig(text, x, y, maxW);
+      if (!this.rotated || !this.textUpright) return orig(text, x, y, maxW);
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(-Math.PI / 2);
@@ -631,46 +633,53 @@ export class BoardRenderer {
   private drawEnemyHud(e: Enemy, X: number, Y: number, d: ReturnType<typeof ENEMIES.get>, now: number) {
     const ctx = this.ctx, T = this.T;
     void now;
-      // HP pips (a number for big ones)
-      if (e.maxHp <= 6) {
-        for (let i = 0; i < e.maxHp; i++) {
-          ctx.fillStyle = i < e.hp ? '#f1faee' : 'rgba(255,255,255,0.18)';
-          ctx.beginPath();
-          ctx.arc(X - ((e.maxHp - 1) / 2) * T * 0.14 + i * T * 0.14, Y - T * 0.42, T * 0.045, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      } else {
-        const wBar = T * 0.8;
-        ctx.fillStyle = 'rgba(255,255,255,0.18)';
-        ctx.fillRect(X - wBar / 2, Y - T * 0.48, wBar, T * 0.07);
-        ctx.fillStyle = d?.boss ? PAL.danger : '#f1faee';
-        ctx.fillRect(X - wBar / 2, Y - T * 0.48, (wBar * Math.max(0, e.hp)) / e.maxHp, T * 0.07);
-        ctx.fillStyle = '#fff';
-        ctx.font = `bold ${Math.round(T * 0.22)}px system-ui, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.fillText(String(e.hp), X, Y - T * 0.54);
+    // HP and poison live in screen space ("above" the creature even when the board is rotated).
+    ctx.save();
+    ctx.translate(X, Y);
+    if (this.rotated) ctx.rotate(-Math.PI / 2);
+    this.textUpright = false;
+    if (e.maxHp <= 6) {
+      for (let i = 0; i < e.maxHp; i++) {
+        ctx.fillStyle = i < e.hp ? '#f1faee' : 'rgba(255,255,255,0.18)';
+        ctx.beginPath();
+        ctx.arc(-((e.maxHp - 1) / 2) * T * 0.14 + i * T * 0.14, -T * 0.42, T * 0.045, 0, Math.PI * 2);
+        ctx.fill();
       }
-      if (e.poison > 0) {
-        ctx.fillStyle = '#80ed99';
-        ctx.font = `bold ${Math.round(T * 0.26)}px system-ui, sans-serif`;
-        ctx.textAlign = 'left';
-        ctx.fillText(`☠${e.poison}`, X + T * 0.2, Y + T * 0.42);
+    } else {
+      const wBar = T * 0.8;
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.fillRect(-wBar / 2, -T * 0.5, wBar, T * 0.07);
+      ctx.fillStyle = d?.boss ? PAL.food : '#f1faee';
+      ctx.fillRect(-wBar / 2, -T * 0.5, (wBar * Math.max(0, e.hp)) / e.maxHp, T * 0.07);
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${Math.round(T * 0.22)}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText(String(e.hp), 0, -T * 0.56);
+    }
+    if (e.poison > 0) {
+      ctx.fillStyle = '#80ed99';
+      ctx.font = `bold ${Math.round(T * 0.26)}px system-ui, sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.fillText(`☠${e.poison}`, T * 0.2, T * 0.42);
+    }
+    this.textUpright = true;
+    ctx.restore();
+    // Move intent chevrons (board space: they point in the board direction).
+    if (e.intent.t === 'move') {
+      const dx = [0, 1, 0, -1][e.intent.dir], dy = [-1, 0, 1, 0][e.intent.dir];
+      const n = e.intent.steps;
+      const base = e.body ? 0.72 : 0.55;
+      ctx.strokeStyle = 'rgba(232, 241, 242, 0.55)';
+      ctx.lineWidth = 2.5;
+      for (let k = 0; k < n; k++) {
+        const bx = X + dx * T * (base + k * 0.22), by = Y + dy * T * (base + k * 0.22);
+        ctx.beginPath();
+        ctx.moveTo(bx - dx * T * 0.1 - dy * T * 0.12, by - dy * T * 0.1 - dx * T * 0.12);
+        ctx.lineTo(bx, by);
+        ctx.lineTo(bx - dx * T * 0.1 + dy * T * 0.12, by - dy * T * 0.1 + dx * T * 0.12);
+        ctx.stroke();
       }
-      // move intent chevron
-      if (e.intent.t === 'move') {
-        const dx = [0, 1, 0, -1][e.intent.dir], dy = [-1, 0, 1, 0][e.intent.dir];
-        const n = e.intent.steps;
-        ctx.strokeStyle = 'rgba(232, 241, 242, 0.55)';
-        ctx.lineWidth = 2.5;
-        for (let k = 0; k < n; k++) {
-          const bx = X + dx * T * (0.55 + k * 0.22), by = Y + dy * T * (0.55 + k * 0.22);
-          ctx.beginPath();
-          ctx.moveTo(bx - dx * T * 0.1 - dy * T * 0.12, by - dy * T * 0.1 - dx * T * 0.12);
-          ctx.lineTo(bx, by);
-          ctx.lineTo(bx - dx * T * 0.1 + dy * T * 0.12, by - dy * T * 0.1 + dx * T * 0.12);
-          ctx.stroke();
-        }
-      }
+    }
   }
 
   private drawEnemySnake(e: Enemy, head: { x: number; y: number }, color: string, now: number) {

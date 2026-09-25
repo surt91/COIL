@@ -25,8 +25,8 @@ export interface SerpentStyle {
 }
 
 /** Enemy snakes. */
-export const RIVAL_STYLE: SerpentStyle = { head: [122, 132, 80], tail: [52, 58, 40], outline: '#0b0d06', pattern: 'rgba(22, 26, 12, 0.85)', stripe: 'rgba(240, 232, 190, 0.22)', markings: 'saddle', headShape: 'long', girth: 0.95, eye: '#ff5d73' };
-export const OUROBOROS_STYLE: SerpentStyle = { head: [217, 210, 195], tail: [58, 49, 64], outline: '#0a070d', pattern: 'rgba(30, 22, 36, 0.8)', stripe: 'rgba(255, 255, 255, 0.12)', markings: 'rings', headShape: 'round', girth: 1.3, eye: '#e63946' };
+export const RIVAL_STYLE: SerpentStyle = { head: [122, 132, 80], tail: [52, 58, 40], outline: '#0b0d06', pattern: 'rgba(22, 26, 12, 0.85)', stripe: 'rgba(240, 232, 190, 0.22)', markings: 'saddle', headShape: 'long', girth: 0.95, eye: '#ffd166' };
+export const OUROBOROS_STYLE: SerpentStyle = { head: [217, 210, 195], tail: [58, 49, 64], outline: '#0a070d', pattern: 'rgba(30, 22, 36, 0.8)', stripe: 'rgba(255, 255, 255, 0.12)', markings: 'rings', headShape: 'round', girth: 1.3, eye: '#ffb703' };
 
 /** Player snake styles per species. */
 export const SPECIES_STYLES: Record<string, SerpentStyle> = {
@@ -338,13 +338,16 @@ export function drawHead(ctx: G, T0: number, st: SerpentStyle, now: number, opts
       ctx.fill();
     }
   } else if (hs === 'arrow') {
-    ctx.beginPath();
-    ctx.moveTo(0.18 * T, 0);
-    ctx.lineTo(-0.2 * T, -0.2 * T);
-    ctx.lineTo(-0.1 * T, 0);
-    ctx.lineTo(-0.2 * T, 0.2 * T);
-    ctx.closePath();
-    ctx.fill();
+    // Brow ridges above the eyes.
+    ctx.strokeStyle = st.pattern;
+    ctx.lineWidth = Math.max(1.5, T * 0.045);
+    ctx.lineCap = 'round';
+    for (const s2 of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(0.04 * T, s2 * 0.2 * T);
+      ctx.quadraticCurveTo(0.2 * T, s2 * 0.34 * T, 0.32 * T, s2 * 0.2 * T);
+      ctx.stroke();
+    }
   } else if (hs === 'round' || hs === 'long') {
     ctx.beginPath();
     ctx.ellipse(-0.08 * T, 0, 0.14 * T, 0.05 * T, 0, 0, Math.PI * 2);
