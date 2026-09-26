@@ -779,6 +779,10 @@ export class BoardRenderer {
       ctx.fillStyle = '#fff';
       ctx.font = `bold ${Math.round(T * 0.22)}px system-ui, sans-serif`;
       ctx.textAlign = 'center';
+      // It pokes into the tile above: a dark outline keeps it legible over a neighbour.
+      ctx.strokeStyle = 'rgba(13, 19, 33, 0.9)';
+      ctx.lineWidth = 3;
+      ctx.strokeText(String(e.hp), 0, -T * 0.56);
       ctx.fillText(String(e.hp), 0, -T * 0.56);
     }
     if (e.poison > 0) {
