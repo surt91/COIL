@@ -237,7 +237,7 @@ defineEnemy({
   hp: 28,
   glyph: 'ouroboros',
   color: '#d9d2c3',
-  text: 'Final boss. A serpent that plays by your rules: never still, it lunges along the red line and severs what it hits. Its length is its health, and it swallows what it severs from you to regrow; its own cut length crumbles. Its spiny hide cuts back when you bite its body — unless you wrap its head first (or coil it).',
+  text: 'Final boss. Never still: it lunges along the red line and severs what it hits. Its length is its health, and it swallows the pieces it cuts off you. Its spiny hide cuts back when you bite its body.',
   snake: true,
   boss: true,
   heldMaxArea: 6,

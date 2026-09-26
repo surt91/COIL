@@ -724,6 +724,15 @@ function neighborsRing(p: Pos): Pos[] {
 /** Bare-head turns allowed per fight (see upkeep). */
 export const BREATH = 6;
 
+/** Turns until the next reinforcement beetle (1 = after your next move); Infinity if none is coming. */
+export function spawnIn(f: Fight): number {
+  if (f.cleared || !f.spawns.length || f.snake.segs.length === 0) return Infinity;
+  const { escalateFrom: from, escalateEvery: every } = f.opts;
+  const t = f.turn + 1;
+  const next = t <= from ? from : from + Math.ceil((t - from) / every) * every;
+  return next - f.turn;
+}
+
 function loseBreath(f: Fight) {
   f.breath = (f.breath ?? BREATH) - 1;
   ops.emit(f, { t: 'gasp', at: { ...f.snake.body[0] }, left: f.breath });
@@ -761,9 +770,11 @@ function upkeep(f: Fight) {
     if (f.status !== 'play') return;
   }
 
+  // Reinforcements (spawnIn below says when). Not while you are a bare head: your last
+  // breaths are a chance to recover, not a countdown to a swarm.
+  const due = spawnIn(f) === 1;
   f.turn++;
-  const { escalateFrom: from, escalateEvery: every } = f.opts;
-  if (!f.cleared && f.spawns.length && f.turn >= from && (f.turn - from) % every === 0) {
+  if (due) {
     const free = f.spawns.filter((p) => ops.isEmpty(f, p) || (ops.tileAt(f, p) === Tile.Burrow && !ops.enemyAt(f, p) && ops.bodyIndexAt(f, p) < 0));
     if (free.length) {
       const e = ops.spawnEnemy(f, 'beetle', pick(f.rng, free));

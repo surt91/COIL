@@ -1,6 +1,6 @@
 import { coilDamage, coiledEnemies, computeCoils, occupiedCoils, touchCount } from '../core/coil';
 import { Dir, Pos, eq } from '../core/geom';
-import { BREATH, bossExposed, hungerTarget, riposteTile, wrapMin } from '../core/fight';
+import { BREATH, bossExposed, hungerTarget, spawnIn, riposteTile, wrapMin } from '../core/fight';
 import { regrowFromPlayed } from '../core/run';
 import * as ops from '../core/ops';
 import { ENEMIES, ITEMS } from '../core/registry';
@@ -190,8 +190,15 @@ export class BoardRenderer {
     this.shown = next;
     this.animStart = now;
     if (first) this.layout();
+    this.lostBatch = [];
     for (const e of next.events) this.effect(e, next);
+    // All items lost in one step become one line (a sever used to stack four floats).
+    if (this.lostBatch.length) {
+      const names = this.lostBatch.map((l) => l.name);
+      this.float(this.lostBatch[0].at, names.length === 1 ? `${names[0]} lost!` : `Lost: ${names.join(', ')}`, '#ff8fa3', true);
+    }
   }
+  private lostBatch: { at: Pos; name: string }[] = [];
 
   /** Replace the shown state without animation (undo). */
   set(next: Fight) {
@@ -263,7 +270,7 @@ export class BoardRenderer {
         if (e.item) {
           const d = ITEMS.get(e.item);
           this.burst(e.at, d?.color ?? '#fff', 18, 5, 3.5);
-          this.float(e.at, `${d?.name ?? e.item} lost!`, '#ff8fa3', true);
+          this.lostBatch.push({ at: e.at, name: d?.name ?? e.item });
         }
         else if (e.cause === 'hunger') this.float(e.at, 'starving', '#f4a261');
         this.shake = Math.max(this.shake, 6);
@@ -437,8 +444,10 @@ export class BoardRenderer {
             ctx.beginPath();
             ctx.ellipse(X + T / 2, Y + T / 2, T * 0.26, T * 0.18, 0, 0, Math.PI * 2);
             ctx.fill();
-            ctx.strokeStyle = 'rgba(141, 110, 99, 0.6)';
-            ctx.lineWidth = 1.5;
+            // A beetle climbs out after your next move: the holes stir (earth tones, not damage red).
+            const stir = spawnIn(f) === 1;
+            ctx.strokeStyle = stir ? `rgba(217, 130, 43, ${0.6 + 0.4 * Math.sin(now / 90)})` : 'rgba(141, 110, 99, 0.6)';
+            ctx.lineWidth = stir ? 3 : 1.5;
             ctx.stroke();
           }
           if (t === Tile.Exit || t === Tile.Burrow) {

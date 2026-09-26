@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { coilDamage, coiledEnemies, computeCoils, occupiedCoils } from '../core/coil';
 import { coilWithin } from '../core/hints';
 import { regrowFromPlayed } from '../core/run';
-import { BREATH, bossExposed, canPlay, legalMoves, moveOutcome, riposteTile, step, wrapMin } from '../core/fight';
+import { BREATH, bossExposed, canPlay, spawnIn, legalMoves, moveOutcome, riposteTile, step, wrapMin } from '../core/fight';
 import { DIRS, Dir, Pos, eq, step as stepPos } from '../core/geom';
 import * as ops from '../core/ops';
 import { ENEMIES, ITEMS, item } from '../core/registry';
@@ -339,6 +339,11 @@ export function FightView({ initial, title, onEnd, onStep, side, act: actNo = 0,
           <span class="meter"><span style={{ width: `${(100 * Math.max(0, hungerLeft)) / f.opts.hungerEvery}%` }} /></span>
           <b>{hungerLeft}</b>
         </div>
+        {spawnIn(f) <= 5 && (
+          <div class={`hud-stat spawn ${spawnIn(f) <= 1 ? 'warn' : ''}`} title="Reinforcements: a beetle climbs out of a burrow hole. None come while you are a bare head.">
+            beetle in <b>{spawnIn(f)}</b>
+          </div>
+        )}
         <div class="hud-stat dim turn">Turn {f.turn}</div>
         {f.cleared && <div class="hud-stat good">Exits open</div>}
       </header>
@@ -577,6 +582,11 @@ function MoveHint({ f, dir, preview, spent, card }: { f: Fight; dir: Dir | null;
       if (sp?.item) lines.push(`Spend: ${ITEMS.get(sp.item)?.name} (back next room)`);
     }
     if (preview.status === 'dead') lines.push('☠ You would die.');
+    // A dead end: every way on from there is a bite into yourself.
+    else if (!card && preview.status === 'play') {
+      const outs = legalMoves(preview).map((d) => moveOutcome(preview, d).k);
+      if (outs.length && outs.every((k) => k === 'neck' || k === 'body')) lines.push('Lose: dead end — next turn you must bite yourself');
+    }
     if (!card && f.buffs.bite > 0 && o.k !== 'bite') lines.push(`Lose: +${f.buffs.bite} bite bonus (no bite this turn)`);
     else if (lost.length) {
       if (lostItems.length) lines.push(`Destroyed unplayed: ${lostItems.join(', ')}`);

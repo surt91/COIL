@@ -794,3 +794,23 @@ Jetzt gilt:
   den es nie gab, wird ein Zug Vorsprung.
 - Sie sucht kein Futter mehr. Das war der Grund für "man teilt sich eher einen
   Raum": Sie lief zu jedem Futter, das näher an ihr lag als an dir.
+
+**Nachtrag, ein ganzer Run nach dem Umbau.** Der Playtester ist zweimal gestorben,
+beide Male auf dieselbe Art: Ab Zug 30 kamen immer mehr Käfer aus den
+Nachschub-Löchern, fraßen den Körper auf 0, und dann folgten sechs Atemzüge Warten
+auf den Tod. *"Der Ausgang steht zehn Züge vorher fest, und der Spieler sitzt es
+nur aus."* Die Atemregel hatte das zähe Überleben abgeschafft, aber ein zähes
+Sterben übrig gelassen.
+
+Die Antwort ist wieder Sichtbarkeit und Fairness:
+- Im HUD zählt "beetle in N" herunter.
+- Im Zug vorher rühren sich die Löcher (erdfarben pulsierend, nicht rot).
+- **Solange du ein nackter Kopf bist, kommt kein Nachschub.** Die Atemzüge sind
+  eine Chance, keine Zugabe.
+
+Außerdem:
+- Eine Sackgasse, aus der nur der Biss in den eigenen Nacken herausführt, kündigt
+  die Vorschau jetzt an. Sie hatte den Tester in einem geräumten Raum 6 Fleisch
+  gekostet.
+- Verlorene Items eines Zuges stehen in einer Zeile ("Lost: Fang, Rattle") statt
+  in vier gestapelten Texten.
