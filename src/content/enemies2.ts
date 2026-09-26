@@ -5,7 +5,7 @@ import * as ops from '../core/ops';
 import { defineEnemy, enemyDef } from '../core/registry';
 import { shuffle } from '../core/rng';
 import type { Enemy, Fight, Intent } from '../core/types';
-import { approach, lockAdjacent, predictHead, retreat } from './ai';
+import { approach, lockAdjacent, prey, predictHead, retreat } from './ai';
 
 defineEnemy({
   kind: 'mole',
@@ -24,7 +24,7 @@ defineEnemy({
     if (l) return l;
     e.mem.t = (e.mem.t ?? 0) + 1;
     if (e.mem.t % 3 === 0 && manhattan(e.pos, ops.head(f)) <= 8) return { t: 'burrow' };
-    return approach(f, e, f.snake.body);
+    return approach(f, e, prey(f));
   },
 });
 
@@ -67,7 +67,7 @@ defineEnemy({
   color: '#b5651d',
   text: 'Weak alone, never alone. Latches onto adjacent segments. A big coil catches a whole column of them.',
   think(f, e) {
-    return lockAdjacent(f, e) ?? approach(f, e, f.snake.body);
+    return lockAdjacent(f, e) ?? approach(f, e, prey(f));
   },
 });
 
@@ -85,7 +85,7 @@ defineEnemy({
     e.mem.tick = (e.mem.tick ?? 0) + 1;
     const l = lockAdjacent(f, e, 2);
     if (l) return l;
-    return e.mem.tick % 2 === 0 ? { t: 'wait' } : approach(f, e, f.snake.body);
+    return e.mem.tick % 2 === 0 ? { t: 'wait' } : approach(f, e, prey(f));
   },
 });
 
@@ -132,7 +132,7 @@ defineEnemy({
       const tiles = shuffle(f.rng, near.filter((p) => ops.isEmpty(f, p) && reach.has(p.y * f.w + p.x))).slice(0, e.hp < 9 ? 3 : 2);
       if (tiles.length) return { t: 'summon', kind: 'ant', tiles };
     }
-    return e.mem.t % 2 === 0 ? approach(f, e, f.snake.body) : { t: 'wait' };
+    return e.mem.t % 2 === 0 ? approach(f, e, prey(f)) : { t: 'wait' };
   },
 });
 
@@ -258,7 +258,7 @@ defineEnemy({
     e.mem.tick = (e.mem.tick ?? 0) + 1;
     const l = lockAdjacent(f, e);
     if (l) return l;
-    return e.mem.tick % 2 === 0 ? { t: 'wait' } : approach(f, e, f.snake.body);
+    return e.mem.tick % 2 === 0 ? { t: 'wait' } : approach(f, e, prey(f));
   },
   onDie(f, e, cause) {
     if (cause === 'crush' || cause === 'swallow') return;
@@ -281,6 +281,6 @@ defineEnemy({
   text: 'Freshly hatched and hungry. Latches onto adjacent segments. Too small to feed you.',
   meagre: true,
   think(f, e) {
-    return lockAdjacent(f, e) ?? approach(f, e, f.snake.body);
+    return lockAdjacent(f, e) ?? approach(f, e, prey(f));
   },
 });

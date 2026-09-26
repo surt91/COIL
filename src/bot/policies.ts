@@ -89,14 +89,17 @@ function makeSearch(depth: 1 | 2 | 3, w: Weights, beam = 4): Policy {
 export const greedyPolicy: Policy = makeSearch(1, DEFAULT_WEIGHTS);
 export const lookahead2Policy: Policy = makeSearch(2, DEFAULT_WEIGHTS);
 
-/** The experienced player: plans coils (see coilSense) on top of the two-move search. */
+/** Tuning knobs for experiments (scripts only; the browser has no process). */
+const env = (k: string, d: number) => Number((typeof process !== 'undefined' && process.env?.[k]) || d);
+
+/** The experienced player: plans coils (see coilSense) and searches a beamed third move. */
 export const EXPERT_WEIGHTS: Weights = {
   ...DEFAULT_WEIGHTS,
-  confine: Number(process.env.W_CONFINE ?? 12),
-  wrap: Number(process.env.W_WRAP ?? 20),
-  exposed: Number(process.env.W_EXPOSED ?? 40),
+  confine: env('W_CONFINE', 12),
+  wrap: env('W_WRAP', 20),
+  exposed: env('W_EXPOSED', 40),
 };
-export const expertPolicy: Policy = makeSearch(Number(process.env.EXPERT_DEPTH ?? 3) as 2 | 3, EXPERT_WEIGHTS, Number(process.env.EXPERT_BEAM ?? 2));
+export const expertPolicy: Policy = makeSearch(env('EXPERT_DEPTH', 3) as 2 | 3, EXPERT_WEIGHTS, env('EXPERT_BEAM', 2));
 
 export const POLICIES: Record<string, Policy> = {
   random: randomPolicy,

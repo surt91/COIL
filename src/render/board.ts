@@ -719,8 +719,8 @@ export class BoardRenderer {
         ctx.beginPath();
         ctx.arc(X, Y, T * 0.44, 0, Math.PI * 2);
         ctx.stroke();
-      } else if (!e.body) {
-        // Wrap progress: how many of your tiles touch it (4 = squeezed).
+      } else {
+        // Wrap progress: how many of your tiles touch it (a snake: its head; 4 = squeezed).
         const touching = touchCount(f, e);
         if (touching >= 2) {
           const full = touching >= wrapMin(f);

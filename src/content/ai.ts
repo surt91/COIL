@@ -17,6 +17,11 @@ export function adjacentParts(f: Fight, p: Pos, reach = 1): Part[] {
   return out;
 }
 
+/** Where your body can be attacked (not what's guarded or still at the burrow mouth): what walkers head for. */
+export function prey(f: Fight): Pos[] {
+  return f.snake.body.filter((_, bi) => !protectedSeg(f, bi === 0 ? 0 : f.snake.segs[bi - 1].uid));
+}
+
 /** Prefer item segments, then flesh, then the head; ties to the segment nearest the head. */
 export function juiciest(f: Fight, parts: Part[]): Part {
   const score = (x: Part) => (x.bi === 0 ? 0 : f.snake.segs[x.bi - 1].item ? 100 - x.bi : 50 - x.bi);

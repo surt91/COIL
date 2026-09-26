@@ -482,7 +482,7 @@ function Inspector({ f, hover }: { f: Fight; hover: Pos | null }) {
     return (
       <div class="inspect">
         <h3 style={{ color: d.color }}>{d.name}</h3>
-        <div>HP {e.hp}/{e.maxHp}{e.poison ? ` · ☠ ${e.poison}` : ''}{e.held ? ' · held' : ''}</div>
+        <div>HP {e.hp}/{e.maxHp}{e.poison ? ` · ☠ ${e.poison}` : ''}{e.held ? ' · held' : ''}{ops.isMeagre(e) ? ' · meagre: won’t feed you' : ''}</div>
         <div class={`intent ${['strike', 'lock', 'emerge', 'steal'].includes(e.intent.t) ? '' : 'calm'}`}>{describeIntent(f, e)}</div>
         {d.boss && (
           <div class="dim">
@@ -490,7 +490,7 @@ function Inspector({ f, hover }: { f: Fight; hover: Pos | null }) {
               ? <b style={{ color: 'var(--coil, #c77dff)' }}>Exposed: </b>
               : <>Boss: bites don’t interrupt it, and it <b>ripostes</b> — the tile you bit it from gets struck if you’re still on it next turn. </>}
             {bossExposed(f, e)
-              ? <>wrapped or coiled — bites deal +1, knock it back and interrupt it, and it can’t riposte.{e.body ? ' Its lunge can’t sever.' : ''}</>
+              ? <>wrapped or coiled — bites deal +1 and it can’t riposte (with room behind it, a bite knocks it back and interrupts it).{e.body ? ' Its lunge can’t sever.' : ''}</>
               : <>Wrap it or coil it (a snake at its head) to expose it.</>}
           </div>
         )}

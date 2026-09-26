@@ -2,7 +2,7 @@ import { DIRS, Pos, chebyshev, dirTo, manhattan, step } from '../core/geom';
 import { protectedSeg } from '../core/fight';
 import * as ops from '../core/ops';
 import { defineEnemy } from '../core/registry';
-import { adjacentParts, approach, juiciest, line, retreat } from './ai';
+import { adjacentParts, approach, juiciest, line, prey, retreat } from './ai';
 
 defineEnemy({
   kind: 'beetle',
@@ -16,7 +16,7 @@ defineEnemy({
   think(f, e) {
     const adj = adjacentParts(f, e.pos);
     if (adj.length) return { t: 'lock', seg: juiciest(f, adj).uid, dmg: 1, windup: 1, reach: 1 };
-    return approach(f, e, f.snake.body);
+    return approach(f, e, prey(f));
   },
 });
 
@@ -43,7 +43,7 @@ defineEnemy({
     const adj = adjacentParts(f, e.pos);
     if (adj.length) return { t: 'lock', seg: juiciest(f, adj).uid, dmg: 1, windup: 1, reach: 1 };
     if (e.mem.tick % 2 === 0) return { t: 'wait' };
-    return approach(f, e, f.snake.body);
+    return approach(f, e, prey(f));
   },
 });
 
@@ -90,7 +90,7 @@ defineEnemy({
   think(f, e) {
     if ((e.mem.cd ?? 0) > 0) {
       e.mem.cd--;
-      return approach(f, e, f.snake.body);
+      return approach(f, e, prey(f));
     }
     const s = f.snake;
     let best = -1, bestScore = -1;
@@ -154,6 +154,6 @@ defineEnemy({
       const tiles = line(f, e.pos, dirTo(e.pos, h), 5);
       if (tiles.length) return { t: 'strike', tiles, dmg: 1 };
     }
-    return approach(f, e, f.snake.body, wounded ? 3 : 2);
+    return approach(f, e, prey(f), wounded ? 3 : 2);
   },
 });
