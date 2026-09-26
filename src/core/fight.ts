@@ -592,6 +592,8 @@ function resolveIntent(f: Fight, e: Enemy): boolean {
       const p = ops.segPos(f, it.seg);
       if (!p || chebyshev(p, e.pos) > it.reach || protectedSeg(f, it.seg)) {
         ops.emit(f, { t: 'fizzle', enemy: e.id });
+        // Slid out of reach (not shielded by the burrow, not cut off): a dodge.
+        if (p && !protectedSeg(f, it.seg)) for (const { id, seg } of ops.itemsOnBody(f)) item(id).onDodge?.(f, seg, e);
         return false;
       }
       ops.emit(f, { t: 'strike', enemy: e.id, tiles: [p] });

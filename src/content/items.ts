@@ -1141,8 +1141,9 @@ const grazes = (f: Fight, e: Enemy) => {
   const red = redTiles(e);
   return red.length > 0 && !red.some((t) => ops.bodyIndexAt(f, t) >= 0) && red.some((t) => nearYou(f, t, 1));
 };
+const firstSidewinder = (f: Fight, k: number) => k === f.snake.segs.findIndex((s) => s.item?.startsWith('sidewinder'));
 function sidewind(f: Fight, k: number) {
-  if (k !== f.snake.segs.findIndex((s) => s.item?.startsWith('sidewinder'))) return; // once per turn
+  if (!firstSidewinder(f, k)) return; // one sidewinder counts
   for (const e of [...f.enemies]) if (grazes(f, e) && !coiledEnemies(f).has(e)) ops.damageEnemy(f, e, 2, 'sidewinder');
 }
 const threatening = (f: Fight) => f.enemies.filter((e) => redTiles(e).some((t) => nearYou(f, t, 1)));
@@ -1153,9 +1154,12 @@ defineItem({
   glyph: 'sidewinder',
   color: '#e9d8a6',
   rarity: 'uncommon',
-  passiveText: 'A red tile beside you that misses: its attacker takes 2.',
+  passiveText: 'An attack that just misses you: its attacker takes 2.',
   activeText: 'Every enemy with a red tile on or beside you loses its intent.',
   bodyPhase: sidewind,
+  onDodge(f, k, e) {
+    if (firstSidewinder(f, k) && e.hp > 0) ops.damageEnemy(f, e, 2, 'sidewinder');
+  },
   active: {
     target: 'none',
     requires: 'Needs an enemy whose red tile is on or beside you.',

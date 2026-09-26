@@ -41,6 +41,8 @@ export interface ItemDef {
   onHit?(f: Fight, segIndex: number, source: Enemy | null): boolean;
   /** Runs every body phase for each segment carrying this item. */
   bodyPhase?(f: Fight, segIndex: number): void;
+  /** An enemy's lock on you just missed (the segment slid out of reach). */
+  onDodge?(f: Fight, segIndex: number, attacker: Enemy): void;
   active?: {
     target: 'none' | 'dir';
     /** The active is the turn's move (ends the turn). */
