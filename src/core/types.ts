@@ -27,7 +27,8 @@ export interface Snake {
 export type Intent =
   | { t: 'wait' }
   /** `chase`: steps after the first re-path toward the snake. */
-  | { t: 'move'; dir: Dir; steps: number; chase?: boolean }
+  /** `turn`: boxed in, a boss snake will turn around (its tail becomes its head). */
+  | { t: 'move'; dir: Dir; steps: number; chase?: boolean; turn?: boolean }
   /** `lunge`: an enemy snake's bite: its head darts into tiles[0] (bites what lies there, else slithers in). */
   | { t: 'strike'; tiles: Pos[]; dmg: number; lunge?: boolean; sever?: boolean }
   /** Latches onto a segment (uid). Lands if the segment is within `reach` (Chebyshev) at resolution. */

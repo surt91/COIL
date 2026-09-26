@@ -359,6 +359,7 @@ export class BoardRenderer {
     this.drawSnake(f, bodyPts, now);
     this.drawPreviewLosses(f);
     this.drawLocks(f, bodyPts, now);
+    this.drawBreath(f, bodyPts, now);
     this.drawRipostes(f, now);
     this.drawTargeting(f, now);
     this.drawFx(dt);
@@ -1133,6 +1134,59 @@ export class BoardRenderer {
       ctx.textBaseline = 'alphabetic';
       ctx.restore();
     }
+    // pending segments count at the burrow
+    const pend = ops.pending(f);
+    if (pend > 0 && n > 1) {
+      const t = P(n - 1);
+      ctx.fillStyle = 'rgba(232,241,242,0.8)';
+      ctx.strokeStyle = 'rgba(13,19,33,0.9)';
+      ctx.lineWidth = 3;
+      ctx.font = `bold ${Math.round(T * 0.24)}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.strokeText(`+${pend}`, t.x, t.y + T * 0.5);
+      ctx.fillText(`+${pend}`, t.x, t.y + T * 0.5);
+    }
+    // A boxed-in boss snake about to turn around: ↺ on its tail, where its head will be.
+    for (const e of f.enemies) {
+      if (e.intent.t !== 'move' || !e.intent.turn || !e.body?.length) continue;
+      const t = e.body[e.body.length - 1];
+      ctx.save();
+      ctx.globalAlpha = 0.75 + 0.25 * Math.sin(now / 120);
+      ctx.font = `bold ${Math.round(T * 0.5)}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.strokeStyle = 'rgba(13,19,33,0.9)';
+      ctx.lineWidth = 3;
+      ctx.fillStyle = lighten(ENEMIES.get(e.kind)?.color ?? '#e8f1f2', 0.3);
+      ctx.strokeText('↺', this.cx(t.x), this.cy(t.y));
+      ctx.fillText('↺', this.cx(t.x), this.cy(t.y));
+      ctx.restore();
+    }
+    // Enemy snakes' length still in their burrow is health too: '+N' beyond the tail, in their colour.
+    for (const e of f.enemies) {
+      const left = e.mem.pending ?? 0;
+      if (!e.body || left <= 0 || e.under) continue;
+      const tail = e.body.length ? e.body[e.body.length - 1] : e.pos;
+      const prev = e.body.length >= 2 ? e.body[e.body.length - 2] : e.body.length ? e.pos : null;
+      const dx = prev ? Math.sign(tail.x - prev.x) : 0, dy = prev ? Math.sign(tail.y - prev.y) : 1;
+      const x = this.cx(tail.x) + dx * T * 0.6, y = this.cy(tail.y) + dy * T * 0.6 + T * 0.1;
+      ctx.save();
+      ctx.font = `bold ${Math.round(T * 0.26)}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.strokeStyle = 'rgba(13,19,33,0.9)';
+      ctx.lineWidth = 3;
+      ctx.fillStyle = lighten(ENEMIES.get(e.kind)?.color ?? '#e8f1f2', 0.45);
+      ctx.strokeText(`+${left}`, x, y);
+      ctx.fillText(`+${left}`, x, y);
+      ctx.restore();
+    }
+  }
+
+  /** Last breaths, drawn after the locks so a reticle on the head can't hide them. */
+  private drawBreath(f: Fight, pts: { x: number; y: number }[], now: number) {
+    const ctx = this.ctx, T = this.T;
+    if (!pts.length) return;
+    const h = { x: this.cx(pts[0].x), y: this.cy(pts[0].y) };
     // Last breaths: a bare head wears its remaining breaths as a ring of pips (white, not red:
     // no one is hitting you, you are running out).
     if (f.snake.segs.length === 0 && !f.cleared && f.status === 'play') {
@@ -1163,36 +1217,6 @@ export class BoardRenderer {
           ctx.stroke();
         }
       }
-      ctx.restore();
-    }
-    // pending segments count at the burrow
-    const pend = ops.pending(f);
-    if (pend > 0 && n > 1) {
-      const t = P(n - 1);
-      ctx.fillStyle = 'rgba(232,241,242,0.8)';
-      ctx.strokeStyle = 'rgba(13,19,33,0.9)';
-      ctx.lineWidth = 3;
-      ctx.font = `bold ${Math.round(T * 0.24)}px system-ui, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.strokeText(`+${pend}`, t.x, t.y + T * 0.5);
-      ctx.fillText(`+${pend}`, t.x, t.y + T * 0.5);
-    }
-    // Enemy snakes' length still in their burrow is health too: '+N' beyond the tail, in their colour.
-    for (const e of f.enemies) {
-      const left = e.mem.pending ?? 0;
-      if (!e.body || left <= 0 || e.under) continue;
-      const tail = e.body.length ? e.body[e.body.length - 1] : e.pos;
-      const prev = e.body.length >= 2 ? e.body[e.body.length - 2] : e.body.length ? e.pos : null;
-      const dx = prev ? Math.sign(tail.x - prev.x) : 0, dy = prev ? Math.sign(tail.y - prev.y) : 1;
-      const x = this.cx(tail.x) + dx * T * 0.6, y = this.cy(tail.y) + dy * T * 0.6 + T * 0.1;
-      ctx.save();
-      ctx.font = `bold ${Math.round(T * 0.26)}px system-ui, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.strokeStyle = 'rgba(13,19,33,0.9)';
-      ctx.lineWidth = 3;
-      ctx.fillStyle = lighten(ENEMIES.get(e.kind)?.color ?? '#e8f1f2', 0.45);
-      ctx.strokeText(`+${left}`, x, y);
-      ctx.fillText(`+${left}`, x, y);
       ctx.restore();
     }
   }

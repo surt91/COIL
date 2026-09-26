@@ -5,6 +5,9 @@
  */
 import { useEffect, useRef } from 'preact/hooks';
 import { createFight } from '../core/fight';
+import type { Pos } from '../core/geom';
+import { spawnEnemy } from '../core/ops';
+import type { Enemy, Fight } from '../core/types';
 import { CHARMS, ENEMIES, ITEMS } from '../core/registry';
 import { LAYOUTS } from '../content/layouts';
 import { BoardRenderer } from '../render/board';
@@ -47,6 +50,35 @@ function Board({ act, enemies, species }: { act: number; enemies: string[]; spec
     return () => cancelAnimationFrame(raf);
   }, []);
   return <canvas ref={ref} />;
+}
+
+/** A hand-built moment (telegraphs that only show up mid-fight), so reviews can find them. */
+function Scene({ act, layout, species, setup }: { act: number; layout: string; species: string; setup(f: Fight): void }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const r = new BoardRenderer(ref.current!);
+    r.act = act;
+    r.instant = true;
+    r.style = SPECIES_STYLES[species];
+    const f = createFight({ rows: LAYOUTS.find((l) => l.id === layout)!.rows, genome: [], flesh: 0, seed: 11, place: [] });
+    setup(f);
+    r.push(f);
+    r.resize(560, 430);
+    let raf = 0;
+    const loop = (t: number) => { r.frame(t, 16); raf = requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  return <canvas ref={ref} />;
+}
+
+/** An enemy snake laid out by hand (head first), nothing left in its burrow unless `pending`. */
+function laySnake(f: Fight, kind: string, tiles: Pos[], pending = 0): Enemy {
+  const e = spawnEnemy(f, kind, tiles[0]);
+  e.body = tiles.slice(1).map((p) => ({ ...p }));
+  e.mem.pending = pending;
+  e.hp = tiles.length + pending;
+  return e;
 }
 
 export function Gallery() {
@@ -113,6 +145,24 @@ export function Gallery() {
         <Board act={0} enemies={['beetle', 'frog', 'hedgehog', 'mantis', 'spider']} species="garden" />
         <Board act={1} enemies={['mole', 'magpie', 'ant', 'tortoise', 'queen']} species="python" />
         <Board act={2} enemies={['wasp', 'glowworm', 'rival', 'ouroboros']} species="viper" />
+      </div>
+      <h2 style={sec}>Moments (lunge and sever over a body, '+N' in a burrow, last breaths)</h2>
+      <div style={row}>
+        <Scene act={2} layout="chasm" species="viper" setup={(f) => {
+          f.snake.body = [{ x: 5, y: 3 }, { x: 5, y: 4 }, { x: 5, y: 5 }, { x: 5, y: 6 }, { x: 5, y: 7 }, { x: 6, y: 7 }, { x: 7, y: 7 }];
+          f.snake.segs = f.snake.body.slice(1).map((_, i) => ({ uid: 100 + i, item: i === 1 ? 'fang' : null }));
+          const o = laySnake(f, 'ouroboros', [{ x: 7, y: 5 }, { x: 8, y: 5 }, { x: 9, y: 5 }, { x: 10, y: 5 }, { x: 10, y: 4 }], 17);
+          o.intent = { t: 'strike', tiles: [{ x: 6, y: 5 }, { x: 5, y: 5 }], dmg: 1, lunge: true, sever: true };
+          const r = laySnake(f, 'rival', [{ x: 3, y: 9 }, { x: 2, y: 9 }, { x: 2, y: 8 }], 3);
+          r.intent = { t: 'move', dir: 1, steps: 1 };
+        }} />
+        <Scene act={0} layout="garden-gate" species="garden" setup={(f) => {
+          f.snake.body = [{ x: 6, y: 5 }];
+          f.snake.segs = [];
+          f.breath = 3;
+          const m = spawnEnemy(f, 'mongoose', { x: 8, y: 5 });
+          m.intent = { t: 'lock', seg: 0, dmg: 2, windup: 1, reach: 1 };
+        }} />
       </div>
     </div>
   );

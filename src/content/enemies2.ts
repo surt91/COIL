@@ -214,7 +214,8 @@ function snakeThink(f: Fight, e: Enemy, opts: { sever: boolean; hunt: 'tail' | '
   if (it.t === 'move') return it;
   // Already there, or no way through: it still has to move somewhere.
   const d = forcedStep(f, e);
-  return { t: 'move', dir: d ?? 0, steps: 1 };
+  // No way out: a boss turns around (announced on its tail), anything else will gnaw itself.
+  return { t: 'move', dir: d ?? 0, steps: 1, turn: d === null && !!enemyDef(e.kind).boss && !!e.body?.length };
 }
 
 defineEnemy({
