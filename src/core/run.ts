@@ -53,7 +53,7 @@ export interface RunStats {
 export const MOLTS = [
   'Base game',
   'Hungrier: you starve every 9 turns instead of 12.',
-  'Tougher Garden: Act 1 enemies have +1 HP.',
+  'Tougher Garden: Act 1 enemies have +1 HP (hedgehogs excepted: they cost you per bite).',
   'Lean: you can carry 2 less flesh between rooms.',
   'Crowded: normal fights and elites bring an extra beetle.',
   'Thin skin: you start with 1 flesh.',
@@ -323,7 +323,7 @@ export function startFight(run: RunState, nodeId: number, pool: Pool): RunState 
   for (const e of fight.enemies) {
     const boss = enemyDef(e.kind).boss;
     const actBonus = [0, 1, 3][Math.min(run.act, 2)];
-    const bonus = boss ? (run.molt >= 6 ? Math.round(e.hp * 0.3) : 0) + (run.bossBonus ?? 0) : e.hp >= 2 ? actBonus + (run.molt >= 2 && run.act === 0 ? 1 : 0) : 0;
+    const bonus = boss ? (run.molt >= 6 ? Math.round(e.hp * 0.3) : 0) + (run.bossBonus ?? 0) : e.hp >= 2 ? actBonus + (run.molt >= 2 && run.act === 0 && !enemyDef(e.kind).spiky ? 1 : 0) : 0;
     e.hp += bonus;
     e.maxHp += bonus;
   }
