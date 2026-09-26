@@ -5,7 +5,7 @@ import { ENCOUNTERS } from '../src/content/encounters';
 import { LAYOUTS } from '../src/content/layouts';
 import { coilDamage, coiledEnemies, computeCoils } from '../src/core/coil';
 import { arcIndices, createRun, drawArc, enterNode, genomeDraw, moveGenome } from '../src/core/run';
-import { createFight, legalMoves, step } from '../src/core/fight';
+import { createFight, legalMoves, spawnIn, step } from '../src/core/fight';
 import { Dir, Pos } from '../src/core/geom';
 import { cutEnemy, damageEnemy, hand, hitSnake, moveEnemy, spawnEnemy } from '../src/core/ops';
 import { CHARMS, ITEMS } from '../src/core/registry';
@@ -475,4 +475,20 @@ test('a sever while you are still emerging only bites', () => {
   const n = g.snake.segs.length;
   hitSnake(g, 1, 1, null, { sever: true });
   expect(g.snake.segs.length).toBe(n - 1);
+});
+
+test('reinforcements come on a countdown, but not while you are a bare head', () => {
+  const f = fight([P(5, 4), P(4, 4)], [null], [], 12, 9);
+  f.spawns = [P(10, 7)];
+  const t = spawnEnemy(f, 'tortoise', P(10, 1));
+  t.intent = { t: 'wait' };
+  f.opts.escalateFrom = 3;
+  f.opts.escalateEvery = 4;
+  f.turn = 1;
+  expect(spawnIn(f)).toBe(2);
+  f.turn = 2;
+  expect(spawnIn(f)).toBe(1);
+  f.snake.segs = [];
+  f.snake.body = [P(5, 4)];
+  expect(spawnIn(f)).toBe(Infinity);
 });
