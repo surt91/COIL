@@ -308,6 +308,45 @@ const SCENES: Record<string, Scene> = {
     snake(ctx, wave(w * 0.95, w * 0.55, h * 0.72, h * 0.05, 4), h * 0.22);
     void c;
   },
+  glottis(ctx, w, h, c) {
+    // A snake head, jaws around something huge, still breathing: bubbles rise from its throat.
+    snake(ctx, wave(w * 0.02, w * 0.5, h * 0.62, h * 0.06, 3), h * 0.34, { tongue: false });
+    ctx.fillStyle = rgba(hexRgb('#d9c2a8'), 0.9);
+    ctx.beginPath();
+    ctx.ellipse(w * 0.66, h * 0.62, h * 0.2, h * 0.16, 0, 0, Math.PI * 2);
+    ctx.fill();
+    for (let i = 0; i < 4; i++) {
+      const x = w * (0.52 + i * 0.05), y = h * (0.42 - i * 0.1), r = h * (0.06 + i * 0.015);
+      ctx.fillStyle = rgba(c, 0.85);
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.beginPath();
+      ctx.arc(x - r * 0.3, y - r * 0.3, r * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  },
+  sidewinder(ctx, w, h, c) {
+    // Sand with J-shaped tracks; a red strike lands just beside the snake, on nothing.
+    ctx.fillStyle = rgba(c, 0.12);
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = rgba(c, 0.55);
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 4; i++) {
+      const x = w * (0.1 + i * 0.14);
+      ctx.beginPath();
+      ctx.moveTo(x, h * 0.2);
+      ctx.lineTo(x + h * 0.18, h * 0.62);
+      ctx.quadraticCurveTo(x + h * 0.24, h * 0.82, x + h * 0.08, h * 0.8);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(239, 71, 111, 0.8)';
+    ctx.setLineDash([4, 3]);
+    ctx.strokeRect(w * 0.62, h * 0.25, h * 0.4, h * 0.4);
+    ctx.setLineDash([]);
+    snake(ctx, [{ x: w * 0.58, y: h * 0.95 }, { x: w * 0.72, y: h * 0.78 }, { x: w * 0.9, y: h * 0.72 }], h * 0.28);
+  },
   rattle(ctx, w, h, c) {
     // A tail tip ending in keratin rattle segments, buzzing.
     snake(ctx, [{ x: w * 0.02, y: h * 0.75 }, { x: w * 0.2, y: h * 0.6 }, { x: w * 0.38, y: h * 0.52 }], h * 0.32, { head: false });

@@ -727,6 +727,7 @@ export const BREATH = 6;
 /** Turns until the next reinforcement beetle (1 = after your next move); Infinity if none is coming. */
 export function spawnIn(f: Fight): number {
   if (f.cleared || !f.spawns.length || f.snake.segs.length === 0) return Infinity;
+  if ((f.charms ?? []).some((c) => CHARMS.get(c)?.huskWard) && f.husks.some((h) => h.ttl < HUSK_PERMANENT)) return Infinity;
   const { escalateFrom: from, escalateEvery: every } = f.opts;
   const t = f.turn + 1;
   const next = t <= from ? from : from + Math.ceil((t - from) / every) * every;

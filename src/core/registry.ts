@@ -143,6 +143,8 @@ export interface CharmDef {
   drawBonus?: number;
   /** Poison applied by each bite. */
   bitePoison?: number;
+  /** No reinforcements while a (decaying) husk lies on the board. */
+  huskWard?: boolean;
   /** Extra bite damage against enemies with at least 3 HP. */
   toughBite?: number;
   fightStart?(f: Fight): void;

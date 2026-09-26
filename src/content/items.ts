@@ -1,5 +1,5 @@
 import { coilDamage, coiledEnemies, computeCoils, isWrapped, segBorders } from '../core/coil';
-import { bossExposed, doMove, legalMoves, moveOutcome, wrapMin } from '../core/fight';
+import { BREATH, bossExposed, doMove, legalMoves, moveOutcome, wrapMin } from '../core/fight';
 import { DIRS, Dir, Pos, chebyshev, dirTo, key, manhattan, neighbors4, step } from '../core/geom';
 import * as ops from '../core/ops';
 import { ENEMIES, defineItem, defineUpgrade, item } from '../core/registry';
@@ -1094,6 +1094,91 @@ defineUpgrade('heatpit', {
     play(f) {
       f.buffs.bite += 3;
       f.buffs.pierce = 1;
+    },
+  },
+});
+
+// --- Breath and near-misses (the last-breaths and lunge rules as choices) ---
+
+/** Spend breath (never refilled this fight) to shrug off a whole turn. */
+function spendBreath(f: Fight, n: number) {
+  f.breath = (f.breath ?? BREATH) - n;
+  ops.emit(f, { t: 'gasp', at: { ...ops.head(f) }, left: f.breath });
+  f.buffs.absorb += 99; // reset with the other per-turn buffs
+}
+
+defineItem({
+  id: 'glottis',
+  name: 'Glottis',
+  glyph: 'glottis',
+  color: '#bde0fe',
+  rarity: 'uncommon',
+  activeText: 'Spend 2 breaths: absorb every hit that lands on you this turn.',
+  active: {
+    target: 'none',
+    requires: 'Needs 3 or more breaths left.',
+    canPlay: (f) => (f.breath ?? BREATH) >= 3,
+    play: (f) => spendBreath(f, 2),
+  },
+});
+
+defineUpgrade('glottis', {
+  name: 'Tracheal Lung',
+  activeText: 'Spend 1 breath: absorb every hit that lands on you this turn.',
+  active: {
+    target: 'none',
+    requires: 'Needs 2 or more breaths left.',
+    canPlay: (f) => (f.breath ?? BREATH) >= 2,
+    play: (f) => spendBreath(f, 1),
+  },
+});
+
+/** Tiles an enemy will strike after your move (tile attacks are fixed when announced). */
+const redTiles = (e: Enemy): Pos[] => (e.under ? [] : e.intent.t === 'strike' ? e.intent.tiles : e.intent.t === 'emerge' ? [e.intent.at] : []);
+const nearYou = (f: Fight, p: Pos, d: number) => f.snake.body.some((b) => chebyshev(b, p) <= d);
+/** A red tile touching your body but holding none of it: a certain miss (your body only shrinks before it resolves). */
+const grazes = (f: Fight, e: Enemy) => {
+  const red = redTiles(e);
+  return red.length > 0 && !red.some((t) => ops.bodyIndexAt(f, t) >= 0) && red.some((t) => nearYou(f, t, 1));
+};
+function sidewind(f: Fight, k: number) {
+  if (k !== f.snake.segs.findIndex((s) => s.item?.startsWith('sidewinder'))) return; // once per turn
+  for (const e of [...f.enemies]) if (grazes(f, e) && !coiledEnemies(f).has(e)) ops.damageEnemy(f, e, 2, 'sidewinder');
+}
+const threatening = (f: Fight) => f.enemies.filter((e) => redTiles(e).some((t) => nearYou(f, t, 1)));
+
+defineItem({
+  id: 'sidewinder',
+  name: 'Sidewinder',
+  glyph: 'sidewinder',
+  color: '#e9d8a6',
+  rarity: 'uncommon',
+  passiveText: 'A red tile beside you that misses: its attacker takes 2.',
+  activeText: 'Every enemy with a red tile on or beside you loses its intent.',
+  bodyPhase: sidewind,
+  active: {
+    target: 'none',
+    requires: 'Needs an enemy whose red tile is on or beside you.',
+    canPlay: (f) => threatening(f).length > 0,
+    play(f) {
+      for (const e of threatening(f)) e.intent = { t: 'wait' };
+    },
+  },
+});
+
+defineUpgrade('sidewinder', {
+  name: 'Sidewinder Strike',
+  activeText: 'Enemies with a red tile on or beside you lose their intent and take 1.',
+  active: {
+    target: 'none',
+    requires: 'Needs an enemy whose red tile is on or beside you.',
+    canPlay: (f) => threatening(f).length > 0,
+    play(f) {
+      for (const e of threatening(f)) {
+        e.intent = { t: 'wait' };
+        ops.damageEnemy(f, e, 1, 'sidewinder');
+      }
+      ops.removeDead(f);
     },
   },
 });

@@ -814,3 +814,20 @@ Außerdem:
   gekostet.
 - Verlorene Items eines Zuges stehen in einer Zeile ("Lost: Fang, Rattle") statt
   in vier gestapelten Texten.
+
+**Neuer Inhalt für die neuen Regeln.** Der Content-Designer sollte aus den Regeln
+des Tages Entscheidungen machen, nicht bloß Zahlen:
+- **Glottis:** Die echte Schlange schiebt beim Schlucken riesiger Beute die
+  Luftröhre nach vorn, um weiteratmen zu können. Im Spiel gibst du 2 Atemzüge aus,
+  dafür prallt in diesem Zug jeder Treffer ab. Atem, der sonst nur in verlorenen
+  Kämpfen etwas wert ist, wird so zu einer Ressource. Du hast ihn dann aber nicht
+  mehr, wenn der Kampf kippt.
+- **Sidewinder:** Ein rotes Feld, das dich knapp verfehlt, kostet den Angreifer
+  2 HP. Weil der Körper dem Kopf folgt, bleibt bei einer Flucht meist ein Segment
+  auf dem roten Feld liegen. Belohnt wird das exakte Ausweichen um ein Feld, genau
+  das, was die graue Vorschau seit heute zeigt. Die Karte selbst nimmt allen
+  Angreifern neben dir die Absicht, und damit auch die Beinahe-Treffer, die das
+  Passiv bestrafen würde.
+- **Scarecrow Skin** (Charm): Solange eine Hülle herumliegt, kommt kein
+  Nachschub. Gegen die Ouroboros ist das eine Zwickmühle, denn dieselben Hüllen,
+  die die Käfer fernhalten, füttern sie.

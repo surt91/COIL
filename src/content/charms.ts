@@ -71,3 +71,9 @@ defineCharm({
   fleshCapBonus: -3,
   fightStart: (f) => void (f.shield = (f.shield ?? 0) + 2),
 });
+
+defineCharm({
+  id: 'scarecrow-skin', name: 'Scarecrow Skin', pool: 'common', glyph: 'shed', color: '#d4c9a8',
+  text: 'Shed skin scares beetles: no reinforcements while a husk lies about.',
+  huskWard: true,
+});

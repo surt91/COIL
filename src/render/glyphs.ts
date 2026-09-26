@@ -104,6 +104,26 @@ const glyphs: Record<string, (ctx: G, r: number) => void> = {
     ctx.closePath();
     ctx.stroke();
   },
+  glottis(ctx, r) {
+    // A ring of breath pips, two of them spent.
+    for (let i = 0; i < 6; i++) {
+      const a = -Math.PI / 2 + (i / 6) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.arc(Math.cos(a) * 0.62 * r, Math.sin(a) * 0.62 * r, 0.2 * r, 0, Math.PI * 2);
+      if (i < 4) ctx.fill();
+      else ctx.stroke();
+    }
+  },
+  sidewinder(ctx, r) {
+    // The parallel J-shaped tracks a sidewinder leaves in sand.
+    for (const dx of [-0.35, 0.35]) {
+      ctx.beginPath();
+      ctx.moveTo((dx - 0.2) * r, -0.6 * r);
+      ctx.lineTo((dx + 0.15) * r, 0.25 * r);
+      ctx.quadraticCurveTo((dx + 0.25) * r, 0.6 * r, (dx - 0.1) * r, 0.55 * r);
+      ctx.stroke();
+    }
+  },
   rattle(ctx, r) {
     for (let i = 0; i < 3; i++) {
       ctx.beginPath();
