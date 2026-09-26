@@ -176,12 +176,11 @@ function snakeThink(f: Fight, e: Enemy, opts: { sever: boolean; hunt: 'tail' | '
     const it = near.length ? approach(f, e, near) : null;
     if (it && it.t === 'move') return it;
   }
-  // Snakes play by your rules: never wait, and bite by moving into you.
-  const recoil = e.mem.recoil;
-  delete e.mem.recoil;
+  // Snakes play by your rules: never wait, and bite by moving into you. (After a landed
+  // lunge the engine turns the next one into a plain move: see `gulp` in enemyPhase.)
   // Lunge at a segment in reach, in a straight line (never the head: it prefers to cut you) —
-  // unless it just bit. The first segment on the line is the one it aims for.
-  if (!recoil) {
+  // The first segment on the line is the one it aims for.
+  {
     let best: { bi: number; tiles: Pos[] } | null = null;
     for (const d of DIRS) {
       const tiles: Pos[] = [];
@@ -235,7 +234,7 @@ defineEnemy({
   hp: 28,
   glyph: 'ouroboros',
   color: '#d9d2c3',
-  text: 'Final boss. A serpent that plays by your rules: never still, it lunges along the red line and severs what it hits. Its length is its health, and it swallows husks to regrow — yours and its own. Its spiny hide cuts back when you bite its body, unless you hold it: wrapped or coiled.',
+  text: 'Final boss. A serpent that plays by your rules: never still, it lunges along the red line and severs what it hits. Its length is its health, and it swallows husks to regrow — yours and its own. Its spiny hide cuts back when you bite its body — unless you wrap its head first (or coil it).',
   snake: true,
   boss: true,
   heldMaxArea: 6,

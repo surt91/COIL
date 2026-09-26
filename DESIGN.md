@@ -77,6 +77,11 @@ Every decision — play a card, eat, fight, coil, buy — spends the same thing.
 - **Sever** (mantis) cuts at *k*: everything behind becomes husks (items stay
   on them — eat them back within 4 turns).
 - Hit on the head with no segments left → death.
+- **Last breaths:** a bare head can dodge everything, so it may not linger. Each
+  turn that ends with no segments costs one of 6 breaths per fight (pips around
+  the head); none left → death. Eating ends the gasp, spent breath never returns.
+  Hunger doesn't bite a bare head (its clock is its breath).
+- While you are still emerging from the burrow, a sever only bites.
 
 ### Constriction
 
@@ -95,6 +100,24 @@ Every decision — play a card, eat, fight, coil, buy — spends the same thing.
   not) is knocked back and interrupted like a normal enemy, takes +1 from
   bites and can't riposte. Loose coils pay before they hold.
 - A bite tears at most 5 segments off a boss snake (the Ouroboros).
+- A boss that lands a bite spends its next turn swallowing (no bite).
+- When a boss dies, its brood dies with it. Brood laid after turn 40 is too small
+  to feed you.
+
+### Enemy snakes
+
+They play by your rules: they never wait. Every turn is a move attempt, and a
+bite is a move into an occupied tile.
+- **Lunge:** a red tile (a red line for the Ouroboros, 2 tiles) with a chevron
+  from its head. Whatever part of you lies there after your move is bitten
+  (severed, for the Ouroboros); an empty tile it slithers into. After a landed
+  lunge it spends a turn swallowing.
+- Blocked, it takes the free step with room behind it. Boxed in, the Ouroboros
+  turns around (its tail becomes its head); anything else gnaws its own tail.
+- Only a coil holds a snake still.
+- **The Ouroboros:** spiny hide (biting its body costs you a segment, unless your
+  body presses in around its head, i.e. 4+ touching tiles); it swallows husks to
+  regrow (up to its starting length); its own severed length crumbles.
 - **Wrap:** an enemy touching 4+ snake tiles (8-neighbourhood) is squeezed for
   1/turn even without a closed coil. This makes constriction incremental.
 - To keep a coil, the snake chases its own tail (the tail tip vacates each turn).
@@ -166,7 +189,7 @@ Each item has an **active** (play from hand, consumes) and/or a **passive**
 | 3 | Glowworm | Lines again. | Spits light along 4 tiles. |
 | 3 | Rival snake | Can it coil *you*? | Plays by your rules; bite its body to cut it. |
 | 3 | Brood Grub | Will you coil it? | Slow. Any kill but a crush bursts it into two Grublings, which don't feed you. |
-| 3 | **The Ouroboros** (boss) | | Giant snake that hunts your tail and severs. |
+| 3 | **The Ouroboros** (boss) | | Never still; lunges 2 tiles and severs; spiny hide; swallows husks. |
 
 Enemy HP scales +1 per act (non-bosses).
 

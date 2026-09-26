@@ -141,7 +141,7 @@ export type GameEvent =
   | { t: 'enemyMove'; enemy: number; from: Pos; to: Pos }
   | { t: 'enemyHurt'; enemy: number; at: Pos; dmg: number; cause: string }
   | { t: 'enemyDie'; enemy: number; at: Pos; kind: EnemyKind }
-  | { t: 'strike'; enemy: number; tiles: Pos[] }
+  | { t: 'strike'; enemy: number; tiles: Pos[]; lunge?: boolean }
   | { t: 'segLost'; at: Pos; item: ItemId | null; cause: string }
   | { t: 'absorb'; at: Pos }
   | { t: 'sever'; at: Pos; n: number }

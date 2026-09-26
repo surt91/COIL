@@ -617,7 +617,8 @@ export class BoardRenderer {
 
   private enemyPos(e: Enemy, p: number): { x: number; y: number } {
     const pe = this.prev?.enemies.find((x) => x.id === e.id);
-    if (!pe) return e.pos;
+    // A jump of more than a tile (a snake turning around, a mole surfacing) snaps instead of sliding.
+    if (!pe || Math.abs(pe.pos.x - e.pos.x) + Math.abs(pe.pos.y - e.pos.y) > 2) return e.pos;
     return { x: lerp(pe.pos.x, e.pos.x, p), y: lerp(pe.pos.y, e.pos.y, p) };
   }
 
@@ -831,7 +832,7 @@ export class BoardRenderer {
     const g = this.preview;
     if (!g || g.turn <= f.turn) return false;
     if (e.intent.t === 'lock') return g.events.some((ev) => ev.t === 'fizzle' && ev.enemy === e.id);
-    if (e.intent.t === 'strike' && e.intent.lunge) return !g.events.some((ev) => ev.t === 'strike' && ev.enemy === e.id);
+    if (e.intent.t === 'strike' && e.intent.lunge) return !g.events.some((ev) => ev.t === 'strike' && ev.enemy === e.id && !!ev.lunge);
     return false;
   }
 

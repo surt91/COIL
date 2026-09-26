@@ -447,6 +447,7 @@ function describeAction(f: Fight, a: Action): string {
 }
 
 function describeIntent(f: Fight, e: Enemy): string {
+  if (e.mem.swallowing && !e.held && e.intent.t !== 'lock' && e.intent.t !== 'strike') return 'Swallowing — it won’t bite this turn';
   const it = e.intent;
   switch (it.t) {
     case 'wait': return e.held ? 'Held in your coil' : e.mem.swallowing ? 'Swallowing — it won’t bite this turn' : 'Waiting';

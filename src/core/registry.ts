@@ -89,8 +89,6 @@ export interface EnemyDef {
   onDie?(f: Fight, e: Enemy, cause: string): void;
   /** Too small to feed you: killing it grows no flesh and doesn't reset hunger. */
   meagre?: boolean;
-  /** What it summons is meagre too. */
-  meagreBrood?: boolean;
 }
 
 export const ITEMS = new Map<ItemId, ItemDef>();

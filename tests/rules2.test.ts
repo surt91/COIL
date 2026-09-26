@@ -7,10 +7,11 @@ import { coilDamage, coiledEnemies, computeCoils } from '../src/core/coil';
 import { arcIndices, createRun, drawArc, enterNode, genomeDraw, moveGenome } from '../src/core/run';
 import { createFight, legalMoves, step } from '../src/core/fight';
 import { Dir, Pos } from '../src/core/geom';
-import { damageEnemy, hand, spawnEnemy } from '../src/core/ops';
+import { cutEnemy, damageEnemy, hand, hitSnake, moveEnemy, spawnEnemy } from '../src/core/ops';
 import { CHARMS, ITEMS } from '../src/core/registry';
 import { makeRng, pick } from '../src/core/rng';
 import type { Action, Fight, ItemId } from '../src/core/types';
+import { Tile } from '../src/core/types';
 
 const P = (x: number, y: number): Pos => ({ x, y });
 const U: Dir = 0, R: Dir = 1, D: Dir = 2, L: Dir = 3;
@@ -399,4 +400,79 @@ test('a boss takes its brood with it: the room is won, not a mop-up', () => {
   damageEnemy(f, queen, queen.hp, 'test');
   expect(ant.hp).toBe(0);
   expect(f.events.filter((e) => e.t === 'enemyDie').length).toBe(2);
+});
+
+describe('the Ouroboros', () => {
+  const lay = (f: Fight, head: Pos, body: Pos[]) => {
+    const o = spawnEnemy(f, 'ouroboros', head);
+    o.body = body.map((p) => ({ ...p }));
+    o.mem.pending = 0;
+    o.hp = body.length + 1;
+    o.intent = { t: 'wait' };
+    return o;
+  };
+
+  test('spiny hide: biting its body costs a segment — unless your body presses in around its head', () => {
+    // You at (2,4) heading right into its body at (3,4); its head far away at (3,1).
+    let f = fight([P(2, 4), P(1, 4), P(1, 5), P(1, 6)], [null, null, null], [], 12, 9);
+    lay(f, P(3, 1), [P(3, 2), P(3, 3), P(3, 4), P(3, 5), P(3, 6)]);
+    const before = f.snake.segs.length;
+    f = step(f, { t: 'move', dir: R });
+    expect(f.snake.segs.length).toBe(before - 1);
+  });
+
+  test('…pressed in around its head, cutting its body is free', () => {
+    // Its head at (6,2); your body wraps it from the left and above; you bite its body at (7,4) from (6,4).
+    let f = fight([P(6, 4), P(5, 4), P(5, 3), P(5, 2), P(5, 1), P(6, 1), P(7, 1)], [null, null, null, null, null, null], [], 12, 9);
+    lay(f, P(6, 2), [P(7, 2), P(7, 3), P(7, 4), P(7, 5), P(7, 6)]);
+    const before = f.snake.segs.length;
+    f = step(f, { t: 'move', dir: R });
+    expect(f.snake.segs.length).toBe(before);
+  });
+
+  test('it swallows husks to regrow, up to its starting length, and its own cut length leaves no husks', () => {
+    const f = fight([P(9, 7), P(10, 7)], [null], [], 12, 9);
+    const o = lay(f, P(3, 3), [P(3, 4), P(3, 5)]);
+    f.husks.push({ pos: P(4, 3), item: null, ttl: 4 });
+    moveEnemy(f, o, P(4, 3));
+    expect(f.husks.length).toBe(0);
+    expect(o.hp).toBe(4);
+    cutEnemy(f, o, 1, 'bite');
+    expect(f.husks.length).toBe(0);
+  });
+
+  test('boxed in, it turns around instead of gnawing itself', () => {
+    // Its head in a dead end at (1,1): walls left/up, its own body right... it must reverse.
+    const f = fight([P(9, 7), P(10, 7)], [null], [], 12, 9);
+    const o = lay(f, P(1, 1), [P(1, 2), P(2, 2), P(3, 2)]);
+    f.tiles[1 * f.w + 2] = Tile.Wall;
+    o.intent = { t: 'move', dir: U, steps: 1 };
+    const g = step(f, { t: 'move', dir: L });
+    const after = g.enemies.find((e) => e.id === o.id)!;
+    expect(after.hp).toBe(4);
+    expect(g.events.some((e) => e.t === 'msg' && e.text.includes('turns around'))).toBe(true);
+  });
+});
+
+test('breath and hunger: hunger never kills a bare head, a cleared room freezes the breath', () => {
+  let f = fight([P(5, 4)], [], [], 12, 9);
+  f.opts.hungerEvery = 1;
+  const t = spawnEnemy(f, 'tortoise', P(10, 7));
+  t.intent = { t: 'wait' };
+  f = step(f, { t: 'move', dir: R });
+  expect(f.status).toBe('play');
+  expect(f.breath).toBe(5);
+  f.enemies = [];
+  f.cleared = true;
+  f = step(f, { t: 'move', dir: R });
+  expect(f.breath).toBe(5);
+});
+
+test('a sever while you are still emerging only bites', () => {
+  const f = createFight({ rows: open(12, 9).map((r, y) => (y === 4 ? 'S' + r.slice(1) : r)), genome: [], flesh: 8, seed: 1, opts: { minFood: 0 } });
+  // Step out once: most of you is still in the burrow.
+  const g = step(f, { t: 'move', dir: R });
+  const n = g.snake.segs.length;
+  hitSnake(g, 1, 1, null, { sever: true });
+  expect(g.snake.segs.length).toBe(n - 1);
 });

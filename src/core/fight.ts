@@ -2,7 +2,7 @@
  * The fight reducer: (Fight, Action) -> Fight (+ events in fight.events).
  * Pure with respect to its input: `step` clones before mutating.
  */
-import { coilDamage, coiledEnemies, computeCoils, enemyCoilsHead, isWrapped } from './coil';
+import { coilDamage, coiledEnemies, computeCoils, enemyCoilsHead, isWrapped, touchCount } from './coil';
 import { DIRS, Dir, Pos, chebyshev, eq, manhattan, step as stepPos } from './geom';
 import * as ops from './ops';
 import { CHARMS, ENEMIES, charmSum, enemyDef, item } from './registry';
@@ -256,12 +256,13 @@ function bite(f: Fight, e: Enemy, dir: Dir, extraBite: number): boolean {
   if (k >= 0) {
     // Biting an enemy snake's body severs it there.
     f.buffs.bite = 0;
+    const exposedNow = bossExposed(f, e);
     const killed = ops.cutEnemy(f, e, k, 'bite');
     ops.emit(f, { t: 'bite', enemy: e.id, at: target, dmg: 0, killed });
     f.snake.dir = dir;
     ops.removeDead(f);
     // A spiky hide: cutting it costs a segment, unless you hold it (wrapped or coiled).
-    if (d.spikyHide && !killed && f.snake.segs.length > 0 && !bossExposed(f, e)) ops.hitSnake(f, 1, 1, e);
+    if (d.spikyHide && !killed && f.snake.segs.length > 0 && !exposedNow) ops.hitSnake(f, 1, 1, e);
     return false;
   }
   let vs = 0;
@@ -456,10 +457,15 @@ function enemyPhase(f: Fight) {
   for (const e of f.enemies) {
     if (keep.has(e.id)) continue;
     e.intent = think(f, e);
+    // After a landed bite it spends a turn swallowing: no bite (a snake still has to move).
     if (e.mem.gulp) {
       delete e.mem.gulp;
       e.mem.swallowing = 1;
       if (e.intent.t === 'lock') e.intent = { t: 'wait' };
+      else if (e.intent.t === 'strike' && e.intent.lunge) {
+        const d = forcedStep(f, e);
+        e.intent = { t: 'move', dir: d ?? 0, steps: 1 };
+      }
     } else delete e.mem.swallowing;
     delete e.mem.interrupted;
     if (e.mem.escaped) ops.emit(f, { t: 'msg', text: `${enemyDef(e.kind).name} escaped!` });
@@ -474,6 +480,8 @@ function enemyPhase(f: Fight) {
  */
 export function bossExposed(f: Fight, e: Enemy): boolean {
   if (isWrapped(f, e, wrapMin(f))) return true;
+  // A snake can't be wrapped whole, but its head can: pressed in by enough of you, it is exposed.
+  if (e.body && touchCount(f, e) >= wrapMin(f)) return true;
   return computeCoils(f).some((c) => c.tiles.some((t) => eq(t, e.pos)));
 }
 
@@ -631,11 +639,10 @@ function resolveIntent(f: Fight, e: Enemy): boolean {
         const n = ops.spawnEnemy(f, it.kind, t);
         n.minion = true;
         // A long boss fight stops feeding you: late brood is too small to swallow.
-        if (d.meagreBrood || (d.boss && f.turn > 40)) n.meagre = true;
+        if (d.boss && f.turn > 40) n.meagre = true;
         n.intent = think(f, n);
         ops.emit(f, { t: 'spawn', enemy: n.id, at: { ...t } });
       }
-      if (e.body) slither(f, e);
       return false;
     }
   }
@@ -653,12 +660,12 @@ function lunge(f: Fight, e: Enemy, tiles: Pos[], dmg: number, sever: boolean): f
       if (ops.freeForEnemy(f, at)) continue;
       break;
     }
-    ops.emit(f, { t: 'strike', enemy: e.id, tiles: [{ ...at }] });
+    ops.emit(f, { t: 'strike', enemy: e.id, tiles: [{ ...at }], lunge: true });
     ops.hitSnake(f, bi, dmg, e, { sever });
-    e.mem.recoil = 1;
+    e.mem.gulp = 1;
     return false;
   }
-  if (ops.freeForEnemy(f, tiles[0])) ops.moveEnemy(f, e, tiles[0]);
+  if (ops.freeForEnemy(f, tiles[0]) || gorges(f, e, tiles[0])) ops.moveEnemy(f, e, tiles[0]);
   else slither(f, e);
   return false;
 }
@@ -666,7 +673,7 @@ function lunge(f: Fight, e: Enemy, tiles: Pos[], dmg: number, sever: boolean): f
 /** A husk-eater may slither onto a husk (ops.moveEnemy swallows it). */
 export function gorges(f: Fight, e: Enemy, p: Pos): boolean {
   if (!enemyDef(e.kind).eatsHusks || ops.huskAt(f, p) < 0) return false;
-  return !ops.enemyAt(f, p) && ops.bodyIndexAt(f, p) < 0 && !ops.isSolid(f, p);
+  return !ops.enemyAt(f, p) && ops.bodyIndexAt(f, p) < 0 && !ops.isSolid(f, p) && ops.tileAt(f, p) !== Tile.Exit && !f.enemies.some((o) => o.under && eq(o.pos, p));
 }
 
 /** The free step with the most room behind it (then the one nearest your body); null when boxed in. */
@@ -674,7 +681,7 @@ export function forcedStep(f: Fight, e: Enemy): Dir | null {
   let best: Dir | null = null, bestScore = -Infinity;
   for (const d of DIRS) {
     const p = stepPos(e.pos, d);
-    if (!ops.freeForEnemy(f, p)) continue;
+    if (!ops.freeForEnemy(f, p) && !gorges(f, e, p)) continue;
     const near = Math.min(...f.snake.body.map((b) => manhattan(b, p)));
     // Enough room to get out again counts first; beyond that, stay on the prey.
     const score = Math.min(ops.floodFrom(f, p, 4).length, 6) * 10 - near;

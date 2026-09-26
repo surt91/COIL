@@ -27,7 +27,7 @@ const TIPS: { id: string; when(f: Fight): boolean; text: string; urgent?: boolea
   { id: 'ring', when: (f) => f.snake.segs.some((x) => x.item && ITEMS.get(x.item)?.ringCrush) && occupiedCoils(f).length > 0, text: 'Ring items only boost coils their own segment touches — wrap prey with that part of you.' },
   { id: 'grub', urgent: true, when: (f) => f.enemies.some((e) => e.kind === 'grub'), text: 'Brood Grub: bitten, it bursts into two. Crush it in a coil instead.' },
   { id: 'riposte', urgent: true, when: (f) => f.enemies.some((e) => !!riposteTile(e)), text: 'Riposte: never bite a boss twice from the same tile. Wrap or coil it to expose it.' },
-  { id: 'hide', when: (f) => f.enemies.some((e) => !!ENEMIES.get(e.kind)?.spikyHide), text: 'Spiny hide: biting its body costs you a segment — unless you wrap or coil it first.' },
+  { id: 'hide', when: (f) => f.enemies.some((e) => !!ENEMIES.get(e.kind)?.spikyHide), text: 'Spiny hide: biting its body costs you a segment — unless your body presses in around its head first.' },
   { id: 'gorge', when: (f) => f.husks.length > 0 && f.enemies.some((e) => !!ENEMIES.get(e.kind)?.eatsHusks), text: 'It swallows husks to regrow. Eat your severed pieces before it does.' },
   { id: 'spiky', when: (f) => f.enemies.some((e) => e.kind === 'hedgehog'), text: 'Spines: biting a hedgehog costs you a segment. Coil it instead.' },
   { id: 'coil', urgent: true, when: (f) => coiledEnemies(f).size > 0, text: 'Coiled! It can’t act, and takes the violet number every turn. Tighter coils crush harder.' },
