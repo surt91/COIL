@@ -743,3 +743,36 @@ Weitere Änderungen:
   Biss-Kill und jeder Crush setzt den Hunger zurück, deshalb gab es nur 0,2–2
   Hunger-Ereignisse pro Kampf. Mit Hunger alle 9 statt alle 10 Züge liegt Tiefe 0
   bei 52 % und Tiefe 1 bei 42 %.
+
+## 2026-09-26 — Die Ouroboros als Duell
+
+Der Handy-Tester: *"Erst ein Hinterhalt an der Tür, dann stapeln sich die
+Glühwürmchen, und es wird Schwarm-Verwaltung. Ihr bester Moment war ein gut
+angekündigter Lunge im offenen Raum."* Der Systems-Designer hat 30 Einzelkämpfe
+zerlegt, und das Bild war schlimmer als gedacht:
+- **Die Hälfte ihrer HP nagte sie sich selbst ab.** Eine 30 Felder lange Schlange
+  in 3 Felder breiten Gängen sperrt sich mit ihrem eigenen Körper, ihren
+  Glühwürmchen und ihren Hüllen ein. Nur in 3,5 % der Fälle warst du es.
+- 123 Fleisch gingen an Glühwürmchen verloren, 21 an den Boss.
+- Ein Biss in ihren Körper war ein Buffet: bis zu 5 Schaden ohne Risiko und
+  5 Hüllen zum Fressen. Der Bot kam aus dem Endkampf mit mehr Fleisch heraus, als
+  er mitgebracht hatte (11,9 → 15,2).
+
+Der Content-Designer schlug einen Umbau in drei Phasen vor (Jagd, Kreis,
+Häutung). Ich habe erst das Fundament gebaut:
+- **Keine Glühwürmchen mehr.**
+- **Umkehren statt Nagen:** Ein Kreis hat kein Vorne. Die eingesperrte Ouroboros
+  dreht sich um, ihr Schwanz wird zum Kopf.
+- **Stachelhaut:** Ein Biss in ihren Körper kostet ein Segment, es sei denn, sie
+  ist umwickelt oder eingerollt. Das gibt dem Coil im Endkampf seine Aufgabe.
+- **Schlingen:** Sie frisst Hüllen und wächst davon nach.
+- Ihr abgebissener Körper zerfällt zu Staub.
+
+Die Sackgasse dabei war lehrreich. Mit Schlingen allein (ihre Stücke bleiben als
+Hüllen liegen, sie kann sie zurückfressen) gewann der Bot 29 von 30 und verlor
+dabei 0,1 Fleisch. Den Wettlauf um die Hüllen gewinnt immer, wer näher dran ist,
+und das abgetrennte Ende liegt weit weg von ihrem Kopf. Erst als ihre Stücke zu
+Staub zerfielen und sie den ganzen Körper jagt statt der Schwanzspitze, wurde sie
+zur Wand: Im Einzelkampf gewinnt der Bot jetzt 70 % und verliert 6,8 Fleisch.
+Gesamtbalance: 58 % / 40 %. Jagd, Kreis und Häutung heben wir uns auf: erst
+schauen, ob das Duell trägt.

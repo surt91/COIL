@@ -259,6 +259,11 @@ export function moveEnemy(f: Fight, e: Enemy, to: Pos) {
       e.hp++;
       e.maxHp = Math.max(e.maxHp, e.hp);
       emit(f, { t: 'eat', at: to, what: 'food' });
+    } else if (huskAt(f, to) >= 0 && enemyDef(e.kind).eatsHusks) {
+      // Swallowing a husk (yours or its own) regrows it — up to its starting length.
+      f.husks.splice(huskAt(f, to), 1);
+      if (e.hp < enemyDef(e.kind).hp) e.hp++;
+      emit(f, { t: 'eat', at: to, what: 'husk' });
     } else if ((e.mem.pending ?? 0) > 0) e.mem.pending--;
     while (e.body.length > Math.max(0, e.hp - 1 - (e.mem.pending ?? 0))) e.body.pop();
   }
@@ -297,7 +302,8 @@ export function cutEnemy(f: Fight, e: Enemy, k: number, cause: string): boolean 
   const boss = enemyDef(e.kind).boss;
   if (boss) k = Math.max(k, e.body.length - BOSS_SEVER_MAX);
   const cut = e.body.splice(k);
-  for (const pos of cut) f.husks.push({ pos, item: null, ttl: 4 });
+  // A boss's severed length crumbles to dust (no free meal); lesser snakes leave husks.
+  if (!boss) for (const pos of cut) f.husks.push({ pos, item: null, ttl: 4 });
   const n = cut.length + (boss ? 0 : e.mem.pending ?? 0);
   if (!boss) e.mem.pending = 0;
   return damageEnemy(f, e, n, cause);

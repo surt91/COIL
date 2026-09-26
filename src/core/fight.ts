@@ -260,6 +260,8 @@ function bite(f: Fight, e: Enemy, dir: Dir, extraBite: number): boolean {
     ops.emit(f, { t: 'bite', enemy: e.id, at: target, dmg: 0, killed });
     f.snake.dir = dir;
     ops.removeDead(f);
+    // A spiky hide: cutting it costs a segment, unless you hold it (wrapped or coiled).
+    if (d.spikyHide && !killed && f.snake.segs.length > 0 && !bossExposed(f, e)) ops.hitSnake(f, 1, 1, e);
     return false;
   }
   let vs = 0;
@@ -541,7 +543,7 @@ function resolveIntent(f: Fight, e: Enemy): boolean {
         if (i > 0 && it.chase) dir = ops.pathStep(f, e.pos, f.snake.body, d.flies);
         if (dir === null) break;
         const to = stepPos(e.pos, dir);
-        if (!ops.freeForEnemy(f, to, d.flies)) break;
+        if (!ops.freeForEnemy(f, to, d.flies) && !gorges(f, e, to)) break;
         trail.push({ ...e.pos });
         ops.moveEnemy(f, e, to);
       }
@@ -661,6 +663,12 @@ function lunge(f: Fight, e: Enemy, tiles: Pos[], dmg: number, sever: boolean): f
   return false;
 }
 
+/** A husk-eater may slither onto a husk (ops.moveEnemy swallows it). */
+export function gorges(f: Fight, e: Enemy, p: Pos): boolean {
+  if (!enemyDef(e.kind).eatsHusks || ops.huskAt(f, p) < 0) return false;
+  return !ops.enemyAt(f, p) && ops.bodyIndexAt(f, p) < 0 && !ops.isSolid(f, p);
+}
+
 /** The free step with the most room behind it (then the one nearest your body); null when boxed in. */
 export function forcedStep(f: Fight, e: Enemy): Dir | null {
   let best: Dir | null = null, bestScore = -Infinity;
@@ -680,6 +688,15 @@ function slither(f: Fight, e: Enemy) {
   if (e.held) return;
   const d = forcedStep(f, e);
   if (d !== null) return ops.moveEnemy(f, e, stepPos(e.pos, d));
+  // A circle has no front: a boxed-in boss snake turns around, its tail becoming its head.
+  if (enemyDef(e.kind).boss && e.body?.length) {
+    const whole = [e.pos, ...e.body].reverse();
+    e.pos = { ...whole[0] };
+    e.body = whole.slice(1);
+    ops.emit(f, { t: 'msg', text: `${enemyDef(e.kind).name} turns around!` });
+    const d2 = forcedStep(f, e);
+    if (d2 !== null) return ops.moveEnemy(f, e, stepPos(e.pos, d2));
+  }
   ops.emit(f, { t: 'msg', text: `${enemyDef(e.kind).name} gnaws its own tail!` });
   if (e.body?.length) ops.cutEnemy(f, e, Math.max(0, e.body.length - 2), 'gnaw');
   else ops.damageEnemy(f, e, 1, 'gnaw');

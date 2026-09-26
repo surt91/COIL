@@ -1,8 +1,8 @@
 /** Act 2 ("The Roots") and Act 3 ("The Deep") enemies. */
-import { DIRS, Pos, chebyshev, dirTo, manhattan, step } from '../core/geom';
-import { forcedStep, protectedSeg } from '../core/fight';
+import { DIRS, Pos, chebyshev, dirTo, eq, manhattan, step } from '../core/geom';
+import { forcedStep, gorges, protectedSeg } from '../core/fight';
 import * as ops from '../core/ops';
-import { defineEnemy } from '../core/registry';
+import { defineEnemy, enemyDef } from '../core/registry';
 import { shuffle } from '../core/rng';
 import type { Enemy, Fight, Intent } from '../core/types';
 import { approach, lockAdjacent, predictHead, retreat } from './ai';
@@ -166,8 +166,16 @@ defineEnemy({
 });
 
 /** Shared brain for enemy snakes. */
-function snakeThink(f: Fight, e: Enemy, opts: { sever: boolean; hunt: 'tail' | 'body'; reach?: number }): Intent {
+function snakeThink(f: Fight, e: Enemy, opts: { sever: boolean; hunt: 'tail' | 'body'; reach?: number; gorge?: boolean }): Intent {
   const s = f.snake;
+  // A husk-eater goes for husks close by first: a race for what falls.
+  if (opts.gorge && e.hp < enemyDef(e.kind).hp) {
+    const near = f.husks.filter((hk) => manhattan(hk.pos, e.pos) <= 4).map((hk) => hk.pos);
+    const adjacent = DIRS.find((d) => near.some((p) => eq(p, step(e.pos, d))) && gorges(f, e, step(e.pos, d)));
+    if (adjacent !== undefined) return { t: 'move', dir: adjacent, steps: 1 };
+    const it = near.length ? approach(f, e, near) : null;
+    if (it && it.t === 'move') return it;
+  }
   // Snakes play by your rules: never wait, and bite by moving into you.
   const recoil = e.mem.recoil;
   delete e.mem.recoil;
@@ -224,22 +232,16 @@ defineEnemy({
   kind: 'ouroboros',
   name: 'The Ouroboros',
   char: 'U',
-  hp: 30,
+  hp: 28,
   glyph: 'ouroboros',
   color: '#d9d2c3',
-  text: 'Final boss. An ancient serpent that never stands still, hunts your tail and severs what its lunge lands on. Its length is its health — but its ancient hide tears at most 5 segments per bite. Cut it down, eat what falls, and do not let it close its circle around you. The glowworms it calls are too small to feed you.',
+  text: 'Final boss. A serpent that plays by your rules: never still, it lunges along the red line and severs what it hits. Its length is its health, and it swallows husks to regrow — yours and its own. Its spiny hide cuts back when you bite its body, unless you hold it: wrapped or coiled.',
   snake: true,
   boss: true,
-  meagreBrood: true,
   heldMaxArea: 6,
-  think(f, e) {
-    e.mem.t = (e.mem.t ?? 0) + 1;
-    if (e.mem.t % 4 === 0) {
-      const tiles = DIRS.map((d) => step(e.pos, d)).filter((p) => ops.isEmpty(f, p)).slice(0, 1);
-      if (tiles.length) return { t: 'summon', kind: 'glowworm', tiles };
-    }
-    return snakeThink(f, e, { sever: true, hunt: 'tail', reach: 2 });
-  },
+  spikyHide: true,
+  eatsHusks: true,
+  think: (f, e) => snakeThink(f, e, { sever: true, hunt: 'body', reach: 2, gorge: true }),
 });
 
 defineEnemy({
