@@ -50,7 +50,7 @@ Explain the reasoning when doing so.
     balance and degenerate dynamics. A skill ladder: `greedy` ≈ beginner,
     `lookahead2` ≈ average player (baseline), `expert` ≈ experienced (plans
     coils, 3-move beam search, ~2.5× slower). Targets at molt 0: lookahead2
-    45–60 % full-run wins, expert ~85–90 %; at molt 6: expert 30–40 %, falling
+    45–60 % full-run wins, expert ~85–90 %; at molt 6: expert 35–50 % (it reads every board flawlessly), falling
     monotonically. Deaths concentrated at bosses, ≥25 % of kills by crush.
     Re-measure after balance-relevant changes (±8 % at 40 runs; `--seed` runs
     seed0+i, so use disjoint seeds like 1 / 1001 / 2001).

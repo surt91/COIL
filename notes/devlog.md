@@ -961,3 +961,45 @@ Nebenbei:
   - "Exposed" versprach einen Rückstoß, den es in der Umarmung fast nie gibt,
     denn wohin soll er ausweichen? Der Text sagt jetzt ehrlich: +1 Schaden,
     keine Riposte.
+
+## 2026-09-26 — Was ist ein Charm wert?
+
+Der Experte nahm bisher immer den ersten angebotenen Charm. Um ihm beizubringen,
+was gut ist, musste ich es selbst erst wissen. Also habe ich gemessen: Jeder
+Charm wird ab Run-Start geschenkt, dann 80 Runs, einmal mit lookahead2 (Molt 0)
+und einmal mit dem Experten (Molt 4, damit er nicht an der Decke klebt). Beide
+Bots waren sich erstaunlich einig:
+- **Stark:** Crushing Coils und Mongoose Tooth, +25 bis +31 Prozentpunkte.
+  Bei Boss-Charms darf das sein. Hunter's Gut und Long Jaw brachten +12 bis
+  +18, für gewöhnliche Charms viel.
+- **Wertlos:** Fat Body (+3 Tragelimit) und Wide Coils (Coils bis 16 Felder
+  halten), beide ±0. Royal Jelly lag bei +1,5, für einen Boss-Charm lächerlich.
+
+Die Erklärung ist lehrreich:
+- Fleisch über ~8 hat fast keinen Grenznutzen, selbst für den Experten, der
+  regelmäßig Fleisch am Tragelimit wegwerfen muss.
+- Ein Coil, der hält, aber nicht drückt, ist kaum etwas wert.
+
+Neu:
+- **Wide Coils:** Auch große Coils drücken 1.
+- **Fat Body:** Hunger kommt 2 Züge später.
+- **Royal Jelly:** Jeder Raum beginnt mit 3 Fleisch mehr, dafür kommt der Hunger
+  nur 2 statt 3 Züge früher.
+Damit liegen alle drei bei +5 bis +12.
+
+Der Rückschlag gleich danach: Ich wollte die Ausreißer nach oben stutzen, dem
+Hunter's Gut nur noch bei großen Gegnern Fleisch geben und den Crushing Coils
+den Wickel-Bonus nehmen. Die Siegquote ohne geschenkten Charm fiel von 64 auf
+40 %. Der Wickel-Bonus *ist* Crushing Coils: Ohne ihn blieben von +31 noch
++3,5. Und Mongoose Tooth blieb auch mit +1 statt +2 Biss-Schaden bei +31.
+Alles zurück. Die eigentliche Lehre ist struktureller Art: **Welches
+Boss-Charm-Paar angeboten wird, verschiebt den Run um bis zu 30 Punkte.** Das
+ist zu viel Glück an einer Stelle. Ich habe es notiert, aber noch nicht gelöst.
+
+Der Experte wählt Charms jetzt nach der gemessenen Tabelle, lookahead2 nimmt
+weiter den ersten. Mit dieser Wahl gewinnt der Experte auf Molt 0 93 % und auf
+Molt 6 51,5 %. Mehr Boss-HP (+70 %) oder schnelleres Nachwachsen (alle 3 Züge)
+änderten daran nichts messbar: Oben stirbt er an langen Endkämpfen und nicht
+an Boss-HP. Ich habe das Ziel für Molt 6 auf 35–50 % gesetzt, statt weiter an
+den Zahlen zu drehen. Der Bot liest jedes Brett fehlerfrei, ein Mensch übersieht
+Absichten.

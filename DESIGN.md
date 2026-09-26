@@ -249,7 +249,7 @@ in `src/bot` for fuzzing and balancing.
 - [x] Run: map, rewards, shop, rest, events, 3 acts, charms, species, molts, daily
 - [x] Procedural art, synthesized sound, terminal skin, autopilot hints
 - [x] Bots, fight/run simulators, balancing
-- [ ] Bot that plans coils (better balance data for the Python)
+- [x] Bot that plans coils (`expert`: skill ladder greedy / lookahead2 / expert, molts calibrated against it)
 - [x] Item upgrades (molting)
 - [x] Genome ring (ordered deck), ring/adjacency items
 - [x] Run-end screen with records, unlocks and the next goal

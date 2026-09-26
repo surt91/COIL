@@ -1,6 +1,6 @@
-// npx tsx scripts/runsim.ts --runs 50 --policy lookahead2 --seed 1
+// npx tsx scripts/runsim.ts --runs 50 --policy lookahead2 --seed 1 [--molt N] [--charm id]  (--charm: granted from the start)
 import { POLICIES } from '../src/bot/policies';
-import { RunResult, simulateRun } from '../src/bot/runsim';
+import { RunResult, pickByValue, simulateRun } from '../src/bot/runsim';
 
 const args = process.argv.slice(2);
 const opt = (k: string, d: string) => {
@@ -13,7 +13,12 @@ const policy = POLICIES[opt('policy', 'lookahead2')];
 const t0 = Date.now();
 const res: RunResult[] = [];
 for (let i = 0; i < runs; i++) {
-  const r = simulateRun(seed0 + i, policy, 300, opt('species', 'garden'), Number(opt('molt', '0')));
+  const charm = opt('charm', '');
+  const r = simulateRun(seed0 + i, policy, 300, opt('species', 'garden'), Number(opt('molt', '0')), {
+    onStart: charm ? (run) => ({ ...run, charms: [...(run.charms ?? []), charm] }) : undefined,
+    // The experienced player compares charms; the others take the first one offered.
+    pickCharm: opt('policy', 'lookahead2') === 'expert' ? pickByValue : undefined,
+  });
   res.push(r);
   if (args.includes('--verbose')) console.log(JSON.stringify(r));
 }

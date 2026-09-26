@@ -66,11 +66,28 @@ function chooseNode(run: RunState, r: Rng): number {
 /** Optional hooks for experiments: see every fight as it starts (e.g. to snapshot a benchmark). */
 export interface RunHooks {
   onFight?: (f: Fight, info: { enc: string; act: number; kind: NodeKind }) => void;
+  /** Adjust the fresh run (e.g. grant a charm from the start to measure what it is worth). */
+  onStart?: (run: RunState) => RunState;
+  /** Which offered charm to take (default: the first, as a player who doesn't compare would). */
+  pickCharm?: (options: string[]) => number;
 }
+
+/**
+ * What a charm is worth, from bot measurements (win-% gained when granted from the start,
+ * lookahead2 and expert averaged): the experienced player's charm sense.
+ */
+export const CHARM_VALUE: Record<string, number> = {
+  'crushing-coils': 27, 'mongoose-tooth': 25, 'long-jaw': 15, hunter: 16, 'glass-scales': 12,
+  'slow-metabolism': 9, 'deep-roots': 9, constrictor: 8, 'venom-drip': 7, 'lucky-scale': 1,
+  'nest-egg': 1, 'second-mouth': 4, 'scarecrow-skin': 3, 'queen-jelly': 12, 'wide-coils': 6, 'fat-body': 9,
+};
+export const pickByValue = (options: string[]) =>
+  options.reduce((best, c, i) => ((CHARM_VALUE[c] ?? 5) > (CHARM_VALUE[options[best]] ?? 5) ? i : best), 0);
 
 export function simulateRun(seed: number, policy: Policy, turnCap = 300, species = 'garden', molt = 0, hooks: RunHooks = {}): RunResult {
   const r = makeRng(seed ^ 0x5bd1e995);
   let run = createRun(seed, molt, undefined, species);
+  if (hooks.onStart) run = hooks.onStart(run);
   const fleshAtAct = [run.flesh];
   let fights = 0, stalled = false;
   const fightLog: RunResult['fightLog'] = [];
@@ -105,7 +122,7 @@ export function simulateRun(seed: number, policy: Policy, turnCap = 300, species
       }
       run = finishFight(run, f);
     } else if (sc.t === 'reward') {
-      if (sc.charms?.length && !sc.charmTaken && !process.env.NOCHARM) run = takeCharm(run, 0);
+      if (sc.charms?.length && !sc.charmTaken && !process.env.NOCHARM) run = takeCharm(run, hooks.pickCharm?.(sc.charms) ?? 0);
       const best = sc.options.map((id, i) => [tier(id), i] as const).sort((a, b) => b[0] - a[0])[0];
       run = takeReward(run, best && best[0] >= 4 && run.genome.length < 14 ? best[1] : null);
     } else if (sc.t === 'pool') {

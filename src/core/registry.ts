@@ -130,6 +130,8 @@ export interface CharmDef {
   biteBonus?: number;
   crushBonus?: number;
   coilAreaBonus?: number;
+  /** Coils too big to crush (9+ tiles) still crush this much. */
+  looseCrush?: number;
   /** Fewer touching tiles needed to wrap. */
   wrapBonus?: number;
   /** Extra turns before hunger bites. */
@@ -158,7 +160,7 @@ export function defineCharm(d: CharmDef): CharmDef {
   CHARMS.set(d.id, d);
   return d;
 }
-export const charmSum = (ids: readonly string[] | undefined, field: 'biteBonus' | 'crushBonus' | 'coilAreaBonus' | 'wrapBonus' | 'hungerBonus' | 'fleshCapBonus' | 'tuckBonus' | 'toughBite' | 'bitePoison' | 'drawBonus') =>
+export const charmSum = (ids: readonly string[] | undefined, field: 'biteBonus' | 'crushBonus' | 'coilAreaBonus' | 'wrapBonus' | 'hungerBonus' | 'fleshCapBonus' | 'tuckBonus' | 'toughBite' | 'bitePoison' | 'drawBonus' | 'looseCrush') =>
   (ids ?? []).reduce((a, id) => a + (CHARMS.get(id)?.[field] ?? 0), 0);
 
 /** Define the upgraded version of an item; unspecified fields are inherited. */

@@ -1,6 +1,6 @@
 import { Pos, adjacent } from './geom';
 import type { Enemy, Fight } from './types';
-import { ENEMIES, ITEMS } from './registry';
+import { ENEMIES, ITEMS, charmSum } from './registry';
 import { bodyBonus } from './ops';
 import { Tile } from './types';
 
@@ -83,7 +83,7 @@ export function computeCoils(f: Fight, bodyOverride?: Pos[]): Coil[] {
     const t0 = tiles[0];
     if (base.sizes[base.comp[t0.y * w + t0.x]] <= tiles.length) return;
     if (!tiles.some((t) => body.some((b) => adjacent(t, b)))) return;
-    coils.push({ tiles, area: tiles.length, crush: crushFor(tiles.length), ring: ringBonus(f, body, tiles) });
+    coils.push({ tiles, area: tiles.length, crush: crushFor(tiles.length) || charmSum(f.charms, 'looseCrush'), ring: ringBonus(f, body, tiles) });
   });
   return coils;
 }
