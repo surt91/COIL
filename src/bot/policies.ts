@@ -48,15 +48,20 @@ export const randomPolicy: Policy = (f, rng) => {
 /** Cost of a card play relative to an equal-valued move, to avoid wasting cards on ties. */
 const CARD_TIE = 0.5;
 
-function makeSearch(depth: 1 | 2, w: Weights): Policy {
-  /** Value of a state in which the turn has ended (or the fight is over). */
-  const leaf = (s: Fight): number => {
+function makeSearch(depth: 1 | 2 | 3, w: Weights, beam = 4): Policy {
+  /** Value of a state in which the turn has ended: its own worth, blended with the best follow-up moves. */
+  const value = (s: Fight, d: number): number => {
     const v = evaluate(s, w);
-    if (depth === 1 || s.status !== 'play') return v;
+    if (d <= 1 || s.status !== 'play') return v;
+    const next = legalMoves(s).map((m) => step(s, { t: 'move', dir: m }));
+    if (!next.length) return v;
+    // Deeper than one follow-up, only the most promising moves are searched on.
+    const kids = d > 2 ? next.map((n) => [evaluate(n, w), n] as const).sort((a, b) => b[0] - a[0]).slice(0, beam) : next.map((n) => [0, n] as const);
     let best = -Infinity;
-    for (const d of legalMoves(s)) best = Math.max(best, evaluate(step(s, { t: 'move', dir: d }), w));
-    return best === -Infinity ? v : 0.4 * v + 0.6 * best;
+    for (const [, n] of kids) best = Math.max(best, value(n, d - 1));
+    return 0.4 * v + 0.6 * best;
   };
+  const leaf = (s: Fight): number => value(s, depth);
   /** Best value reachable by ending the turn with a plain move. */
   const bestMove = (s: Fight): number => {
     if (s.status !== 'play') return evaluate(s, w);
@@ -84,8 +89,18 @@ function makeSearch(depth: 1 | 2, w: Weights): Policy {
 export const greedyPolicy: Policy = makeSearch(1, DEFAULT_WEIGHTS);
 export const lookahead2Policy: Policy = makeSearch(2, DEFAULT_WEIGHTS);
 
+/** The experienced player: plans coils (see coilSense) on top of the two-move search. */
+export const EXPERT_WEIGHTS: Weights = {
+  ...DEFAULT_WEIGHTS,
+  confine: Number(process.env.W_CONFINE ?? 12),
+  wrap: Number(process.env.W_WRAP ?? 20),
+  exposed: Number(process.env.W_EXPOSED ?? 40),
+};
+export const expertPolicy: Policy = makeSearch(Number(process.env.EXPERT_DEPTH ?? 3) as 2 | 3, EXPERT_WEIGHTS, Number(process.env.EXPERT_BEAM ?? 2));
+
 export const POLICIES: Record<string, Policy> = {
   random: randomPolicy,
   greedy: greedyPolicy,
   lookahead2: lookahead2Policy,
+  expert: expertPolicy,
 };

@@ -63,7 +63,12 @@ function chooseNode(run: RunState, r: Rng): number {
   return pick(r, opts.filter((n) => want(n.kind) === best)).id;
 }
 
-export function simulateRun(seed: number, policy: Policy, turnCap = 300, species = 'garden', molt = 0): RunResult {
+/** Optional hooks for experiments: see every fight as it starts (e.g. to snapshot a benchmark). */
+export interface RunHooks {
+  onFight?: (f: Fight, info: { enc: string; act: number; kind: NodeKind }) => void;
+}
+
+export function simulateRun(seed: number, policy: Policy, turnCap = 300, species = 'garden', molt = 0, hooks: RunHooks = {}): RunResult {
   const r = makeRng(seed ^ 0x5bd1e995);
   let run = createRun(seed, molt, undefined, species);
   const fleshAtAct = [run.flesh];
@@ -79,6 +84,7 @@ export function simulateRun(seed: number, policy: Policy, turnCap = 300, species
     } else if (sc.t === 'fight') {
       let f: Fight = sc.fight;
       fights++;
+      hooks.onFight?.(f, { enc: sc.encounter, act: run.act, kind: run.map[sc.node].kind });
       const fleshOf = (x: Fight) => x.snake.segs.filter((g) => !g.item).length;
       const entry = { enc: sc.encounter, act: run.act, turns: 0, start: fleshOf(f), low: fleshOf(f), end: 0, ate: 0, hunger: 0, out: '' };
       for (let i = 0; i < turnCap * 3 && f.status === 'play' && f.turn < turnCap; i++) {

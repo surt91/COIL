@@ -2,8 +2,8 @@
  * Static evaluation of a fight state for the search-based bots.
  * Higher is better for the snake. Pure: never mutates the fight.
  */
-import { coilDamage, computeCoils } from '../core/coil';
-import { BREATH, legalMoves } from '../core/fight';
+import { coilDamage, computeCoils, touchCount } from '../core/coil';
+import { BREATH, bossExposed, legalMoves, wrapMin } from '../core/fight';
 import { Pos, chebyshev, key, manhattan, neighbors4 } from '../core/geom';
 import * as ops from '../core/ops';
 import { ENEMIES } from '../core/registry';
@@ -25,6 +25,10 @@ export interface Weights {
   threat: number;
   trapped: number;
   cramped: number;
+  /** Coil sense (0 in the baseline bots): reward shrinking an enemy's room to move, wrapping, exposing bosses. */
+  confine?: number;
+  wrap?: number;
+  exposed?: number;
 }
 
 export const DEFAULT_WEIGHTS: Weights = {
@@ -208,6 +212,45 @@ export function evaluate(f: Fight, w: Weights = DEFAULT_WEIGHTS): number {
   const need = Math.min(s.body.length + 2, 24);
   const r = reachable(f, need);
   if (r < need) v -= w.cramped * (need - r);
+  if ((w.confine || w.wrap || w.exposed) && !f.cleared) v += coilSense(f, w);
+  return v;
+}
+
+/** Tiles an enemy could walk to within `n` steps, with your body, husks and webs as walls (a coil's barriers). */
+function enemyRoom(f: Fight, from: Pos, n: number, body: Set<number>): number {
+  const seen = new Set<number>([key(from)]);
+  let frontier = [from];
+  let count = 0;
+  for (let d = 0; d < n && frontier.length; d++) {
+    const next: Pos[] = [];
+    for (const p of frontier)
+      for (const q of neighbors4(p)) {
+        const k = key(q);
+        if (seen.has(k)) continue;
+        seen.add(k);
+        if (!ops.inBounds(f, q) || ops.isSolid(f, q) || body.has(k) || ops.huskAt(f, q) >= 0 || ops.webAt(f, q) >= 0) continue;
+        count++;
+        next.push(q);
+      }
+    frontier = next;
+  }
+  return count;
+}
+
+/** Coil planning as a gradient: the less room an enemy has, the closer a coil is. */
+function coilSense(f: Fight, w: Weights): number {
+  const body = new Set(f.snake.body.map(key));
+  const wm = wrapMin(f);
+  let v = 0;
+  for (const e of f.enemies) {
+    if (e.under || e.minion) continue;
+    const d = ENEMIES.get(e.kind);
+    if (d?.flies) continue;
+    // Open floor within 3 steps is 24 tiles; a pocket is a handful.
+    if (w.confine) v += w.confine * (24 - Math.min(24, enemyRoom(f, e.pos, 3, body))) / 24 * Math.min(e.hp, 6);
+    if (w.wrap) v += w.wrap * Math.min(touchCount(f, e), wm) / wm;
+    if (w.exposed && d?.boss && bossExposed(f, e)) v += w.exposed;
+  }
   return v;
 }
 
