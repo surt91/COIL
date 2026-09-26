@@ -23,7 +23,7 @@ export const ENCOUNTERS: Encounter[] = [
   { id: 'frog-pond', act: 0, pool: 'normal', enemies: ['frog', 'frog', 'hedgehog', 'beetle'] },
 
   { id: 'mantis-court', act: 0, pool: 'elite', enemies: ['mantis', 'mantis', 'beetle', 'beetle'] },
-  { id: 'spiny-web', act: 0, pool: 'elite', enemies: ['hedgehog', 'hedgehog', 'spider', 'frog'] },
+  { id: 'spiny-web', act: 0, pool: 'elite', enemies: ['hedgehog', 'hedgehog', 'spider'] },
   { id: 'swarm', act: 0, pool: 'elite', enemies: ['beetle', 'beetle', 'beetle', 'beetle', 'frog'] },
 
   { id: 'mongoose', act: 0, pool: 'boss', enemies: ['mongoose'], layouts: ['mongoose-den'] },
@@ -40,7 +40,7 @@ export const ENCOUNTERS: Encounter[] = [
   { id: 'web-roots', act: 1, pool: 'normal', enemies: ['spider', 'tortoise', 'beetle'] },
 
   { id: 'rival', act: 1, pool: 'elite', enemies: ['rival', 'ant', 'ant'] },
-  { id: 'tortoise-pair', act: 1, pool: 'elite', enemies: ['tortoise', 'tortoise', 'magpie'] },
+  { id: 'tortoise-pair', act: 1, pool: 'elite', enemies: ['tortoise', 'tortoise', 'beetle'] },
   { id: 'underground', act: 1, pool: 'elite', enemies: ['mole', 'mole', 'mole', 'mantis'] },
 
   { id: 'queen', act: 1, pool: 'boss', enemies: ['queen'], layouts: ['queen-hall'] },
@@ -57,8 +57,8 @@ export const ENCOUNTERS: Encounter[] = [
   { id: 'nursery', act: 2, pool: 'normal', enemies: ['grub', 'grub', 'glowworm', 'ant', 'ant'] },
   { id: 'rivals', act: 2, pool: 'normal', enemies: ['rival', 'wasp', 'ant', 'ant'] },
 
-  { id: 'twin-rivals', act: 2, pool: 'elite', enemies: ['rival', 'rival', 'wasp'] },
-  { id: 'swarm-deep', act: 2, pool: 'elite', enemies: ['ant', 'ant', 'ant', 'ant', 'ant', 'ant', 'wasp', 'wasp'] },
+  { id: 'twin-rivals', act: 2, pool: 'elite', enemies: ['rival', 'rival', 'wasp', 'glowworm', 'magpie'] },
+  { id: 'swarm-deep', act: 2, pool: 'elite', enemies: ['ant', 'ant', 'ant', 'ant', 'ant', 'ant', 'wasp', 'wasp', 'mantis'] },
   { id: 'mantis-deep', act: 2, pool: 'elite', enemies: ['mantis', 'mantis', 'mole', 'glowworm'] },
   { id: 'brood-chamber', act: 2, pool: 'elite', enemies: ['grub', 'grub', 'grub', 'mantis'] },
 

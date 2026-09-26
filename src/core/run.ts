@@ -322,7 +322,8 @@ export function startFight(run: RunState, nodeId: number, pool: Pool): RunState 
   // Later acts: tougher versions of the regulars.
   for (const e of fight.enemies) {
     const boss = enemyDef(e.kind).boss;
-    const actBonus = [0, 1, 3][Math.min(run.act, 2)];
+    // Garden elites are the regulars in numbers: +1 HP so they cost like elites.
+    const actBonus = (pool === 'elite' ? [1, 1, 3] : [0, 1, 3])[Math.min(run.act, 2)];
     const bonus = boss ? (run.molt >= 6 ? Math.round(e.hp * 0.3) : 0) + (run.bossBonus ?? 0) : e.hp >= 2 ? actBonus + (run.molt >= 2 && run.act === 0 && !enemyDef(e.kind).spiky ? 1 : 0) : 0;
     e.hp += bonus;
     e.maxHp += bonus;

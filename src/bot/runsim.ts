@@ -53,7 +53,8 @@ function chooseNode(run: RunState, r: Rng): number {
   const want = (k: NodeKind) => {
     if (k === 'bask') return run.flesh < 6 ? 10 : 2;
     if (k === 'pool') return run.flesh >= 8 ? 6 : 1;
-    if (k === 'elite') return run.flesh >= 10 ? 5 : 0.5;
+    // Near the carry cap (6/8/10): elites are what a healthy run should take.
+    if (k === 'elite') return run.flesh >= fleshCap(run) - 2 ? 5 : 0.5;
     if (k === 'nest') return 5;
     if (k === 'event') return 3;
     return 4;
