@@ -684,6 +684,19 @@ export class BoardRenderer {
         continue;
       }
       if (e.body && e.body.length) this.drawEnemySnake(e, q, d?.color ?? '#e056fd', now);
+      // Length still in its burrow is health too: '+N' at its tail end (like yours at the burrow).
+      if (e.body && (e.mem.pending ?? 0) > 0) {
+        const t = e.body.length ? e.body[e.body.length - 1] : e.pos;
+        ctx.save();
+        ctx.fillStyle = 'rgba(232,241,242,0.85)';
+        ctx.strokeStyle = 'rgba(13, 19, 33, 0.9)';
+        ctx.lineWidth = 3;
+        ctx.font = `bold ${Math.round(T * 0.26)}px system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.strokeText(`+${e.mem.pending}`, this.cx(t.x), this.cy(t.y) + T * 0.5);
+        ctx.fillText(`+${e.mem.pending}`, this.cx(t.x), this.cy(t.y) + T * 0.5);
+        ctx.restore();
+      }
       if (e.held) {
         ctx.strokeStyle = PAL.coil;
         ctx.lineWidth = 3;

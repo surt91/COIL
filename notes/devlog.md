@@ -776,3 +776,21 @@ Staub zerfielen und sie den ganzen Körper jagt statt der Schwanzspitze, wurde s
 zur Wand: Im Einzelkampf gewinnt der Bot jetzt 70 % und verliert 6,8 Fleisch.
 Gesamtbalance: 58 % / 40 %. Jagd, Kreis und Häutung heben wir uns auf: erst
 schauen, ob das Duell trägt.
+
+**Nachtrag, der Playtest des neuen Endkampfs.** Drei Kämpfe von Hand: zwei Siege
+mit dem letzten Atemzug, eine Niederlage. Beide Siege liefen gleich ab: dreimal in
+den Körper beißen, dann einen fliehenden Kopf jagen. Der härteste Satz im Bericht:
+*"Den Kopf zu umwickeln ist eine Falle, keine Belohnung."* Mit ihrem Kopf in der
+Tasche kündigte sie einen Sever-Lunge an, beide Fluchtwege zeigten "Lose 12 flesh".
+Der Code-Guardian hatte vorher schon gefunden, dass die versprochene Ausnahme
+"umwickelt" für Schlangen gar nicht eintreten konnte.
+
+Jetzt gilt:
+- Ein Kopf, um den sich mindestens 4 deiner Felder schließen, ist entblößt. Der
+  Biss in den Körper ist dann kostenlos, und ihr Lunge kann nicht abtrennen.
+- Ein nackter Kopf zahlt die Stachelhaut mit einem Atemzug. Der Autopilot hatte
+  sie mit 0 Fleisch in drei Zügen von 20 auf 6 HP gebissen.
+- Während sie schluckt, frisst sie keine Hüllen. Aus dem versprochenen Wettlauf,
+  den es nie gab, wird ein Zug Vorsprung.
+- Sie sucht kein Futter mehr. Das war der Grund für "man teilt sich eher einen
+  Raum": Sie lief zu jedem Futter, das näher an ihr lag als an dir.

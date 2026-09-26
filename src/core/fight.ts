@@ -262,7 +262,10 @@ function bite(f: Fight, e: Enemy, dir: Dir, extraBite: number): boolean {
     f.snake.dir = dir;
     ops.removeDead(f);
     // A spiky hide: cutting it costs a segment, unless you hold it (wrapped or coiled).
-    if (d.spikyHide && !killed && f.snake.segs.length > 0 && !exposedNow) ops.hitSnake(f, 1, 1, e);
+    if (d.spikyHide && !killed && !exposedNow) {
+      if (f.snake.segs.length > 0) ops.hitSnake(f, 1, 1, e);
+      else loseBreath(f); // a bare head pays with its breath
+    }
     return false;
   }
   let vs = 0;
@@ -562,7 +565,7 @@ function resolveIntent(f: Fight, e: Enemy): boolean {
       return false;
     }
     case 'strike': {
-      if (it.lunge) return lunge(f, e, it.tiles, it.dmg, !!it.sever);
+      if (it.lunge) return lunge(f, e, it.tiles, it.dmg, !!it.sever && !(d.boss && bossExposed(f, e)));
       ops.emit(f, { t: 'strike', enemy: e.id, tiles: it.tiles });
       const uids: number[] = [];
       for (const t of it.tiles) {
@@ -672,7 +675,8 @@ function lunge(f: Fight, e: Enemy, tiles: Pos[], dmg: number, sever: boolean): f
 
 /** A husk-eater may slither onto a husk (ops.moveEnemy swallows it). */
 export function gorges(f: Fight, e: Enemy, p: Pos): boolean {
-  if (!enemyDef(e.kind).eatsHusks || ops.huskAt(f, p) < 0) return false;
+  // Still swallowing its last bite: it can't take another (your head start in the race for husks).
+  if (!enemyDef(e.kind).eatsHusks || e.mem.swallowing || ops.huskAt(f, p) < 0) return false;
   return !ops.enemyAt(f, p) && ops.bodyIndexAt(f, p) < 0 && !ops.isSolid(f, p) && ops.tileAt(f, p) !== Tile.Exit && !f.enemies.some((o) => o.under && eq(o.pos, p));
 }
 
@@ -720,6 +724,12 @@ function neighborsRing(p: Pos): Pos[] {
 /** Bare-head turns allowed per fight (see upkeep). */
 export const BREATH = 6;
 
+function loseBreath(f: Fight) {
+  f.breath = (f.breath ?? BREATH) - 1;
+  ops.emit(f, { t: 'gasp', at: { ...f.snake.body[0] }, left: f.breath });
+  if (f.breath <= 0) ops.kill(f, 'suffocation');
+}
+
 /** A husk with this ttl never decays (layout skins, e.g. the Nursery plug). A number, so saves stay JSON. */
 export const HUSK_PERMANENT = 999;
 
@@ -747,9 +757,8 @@ function upkeep(f: Fight) {
   // Last breaths: a bare head can dodge everything, so it may not linger. Eating ends
   // the gasp, but spent breath never comes back (at most BREATH bare turns per fight).
   if (f.snake.segs.length === 0 && !f.cleared) {
-    f.breath = (f.breath ?? BREATH) - 1;
-    ops.emit(f, { t: 'gasp', at: { ...f.snake.body[0] }, left: f.breath });
-    if (f.breath <= 0) return ops.kill(f, 'suffocation');
+    loseBreath(f);
+    if (f.status !== 'play') return;
   }
 
   f.turn++;

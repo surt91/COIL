@@ -28,7 +28,7 @@ const TIPS: { id: string; when(f: Fight): boolean; text: string; urgent?: boolea
   { id: 'grub', urgent: true, when: (f) => f.enemies.some((e) => e.kind === 'grub'), text: 'Brood Grub: bitten, it bursts into two. Crush it in a coil instead.' },
   { id: 'riposte', urgent: true, when: (f) => f.enemies.some((e) => !!riposteTile(e)), text: 'Riposte: never bite a boss twice from the same tile. Wrap or coil it to expose it.' },
   { id: 'hide', when: (f) => f.enemies.some((e) => !!ENEMIES.get(e.kind)?.spikyHide), text: 'Spiny hide: biting its body costs you a segment — unless your body presses in around its head first.' },
-  { id: 'gorge', when: (f) => f.husks.length > 0 && f.enemies.some((e) => !!ENEMIES.get(e.kind)?.eatsHusks), text: 'It swallows husks to regrow. Eat your severed pieces before it does.' },
+  { id: 'gorge', when: (f) => f.husks.length > 0 && f.enemies.some((e) => !!ENEMIES.get(e.kind)?.eatsHusks), text: 'It swallows your severed pieces to regrow — but not while it is still swallowing its last bite. Race it.' },
   { id: 'spiky', when: (f) => f.enemies.some((e) => e.kind === 'hedgehog'), text: 'Spines: biting a hedgehog costs you a segment. Coil it instead.' },
   { id: 'coil', urgent: true, when: (f) => coiledEnemies(f).size > 0, text: 'Coiled! It can’t act, and takes the violet number every turn. Tighter coils crush harder.' },
   { id: 'wrap', when: (f) => f.enemies.some((e) => !e.under && touchCount(f, e) >= 2), text: 'Violet arcs count your tiles touching it. All arcs lit: squeezed every turn.' },

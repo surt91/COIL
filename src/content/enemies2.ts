@@ -1,6 +1,6 @@
 /** Act 2 ("The Roots") and Act 3 ("The Deep") enemies. */
 import { DIRS, Pos, chebyshev, dirTo, eq, manhattan, step } from '../core/geom';
-import { forcedStep, gorges, protectedSeg } from '../core/fight';
+import { bossExposed, forcedStep, gorges, protectedSeg } from '../core/fight';
 import * as ops from '../core/ops';
 import { defineEnemy, enemyDef } from '../core/registry';
 import { shuffle } from '../core/rng';
@@ -200,14 +200,16 @@ function snakeThink(f: Fight, e: Enemy, opts: { sever: boolean; hunt: 'tail' | '
         }
       }
     }
-    if (best) return { t: 'strike', tiles: best.tiles, dmg: 1, lunge: true, sever: opts.sever };
+    // Pressed in around its head, a boss's lunge can't sever (shown without ✂).
+    if (best) return { t: 'strike', tiles: best.tiles, dmg: 1, lunge: true, sever: opts.sever && !(enemyDef(e.kind).boss && bossExposed(f, e)) };
   }
   const h = ops.head(f);
   const nearFood = f.food.filter((p) => manhattan(p, e.pos) < manhattan(h, e.pos));
   // Hunt the body, not the tail tip (its tile empties as you move): the last few segments, or all of it.
   const n = s.body.length;
   const prey = opts.hunt === 'tail' ? s.body.slice(Math.max(1, n - 4), n - 1) : s.body.slice(1, n - 1);
-  const goals = nearFood.length && e.hp < e.maxHp + 4 ? nearFood : prey;
+  // Husk-eaters don't forage: they feed on you (and what falls off you).
+  const goals = !opts.gorge && nearFood.length && e.hp < e.maxHp + 4 ? nearFood : prey;
   const it = approach(f, e, goals.length ? goals : s.body);
   if (it.t === 'move') return it;
   // Already there, or no way through: it still has to move somewhere.
@@ -234,7 +236,7 @@ defineEnemy({
   hp: 28,
   glyph: 'ouroboros',
   color: '#d9d2c3',
-  text: 'Final boss. A serpent that plays by your rules: never still, it lunges along the red line and severs what it hits. Its length is its health, and it swallows husks to regrow — yours and its own. Its spiny hide cuts back when you bite its body — unless you wrap its head first (or coil it).',
+  text: 'Final boss. A serpent that plays by your rules: never still, it lunges along the red line and severs what it hits. Its length is its health, and it swallows what it severs from you to regrow; its own cut length crumbles. Its spiny hide cuts back when you bite its body — unless you wrap its head first (or coil it).',
   snake: true,
   boss: true,
   heldMaxArea: 6,

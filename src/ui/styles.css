@@ -75,6 +75,7 @@ kbd {
 .inspect h3 { margin: 0 0 4px; }
 .inspect p { margin: 8px 0; }
 .intent { color: var(--red); margin-top: 6px; }
+.intent.calm { color: var(--text); }
 .legend { margin-top: 16px; color: var(--dim); font-size: 13px; }
 .legend .keys { line-height: 2; }
 .legend .keys kbd { margin: 0 1px; }

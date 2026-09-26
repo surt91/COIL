@@ -477,13 +477,15 @@ function Inspector({ f, hover }: { f: Fight; hover: Pos | null }) {
       <div class="inspect">
         <h3 style={{ color: d.color }}>{d.name}</h3>
         <div>HP {e.hp}/{e.maxHp}{e.poison ? ` · ☠ ${e.poison}` : ''}{e.held ? ' · held' : ''}</div>
-        <div class="intent">{describeIntent(f, e)}</div>
+        <div class={`intent ${['strike', 'lock', 'emerge', 'steal'].includes(e.intent.t) ? '' : 'calm'}`}>{describeIntent(f, e)}</div>
         {d.boss && (
           <div class="dim">
             {bossExposed(f, e)
               ? <b style={{ color: 'var(--coil, #c77dff)' }}>Exposed: </b>
               : <>Boss: bites don’t interrupt it, and it <b>ripostes</b> — the tile you bit it from gets struck if you’re still on it next turn. </>}
-            {bossExposed(f, e) ? 'wrapped or coiled — bites deal +1, knock it back and interrupt it, and it can’t riposte.' : 'Wrap it or coil it to expose it.'}
+            {e.body
+              ? bossExposed(f, e) ? 'its head is pressed in — biting its body is free, head bites deal +1, it can’t riposte and its lunge can’t sever.' : 'Press your body in around its head (4+ tiles) to expose it.'
+              : bossExposed(f, e) ? 'wrapped or coiled — bites deal +1, knock it back and interrupt it, and it can’t riposte.' : 'Wrap it or coil it to expose it.'}
           </div>
         )}
         <p>{d.text}</p>
