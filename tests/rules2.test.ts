@@ -492,3 +492,28 @@ test('reinforcements come on a countdown, but not while you are a bare head', ()
   f.snake.body = [P(5, 4)];
   expect(spawnIn(f)).toBe(Infinity);
 });
+
+describe('breath and dodge items', () => {
+  test('Sidewinder: a lock whose segment slides out of reach costs its attacker 2', () => {
+    const f = fight([P(5, 4), P(6, 4), P(7, 4), P(8, 4)], ['sidewinder', null, null]);
+    const b = enemy(f, 'beetle', P(9, 5));
+    b.hp = b.maxHp = 10;
+    b.intent = { t: 'lock', seg: f.snake.segs[2].uid, dmg: 1, windup: 1, reach: 1 };
+    const g = step(f, { t: 'move', dir: L });
+    expect(g.events.some((e) => e.t === 'fizzle')).toBe(true);
+    expect(g.enemies.find((e) => e.id === b.id)!.hp).toBe(8);
+  });
+
+  test('Glottis: spend 2 breaths, and a lock that lands this turn is absorbed', () => {
+    const f = fight([P(5, 4), P(6, 4), P(7, 4), P(8, 4)], ['glottis', null, null]);
+    const b = enemy(f, 'beetle', P(5, 5));
+    b.hp = b.maxHp = 10;
+    b.intent = { t: 'lock', seg: f.snake.segs[1].uid, dmg: 1, windup: 1, reach: 2 };
+    let g = step(f, { t: 'play', slot: 0 });
+    expect(g.breath).toBe(4);
+    const n = g.snake.segs.length;
+    g = step(g, { t: 'move', dir: U });
+    expect(g.events.some((e) => e.t === 'absorb')).toBe(true);
+    expect(g.snake.segs.length).toBe(n);
+  });
+});
