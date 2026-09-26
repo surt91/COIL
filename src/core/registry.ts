@@ -81,6 +81,8 @@ export interface EnemyDef {
   think(f: Fight, e: Enemy): Intent;
   /** Bites deal at most this much (shells). */
   biteCap?: number;
+  /** Too heavy to be knocked back by a bite (so it isn't interrupted either). */
+  heavy?: boolean;
   /** Return true to ignore the bite's damage. */
   onBitten?(f: Fight, e: Enemy): boolean;
   /** Called when a bite happens, after damage. */

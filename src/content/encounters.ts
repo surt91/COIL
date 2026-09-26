@@ -54,7 +54,7 @@ export const ENCOUNTERS: Encounter[] = [
   { id: 'hive', act: 2, pool: 'normal', enemies: ['wasp', 'wasp', 'wasp', 'tortoise', 'ant', 'ant'] },
   { id: 'deep-mix', act: 2, pool: 'normal', enemies: ['glowworm', 'mole', 'mantis', 'magpie', 'beetle'] },
   { id: 'deep-web', act: 2, pool: 'normal', enemies: ['spider', 'spider', 'glowworm', 'grub', 'mole'] },
-  { id: 'nursery', act: 2, pool: 'normal', enemies: ['grub', 'grub', 'glowworm', 'ant', 'ant'] },
+  { id: 'nursery', act: 2, pool: 'normal', enemies: ['grub', 'grub', 'glowworm', 'ant'] },
   { id: 'rivals', act: 2, pool: 'normal', enemies: ['rival', 'wasp', 'ant', 'ant'] },
 
   { id: 'twin-rivals', act: 2, pool: 'elite', enemies: ['rival', 'rival', 'wasp', 'glowworm', 'magpie'] },

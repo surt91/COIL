@@ -309,13 +309,13 @@ function bite(f: Fight, e: Enemy, dir: Dir, extraBite: number): boolean {
   // to be knocked to), snakes and bosses keep their intent.
   const back = stepPos(e.pos, dir);
   const noInterrupt = (f.charms ?? []).some((c) => CHARMS.get(c)?.noInterrupt);
-  if (!e.body && (!d.boss || exposed) && !noInterrupt && ops.freeForEnemy(f, back, d.flies)) {
+  if (!e.body && !d.heavy && (!d.boss || exposed) && !noInterrupt && ops.freeForEnemy(f, back, d.flies)) {
     ops.emit(f, { t: 'knockback', enemy: e.id, from: { ...e.pos }, to: back });
     e.pos = back;
     e.intent = { t: 'wait' };
     e.mem.interrupted = 1;
   } else {
-    ops.emit(f, { t: 'msg', text: d.boss && !exposed ? 'unstoppable' : noInterrupt ? 'not interrupted' : 'pinned — not interrupted' });
+    ops.emit(f, { t: 'msg', text: d.boss && !exposed ? 'unstoppable' : d.heavy ? 'too heavy to budge' : noInterrupt ? 'not interrupted' : 'pinned — not interrupted' });
   }
   if (d.boss && !exposed && e.hp > 0) {
     // Riposte: the boss marks the tile your head bit from. Still there after your next move? It strikes.

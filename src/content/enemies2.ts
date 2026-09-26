@@ -75,11 +75,12 @@ defineEnemy({
   kind: 'tortoise',
   name: 'Tortoise',
   char: 't',
-  hp: 5,
+  hp: 4,
   glyph: 'tortoise',
   color: '#7a8b5c',
-  text: 'Its shell turns every bite into a scratch: bites deal at most 1. Slow, but bites hard. Constriction and poison work fine.',
+  text: 'Its shell turns every bite into a scratch: bites deal at most 1, and it is too heavy to knock back — bite on, but it bites back. Slow. Constriction and poison work fine.',
   biteCap: 1,
+  heavy: true,
   think(f, e) {
     e.mem.tick = (e.mem.tick ?? 0) + 1;
     const l = lockAdjacent(f, e, 2);
