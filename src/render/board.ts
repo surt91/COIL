@@ -12,6 +12,13 @@ import { drawGlyph, glyphOpts } from './glyphs';
 import { renderAscii } from './ascii';
 import { OUROBOROS_STYLE, RIVAL_STYLE, SPECIES_STYLES, SerpentStyle, drawBody, drawHead, sampleBody } from './serpent';
 
+/** A hex colour mixed toward white by t (0..1). */
+const lighten = (hex: string, t: number) => {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.round(v + (255 - v) * t));
+  return `rgb(${ch.join(',')})`;
+};
+
 /** An attack the hovered move makes miss: grey, not red (red is damage that will land). */
 const MISS = 'rgba(173, 181, 189, 0.8)';
 
@@ -601,11 +608,17 @@ export class BoardRenderer {
       if (rp) this.hatch([rp], PAL.danger, pulse * 0.55, now);
       const it = e.intent;
       if (it.t === 'strike') {
-        const col = this.willMiss(f, e) ? MISS : PAL.danger;
-        this.hatch(it.tiles, col, pulse * 0.7, now);
-        ctx.strokeStyle = col;
-        ctx.lineWidth = 2;
-        for (const t of it.tiles) ctx.strokeRect(this.ox + t.x * T + 2, this.oy + t.y * T + 2, T - 4, T - 4);
+        const miss = this.willMiss(f, e);
+        const col = miss ? MISS : PAL.danger;
+        this.hatch(it.tiles, col, miss ? 0.25 : pulse * 0.7, now);
+        // A lunge gets its brackets over the body (drawLocks); plain strikes get a box.
+        if (!it.lunge) {
+          ctx.strokeStyle = col;
+          ctx.lineWidth = 2;
+          if (miss) ctx.setLineDash([4, 4]);
+          for (const t of it.tiles) ctx.strokeRect(this.ox + t.x * T + 2, this.oy + t.y * T + 2, T - 4, T - 4);
+          ctx.setLineDash([]);
+        }
       } else if (it.t === 'web') {
         ctx.strokeStyle = 'rgba(225, 230, 235, 0.7)';
         ctx.setLineDash([4, 4]);
@@ -685,19 +698,6 @@ export class BoardRenderer {
         continue;
       }
       if (e.body && e.body.length) this.drawEnemySnake(e, q, d?.color ?? '#e056fd', now);
-      // Length still in its burrow is health too: '+N' at its tail end (like yours at the burrow).
-      if (e.body && (e.mem.pending ?? 0) > 0) {
-        const t = e.body.length ? e.body[e.body.length - 1] : e.pos;
-        ctx.save();
-        ctx.fillStyle = 'rgba(232,241,242,0.85)';
-        ctx.strokeStyle = 'rgba(13, 19, 33, 0.9)';
-        ctx.lineWidth = 3;
-        ctx.font = `bold ${Math.round(T * 0.26)}px system-ui, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.strokeText(`+${e.mem.pending}`, this.cx(t.x), this.cy(t.y) + T * 0.5);
-        ctx.fillText(`+${e.mem.pending}`, this.cx(t.x), this.cy(t.y) + T * 0.5);
-        ctx.restore();
-      }
       if (e.held) {
         ctx.strokeStyle = PAL.coil;
         ctx.lineWidth = 3;
@@ -872,45 +872,64 @@ export class BoardRenderer {
         continue;
       }
       if (it0.t === 'strike' && it0.lunge) {
-        // A snake's lunge, drawn over your body (the tile usually holds a segment): corner
-        // brackets on the tile, a chevron from its head, ✂ beside the tile if it severs.
-        const col = this.willMiss(f, e) ? MISS : PAL.danger;
-        const t = it0.tiles[0], last = it0.tiles[it0.tiles.length - 1];
+        // A snake's lunge, drawn over your body (the tile usually holds a segment): one set of
+        // brackets around the whole line, a chevron from its head, ✂ on the seam it would cut.
+        const miss = this.willMiss(f, e);
+        const col = miss ? MISS : PAL.danger;
+        const t = it0.tiles[0];
+        const xs = it0.tiles.map((q) => q.x), ys = it0.tiles.map((q) => q.y);
+        const x0 = this.ox + Math.min(...xs) * T - 3, y0 = this.oy + Math.min(...ys) * T - 3;
+        const sw = (Math.max(...xs) - Math.min(...xs) + 1) * T + 6, sh = (Math.max(...ys) - Math.min(...ys) + 1) * T + 6, c = T * 0.3;
         const ax = this.cx(e.pos.x), ay = this.cy(e.pos.y), bx = this.cx(t.x), by = this.cy(t.y);
         const ux = Math.sign(bx - ax), uy = Math.sign(by - ay);
-        const pulse = 0.75 + 0.25 * Math.sin(now / 140);
         ctx.save();
-        ctx.globalAlpha = pulse;
-        ctx.strokeStyle = col;
-        ctx.lineWidth = 3;
-        for (const q of it0.tiles) {
-          const x0 = this.ox + q.x * T + 3, y0 = this.oy + q.y * T + 3, s = T - 6, c = T * 0.28;
+        ctx.globalAlpha = miss ? 0.6 : 0.8 + 0.2 * Math.sin(now / 140);
+        if (miss) ctx.setLineDash([4, 4]);
+        const corners: [number, number, number, number][] = [[x0, y0, 1, 1], [x0 + sw, y0, -1, 1], [x0, y0 + sh, 1, -1], [x0 + sw, y0 + sh, -1, -1]];
+        for (const [w, stroke] of [[6, 'rgba(13,19,33,0.9)'], [3.5, col]] as const) {
+          ctx.lineWidth = w;
+          ctx.strokeStyle = stroke;
           ctx.beginPath();
-          for (const [cx, cy, dx, dy] of [[x0, y0, 1, 1], [x0 + s, y0, -1, 1], [x0, y0 + s, 1, -1], [x0 + s, y0 + s, -1, -1]]) {
+          for (const [cx, cy, dx, dy] of corners) {
             ctx.moveTo(cx + dx * c, cy);
             ctx.lineTo(cx, cy);
             ctx.lineTo(cx, cy + dy * c);
           }
           ctx.stroke();
         }
-        // Chevron on the edge between its head and the first tile.
+        ctx.setLineDash([]);
+        // Chevron on the edge between its head and the first tile (outline only if it will miss).
         const mx = (ax + bx) / 2, my = (ay + by) / 2, k = T * 0.22;
-        ctx.fillStyle = col;
-        ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-        ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.moveTo(mx + ux * k, my + uy * k);
         ctx.lineTo(mx - ux * k * 0.6 - uy * k, my - uy * k * 0.6 + ux * k);
         ctx.lineTo(mx - ux * k * 0.6 + uy * k, my - uy * k * 0.6 - ux * k);
         ctx.closePath();
-        ctx.fill();
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = miss ? col : 'rgba(0,0,0,0.6)';
+        if (!miss) {
+          ctx.fillStyle = col;
+          ctx.fill();
+        }
         ctx.stroke();
         if (it0.sever) {
-          ctx.font = `bold ${Math.round(T * 0.4)}px system-ui, sans-serif`;
+          // ✂ on the seam behind the first segment on the line: everything tailward falls off.
+          const hit = it0.tiles.find((q) => ops.bodyIndexAt(f, q) > 0) ?? it0.tiles[it0.tiles.length - 1];
+          const bi = ops.bodyIndexAt(f, hit);
+          const nx = bi > 0 && bi + 1 < pts.length ? pts[bi + 1] : null;
+          const hx = this.cx(hit.x), hy = this.cy(hit.y);
+          const sx = nx ? (hx + this.cx(nx.x)) / 2 : hx + T * 0.3, sy = nx ? (hy + this.cy(nx.y)) / 2 : hy - T * 0.3;
+          ctx.globalAlpha = miss ? 0.6 : 1;
+          ctx.fillStyle = 'rgba(13,19,33,0.85)';
+          ctx.beginPath();
+          ctx.arc(sx, sy, T * 0.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.font = `bold ${Math.round(T * 0.46)}px system-ui, sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.lineWidth = 3;
-          const sx = this.cx(last.x) + ux * T * 0.75, sy = this.cy(last.y) + uy * T * 0.75;
+          ctx.strokeStyle = 'rgba(13,19,33,0.9)';
+          ctx.fillStyle = col;
           ctx.strokeText('✂', sx, sy);
           ctx.fillText('✂', sx, sy);
           ctx.textBaseline = 'alphabetic';
@@ -960,7 +979,7 @@ export class BoardRenderer {
       ctx.stroke();
       ctx.setLineDash([]);
       // reach area
-      ctx.strokeStyle = 'rgba(239, 71, 111, 0.35)';
+      ctx.strokeStyle = miss ? 'rgba(173, 181, 189, 0.3)' : 'rgba(239, 71, 111, 0.35)';
       ctx.lineWidth = 1;
       const r = it.reach;
       ctx.strokeRect(this.ox + (e.pos.x - r) * T, this.oy + (e.pos.y - r) * T, (2 * r + 1) * T, (2 * r + 1) * T);
@@ -1118,20 +1137,28 @@ export class BoardRenderer {
     // no one is hitting you, you are running out).
     if (f.snake.segs.length === 0 && !f.cleared && f.status === 'play') {
       const left = f.breath ?? BREATH;
-      const pl = 0.8 + 0.2 * Math.sin(now / 120);
+      const pl = 0.8 + 0.2 * Math.sin(now / (left <= 2 ? 70 : 120));
       ctx.save();
       for (let i = 0; i < BREATH; i++) {
         const a = -Math.PI / 2 + (i / BREATH) * Math.PI * 2;
-        const x = h.x + Math.cos(a) * T * 0.82, y = h.y + Math.sin(a) * T * 0.82;
+        const x = h.x + Math.cos(a) * T * 0.64, y = h.y + Math.sin(a) * T * 0.64, r = T * 0.08;
+        // Air bubbles (pale cyan, not the white of numbers and floor dots).
         ctx.beginPath();
-        ctx.arc(x, y, T * 0.095, 0, Math.PI * 2);
+        ctx.arc(x, y, r, 0, Math.PI * 2);
         if (i < left) {
           ctx.globalAlpha = pl;
-          ctx.fillStyle = '#f1faee';
+          ctx.fillStyle = '#caf0f8';
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(13,19,33,0.9)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(x - r * 0.3, y - r * 0.3, r * 0.3, 0, Math.PI * 2);
           ctx.fill();
         } else {
-          ctx.globalAlpha = 0.35;
-          ctx.strokeStyle = '#f1faee';
+          ctx.globalAlpha = 0.3;
+          ctx.strokeStyle = '#caf0f8';
           ctx.lineWidth = 1.2;
           ctx.stroke();
         }
@@ -1143,9 +1170,30 @@ export class BoardRenderer {
     if (pend > 0 && n > 1) {
       const t = P(n - 1);
       ctx.fillStyle = 'rgba(232,241,242,0.8)';
+      ctx.strokeStyle = 'rgba(13,19,33,0.9)';
+      ctx.lineWidth = 3;
       ctx.font = `bold ${Math.round(T * 0.24)}px system-ui, sans-serif`;
       ctx.textAlign = 'center';
+      ctx.strokeText(`+${pend}`, t.x, t.y + T * 0.5);
       ctx.fillText(`+${pend}`, t.x, t.y + T * 0.5);
+    }
+    // Enemy snakes' length still in their burrow is health too: '+N' beyond the tail, in their colour.
+    for (const e of f.enemies) {
+      const left = e.mem.pending ?? 0;
+      if (!e.body || left <= 0 || e.under) continue;
+      const tail = e.body.length ? e.body[e.body.length - 1] : e.pos;
+      const prev = e.body.length >= 2 ? e.body[e.body.length - 2] : e.body.length ? e.pos : null;
+      const dx = prev ? Math.sign(tail.x - prev.x) : 0, dy = prev ? Math.sign(tail.y - prev.y) : 1;
+      const x = this.cx(tail.x) + dx * T * 0.6, y = this.cy(tail.y) + dy * T * 0.6 + T * 0.1;
+      ctx.save();
+      ctx.font = `bold ${Math.round(T * 0.26)}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.strokeStyle = 'rgba(13,19,33,0.9)';
+      ctx.lineWidth = 3;
+      ctx.fillStyle = lighten(ENEMIES.get(e.kind)?.color ?? '#e8f1f2', 0.45);
+      ctx.strokeText(`+${left}`, x, y);
+      ctx.fillText(`+${left}`, x, y);
+      ctx.restore();
     }
   }
 
