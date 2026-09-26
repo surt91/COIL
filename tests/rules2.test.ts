@@ -344,15 +344,25 @@ describe('boss rules', () => {
     expect(g.enemies.find((e) => e.kind === 'queen')!.mem.rx).toBeUndefined();
   });
 
-  test('a bite tears at most 5 segments off a boss snake', () => {
-    const h = fight([P(5, 3), P(4, 3), P(3, 3)], [null, null, null], [], 17, 9);
-    const o2 = enemy(h, 'ouroboros', P(4, 2));
-    o2.body = [P(5, 2), P(6, 2), P(7, 2), P(8, 2), P(9, 2), P(10, 2), P(11, 2), P(12, 2), P(13, 2), P(14, 2)];
-    o2.mem.pending = 5;
-    o2.hp = o2.maxHp = 16;
-    const k = step(h, { t: 'move', dir: U }); // bite its body right behind the head
-    const after = k.enemies.find((e) => e.kind === 'ouroboros')!;
-    expect(o2.hp - after.hp).toBe(5);
+  test('a bite tears at most 3 segments off a boss snake and, outside your embrace, arms its riposte', () => {
+    const setup = (wrap: boolean) => {
+      // Your head at (5,3) bites up into its body; three of your tiles touch its head at (4,2), a fourth wraps it.
+      const h = fight(wrap ? [P(5, 3), P(4, 3), P(3, 3), P(3, 2)] : [P(5, 3), P(4, 3), P(3, 3), P(2, 3)], [null, null, null, null], [], 17, 9);
+      const o2 = enemy(h, 'ouroboros', P(4, 2));
+      o2.body = [P(5, 2), P(6, 2), P(7, 2), P(8, 2), P(9, 2), P(10, 2), P(11, 2), P(12, 2), P(13, 2), P(14, 2)];
+      o2.mem.pending = 5;
+      o2.hp = o2.maxHp = 16;
+      o2.intent = { t: 'wait' };
+      const k = step(h, { t: 'move', dir: U });
+      return { lost: o2.hp - k.enemies.find((e) => e.kind === 'ouroboros')!.hp, riposte: k.enemies.some((e) => e.mem.rx !== undefined), segs: k.snake.segs.length };
+    };
+    const loose = setup(false);
+    expect(loose.lost).toBe(3);
+    expect(loose.riposte).toBe(true); // any bite on a boss outside your embrace arms its riposte
+    expect(loose.segs).toBe(4); // and costs nothing else: no spiny hide
+    const wrapped = setup(true);
+    expect(wrapped.lost).toBe(4); // 3 torn off, 1 squeezed: its head is wrapped
+    expect(wrapped.riposte).toBe(false);
   });
 });
 
@@ -392,14 +402,28 @@ describe('enemy snakes play by your rules', () => {
   });
 });
 
-test('a boss takes its brood with it: the room is won, not a mop-up', () => {
+test('peace: once only minions are left, they die and the room is won', () => {
   const f = fight([P(2, 2), P(2, 3)], [null]);
   const queen = spawnEnemy(f, 'queen', P(6, 5));
   const ant = spawnEnemy(f, 'ant', P(9, 5));
   ant.minion = true;
   damageEnemy(f, queen, queen.hp, 'test');
-  expect(ant.hp).toBe(0);
-  expect(f.events.filter((e) => e.t === 'enemyDie').length).toBe(2);
+  expect(ant.hp).toBeGreaterThan(0); // the minion outlives its boss until the room is judged won
+  const h = step(f, { t: 'move', dir: R });
+  expect(h.cleared).toBe(true);
+  expect(h.enemies.length).toBe(0);
+  expect(h.events.some((e) => e.t === 'enemyDie' && e.kind === 'ant')).toBe(true);
+});
+
+test('late minions are meagre: reinforcements after turn 40 do not feed you', () => {
+  const f = fight([P(2, 2), P(2, 3)], [null]);
+  f.spawns = [P(8, 5)];
+  spawnEnemy(f, 'hedgehog', P(9, 1)).intent = { t: 'wait' };
+  f.turn = 44;
+  let g = f;
+  for (let i = 0; i < 6 && !g.enemies.some((e) => e.kind === 'beetle'); i++) g = step(g, { t: 'move', dir: R });
+  const b = g.enemies.find((e) => e.kind === 'beetle');
+  expect(b?.meagre).toBe(true);
 });
 
 describe('the Ouroboros', () => {
@@ -411,24 +435,6 @@ describe('the Ouroboros', () => {
     o.intent = { t: 'wait' };
     return o;
   };
-
-  test('spiny hide: biting its body costs a segment — unless your body presses in around its head', () => {
-    // You at (2,4) heading right into its body at (3,4); its head far away at (3,1).
-    let f = fight([P(2, 4), P(1, 4), P(1, 5), P(1, 6)], [null, null, null], [], 12, 9);
-    lay(f, P(3, 1), [P(3, 2), P(3, 3), P(3, 4), P(3, 5), P(3, 6)]);
-    const before = f.snake.segs.length;
-    f = step(f, { t: 'move', dir: R });
-    expect(f.snake.segs.length).toBe(before - 1);
-  });
-
-  test('…pressed in around its head, cutting its body is free', () => {
-    // Its head at (6,2); your body wraps it from the left and above; you bite its body at (7,4) from (6,4).
-    let f = fight([P(6, 4), P(5, 4), P(5, 3), P(5, 2), P(5, 1), P(6, 1), P(7, 1)], [null, null, null, null, null, null], [], 12, 9);
-    lay(f, P(6, 2), [P(7, 2), P(7, 3), P(7, 4), P(7, 5), P(7, 6)]);
-    const before = f.snake.segs.length;
-    f = step(f, { t: 'move', dir: R });
-    expect(f.snake.segs.length).toBe(before);
-  });
 
   test('it swallows husks to regrow, up to its starting length, and its own cut length leaves no husks', () => {
     const f = fight([P(9, 7), P(10, 7)], [null], [], 12, 9);

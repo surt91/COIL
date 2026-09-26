@@ -2,7 +2,7 @@
  * The fight reducer: (Fight, Action) -> Fight (+ events in fight.events).
  * Pure with respect to its input: `step` clones before mutating.
  */
-import { coilDamage, coiledEnemies, computeCoils, enemyCoilsHead, isWrapped, touchCount } from './coil';
+import { coilDamage, coiledEnemies, computeCoils, enemyCoilsHead, isWrapped } from './coil';
 import { DIRS, Dir, Pos, chebyshev, eq, manhattan, step as stepPos } from './geom';
 import * as ops from './ops';
 import { CHARMS, ENEMIES, charmSum, enemyDef, item } from './registry';
@@ -254,18 +254,15 @@ function bite(f: Fight, e: Enemy, dir: Dir, extraBite: number): boolean {
   const target = stepPos(f.snake.body[0], dir);
   const k = e.body ? e.body.findIndex((b) => eq(b, target)) : -1;
   if (k >= 0) {
-    // Biting an enemy snake's body severs it there.
+    // Biting an enemy snake's body severs it there. Like any bite on a boss outside your
+    // embrace, this one arms its riposte.
     f.buffs.bite = 0;
-    const exposedNow = bossExposed(f, e);
+    const exposedNow = d.boss && bossExposed(f, e);
     const killed = ops.cutEnemy(f, e, k, 'bite');
     ops.emit(f, { t: 'bite', enemy: e.id, at: target, dmg: 0, killed });
     f.snake.dir = dir;
     ops.removeDead(f);
-    // A spiky hide: cutting it costs a segment, unless you hold it (wrapped or coiled).
-    if (d.spikyHide && !killed && !exposedNow) {
-      if (f.snake.segs.length > 0) ops.hitSnake(f, 1, 1, e);
-      else loseBreath(f); // a bare head pays with its breath
-    }
+    if (d.boss && !exposedNow && !killed) armRiposte(f, e);
     return false;
   }
   let vs = 0;
@@ -317,13 +314,7 @@ function bite(f: Fight, e: Enemy, dir: Dir, extraBite: number): boolean {
   } else {
     ops.emit(f, { t: 'msg', text: d.boss && !exposed ? 'unstoppable' : d.heavy ? 'too heavy to budge' : noInterrupt ? 'not interrupted' : 'pinned — not interrupted' });
   }
-  if (d.boss && !exposed && e.hp > 0) {
-    // Riposte: the boss marks the tile your head bit from. Still there after your next move? It strikes.
-    // (It arms at the end of this enemy phase — see riposte().)
-    const h = f.snake.body[0];
-    e.mem.nx = h.x;
-    e.mem.ny = h.y;
-  }
+  if (d.boss && !exposed && e.hp > 0) armRiposte(f, e);
   d.afterBitten?.(f, e);
   return false;
 }
@@ -433,6 +424,13 @@ function constrictPhase(f: Fight) {
 
 export function checkCleared(f: Fight) {
   if (!f.cleared && f.enemies.every((e) => e.minion)) {
+    // Peace: the room is won, so what's left of it dies and it stops (no food, hunger, breath or spawns).
+    for (const m of f.enemies)
+      if (m.hp > 0) {
+        m.hp = 0;
+        ops.emit(f, { t: 'enemyDie', enemy: m.id, at: { ...m.pos }, kind: m.kind });
+      }
+    ops.removeDead(f);
     f.cleared = true;
     ops.emit(f, { t: 'cleared' });
   }
@@ -483,9 +481,17 @@ function enemyPhase(f: Fight) {
  */
 export function bossExposed(f: Fight, e: Enemy): boolean {
   if (isWrapped(f, e, wrapMin(f))) return true;
-  // A snake can't be wrapped whole, but its head can: pressed in by enough of you, it is exposed.
-  if (e.body && touchCount(f, e) >= wrapMin(f)) return true;
   return computeCoils(f).some((c) => c.tiles.some((t) => eq(t, e.pos)));
+}
+
+/**
+ * Riposte: after a bite outside your embrace, the boss marks the tile your head bit from.
+ * Still there after your next move? It strikes. (It arms at the end of this enemy phase.)
+ */
+function armRiposte(f: Fight, e: Enemy) {
+  const h = f.snake.body[0];
+  e.mem.nx = h.x;
+  e.mem.ny = h.y;
 }
 
 /** The tile a boss marked after surviving a bite (if the riposte is still pending). */
@@ -643,8 +649,7 @@ function resolveIntent(f: Fight, e: Enemy): boolean {
         if (!ops.isEmpty(f, t)) continue;
         const n = ops.spawnEnemy(f, it.kind, t);
         n.minion = true;
-        // A long boss fight stops feeding you: late brood is too small to swallow.
-        if (d.boss && f.turn > 40) n.meagre = true;
+        if (f.turn > LATE_MINION) n.meagre = true;
         n.intent = think(f, n);
         ops.emit(f, { t: 'spawn', enemy: n.id, at: { ...t } });
       }
@@ -723,6 +728,9 @@ function neighborsRing(p: Pos): Pos[] {
   return out;
 }
 
+/** A long fight stops feeding you: minions (brood, reinforcements) appearing after this turn are meagre. */
+export const LATE_MINION = 40;
+
 /** Bare-head turns allowed per fight (see upkeep). */
 export const BREATH = 6;
 
@@ -782,6 +790,7 @@ function upkeep(f: Fight) {
     if (free.length) {
       const e = ops.spawnEnemy(f, 'beetle', pick(f.rng, free));
       e.minion = true;
+      if (f.turn > LATE_MINION) e.meagre = true;
       e.intent = think(f, e);
       ops.emit(f, { t: 'spawn', enemy: e.id, at: { ...e.pos } });
     }

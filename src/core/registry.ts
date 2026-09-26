@@ -72,8 +72,6 @@ export interface EnemyDef {
   boss?: boolean;
   /** An enemy snake: hp is its length, its body follows its head. */
   snake?: boolean;
-  /** Biting its body costs you a segment, unless it is wrapped or coiled (bossExposed). */
-  spikyHide?: boolean;
   /** Slithers onto husks and swallows them: +1 hp each, up to its starting hp. */
   eatsHusks?: boolean;
   /** Only coils of at most this area hold (and crush) it. */

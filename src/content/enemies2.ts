@@ -238,11 +238,10 @@ defineEnemy({
   hp: 28,
   glyph: 'ouroboros',
   color: '#d9d2c3',
-  text: 'Final boss. Never still: it lunges along the red line and severs what it hits. Its length is its health, and it swallows the pieces it cuts off you. Its spiny hide cuts back when you bite its body.',
+  text: 'Final boss. Never still: it lunges along the red line and severs what it hits. Its length is its health, and it swallows the pieces it cuts off you. A bite tears at most 3 segments off its body.',
   snake: true,
   boss: true,
   heldMaxArea: 6,
-  spikyHide: true,
   eatsHusks: true,
   think: (f, e) => snakeThink(f, e, { sever: true, hunt: 'body', reach: 2, gorge: true }),
 });

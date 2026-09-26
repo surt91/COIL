@@ -160,4 +160,5 @@ export const touchCount = (f: Fight, e: Enemy) =>
   f.snake.body.filter((b) => Math.max(Math.abs(b.x - e.pos.x), Math.abs(b.y - e.pos.y)) === 1).length;
 
 /** Wrapped: touching at least `wrapMin` snake tiles (not buried, not an enemy snake). */
-export const isWrapped = (f: Fight, e: Enemy, wrapMin: number) => !e.under && !e.body && e.hp > 0 && touchCount(f, e) >= wrapMin;
+/** Pressed in by wrapMin+ of your tiles (8-neighbourhood). An enemy snake is wrapped at its head. */
+export const isWrapped = (f: Fight, e: Enemy, wrapMin: number) => !e.under && e.hp > 0 && touchCount(f, e) >= wrapMin;

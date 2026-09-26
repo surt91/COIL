@@ -206,13 +206,6 @@ export function damageEnemy(f: Fight, e: Enemy, dmg: number, cause: string): boo
   }
   if (e.hp <= 0) {
     emit(f, { t: 'enemyDie', enemy: e.id, at: { ...e.pos }, kind: e.kind });
-    // A boss's brood dies with it: no mopping up (or starving) in a room that is already won.
-    if (enemyDef(e.kind).boss)
-      for (const m of f.enemies)
-        if (m.minion && m.hp > 0) {
-          m.hp = 0;
-          emit(f, { t: 'enemyDie', enemy: m.id, at: { ...m.pos }, kind: m.kind });
-        }
     for (const c of f.charms ?? []) CHARMS.get(c)?.onKill?.(f, e, cause);
     for (const { id, seg } of itemsOnBody(f)) ITEMS.get(id)?.onEnemyDie?.(f, seg, e, cause);
     enemyDef(e.kind).onDie?.(f, e, cause);
@@ -271,8 +264,8 @@ export function moveEnemy(f: Fight, e: Enemy, to: Pos) {
   emit(f, { t: 'enemyMove', enemy: e.id, from, to });
 }
 
-/** Bite into an enemy snake's body at index k: everything from k back falls off as husks. */
-export const BOSS_SEVER_MAX = 5;
+/** A boss's ancient hide: one bite tears at most this many segments off a boss snake. */
+export const BOSS_TEAR = 3;
 
 /** Tiles a walking enemy at `from` could reach within n steps (walls, bodies and others block). */
 export function floodFrom(f: Fight, from: Pos, n: number): Pos[] {
@@ -296,11 +289,11 @@ export function floodFrom(f: Fight, from: Pos, n: number): Pos[] {
 /** Too small to feed you: grublings, and brood summoned by bosses. */
 export const isMeagre = (e: Enemy) => !!e.meagre || !!enemyDef(e.kind).meagre;
 
+/** Cut an enemy snake's body at index k (a boss loses at most BOSS_TEAR tail segments). */
 export function cutEnemy(f: Fight, e: Enemy, k: number, cause: string): boolean {
   if (!e.body || k < 0 || k >= e.body.length) return false;
-  // A boss's ancient hide: one bite tears off at most BOSS_SEVER_MAX tail segments.
   const boss = enemyDef(e.kind).boss;
-  if (boss) k = Math.max(k, e.body.length - BOSS_SEVER_MAX);
+  if (boss) k = Math.max(k, e.body.length - BOSS_TEAR);
   const cut = e.body.splice(k);
   // A boss's severed length crumbles to dust (no free meal); lesser snakes leave husks.
   // Lesser snakes leave every other piece as a husk (the rest crumbles): a meal, not a buffet.

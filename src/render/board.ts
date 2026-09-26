@@ -771,7 +771,11 @@ export class BoardRenderer {
         continue;
       }
       ctx.rotate(Math.atan2(head.y - e.pos.y, head.x - e.pos.x));
-      drawCreature(ctx, e.kind, d?.boss ? T * 1.35 : T, d?.color ?? '#fff', now / 1000 + e.id, (e.mem.curled ?? 0) > 0);
+      // Meagre (too small to feed you): drawn small and pale, so nobody chases it for a meal.
+      const meagre = ops.isMeagre(e);
+      if (meagre) ctx.globalAlpha = 0.85;
+      drawCreature(ctx, e.kind, d?.boss ? T * 1.35 : meagre ? T * 0.8 : T, meagre ? lighten(d?.color ?? '#fff', 0.4) : d?.color ?? '#fff', now / 1000 + e.id, (e.mem.curled ?? 0) > 0);
+      ctx.globalAlpha = 1;
       ctx.restore();
       this.drawEnemyHud(e, X, Y, d, now);
       const hc = held.get(e);

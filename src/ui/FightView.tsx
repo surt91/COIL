@@ -489,9 +489,9 @@ function Inspector({ f, hover }: { f: Fight; hover: Pos | null }) {
             {bossExposed(f, e)
               ? <b style={{ color: 'var(--coil, #c77dff)' }}>Exposed: </b>
               : <>Boss: bites don’t interrupt it, and it <b>ripostes</b> — the tile you bit it from gets struck if you’re still on it next turn. </>}
-            {e.body
-              ? bossExposed(f, e) ? 'its head is pressed in — biting its body is free, head bites deal +1, it can’t riposte and its lunge can’t sever.' : 'Press your body in around its head (4+ tiles) to expose it.'
-              : bossExposed(f, e) ? 'wrapped or coiled — bites deal +1, knock it back and interrupt it, and it can’t riposte.' : 'Wrap it or coil it to expose it.'}
+            {bossExposed(f, e)
+              ? <>wrapped or coiled — bites deal +1, knock it back and interrupt it, and it can’t riposte.{e.body ? ' Its lunge can’t sever.' : ''}</>
+              : <>Wrap it or coil it (a snake at its head) to expose it.</>}
           </div>
         )}
         <p>{d.text}</p>

@@ -93,16 +93,15 @@ Every decision — play a card, eat, fight, coil, buy — spends the same thing.
 - An enemy crushed to death is swallowed like a bite kill: +1 flesh, hunger resets.
 - Coiled enemies are *held*: they cannot move, but they can still attack the ring.
 - Bosses are only held by tight coils (Mongoose ≤3 tiles, Queen ≤8, Ouroboros ≤6).
-- **Bosses riposte:** after a bite it survives, a boss marks the tile your head
-  bit from (red). If your head is still there after your next move, it strikes
-  the head. Biting a boss twice from the same tile is punished — circle it.
-- **Exposed:** a boss that is wrapped or inside *any* coil of yours (held or
-  not) is knocked back and interrupted like a normal enemy, takes +1 from
-  bites and can't riposte. Loose coils pay before they hold.
-- A bite tears at most 5 segments off a boss snake (the Ouroboros).
+- **One boss rule — only your embrace opens a boss.** A boss that is wrapped
+  (a snake: at its head) or inside *any* coil of yours (held or not) is
+  *exposed*: like any prey it is knocked back and interrupted, takes +1 from
+  bites, and a boss snake's lunge can't sever. Outside your embrace, every bite
+  it survives (head or body) arms a **riposte**: it marks the tile your head bit
+  from (red) and strikes it if your head is still there after your next move.
+  Bite, then move on — or circle it.
+- A bite tears at most 3 segments off a boss snake (the Ouroboros).
 - A boss that lands a bite spends its next turn swallowing (no bite).
-- When a boss dies, its brood dies with it. Brood laid after turn 40 is too small
-  to feed you.
 
 ### Enemy snakes
 
@@ -115,20 +114,22 @@ bite is a move into an occupied tile.
 - Blocked, it takes the free step with room behind it. Boxed in, the Ouroboros
   turns around (its tail becomes its head); anything else gnaws its own tail.
 - Only a coil holds a snake still.
-- **The Ouroboros:** spiny hide (biting its body costs you a segment, unless your
-  body presses in around its head, i.e. 4+ touching tiles); it swallows husks to
-  regrow (up to its starting length); its own severed length crumbles.
-- **Wrap:** an enemy touching 4+ snake tiles (8-neighbourhood) is squeezed for
-  1/turn even without a closed coil. This makes constriction incremental.
+- **The Ouroboros:** it swallows husks to regrow (up to its starting length);
+  its own severed length crumbles.
+- **Wrap:** an enemy touching 4+ snake tiles (8-neighbourhood; an enemy snake
+  at its head) is squeezed for 1/turn even without a closed coil. This makes
+  constriction incremental.
 - To keep a coil, the snake chases its own tail (the tail tip vacates each turn).
 - Hovering a move previews the resulting coil (area and crush).
 
 ### Pressure (anti-stall)
 
 - **Hunger:** every 12 turns without eating, lose the tail segment.
-- **No farming:** once a room is cleared, no new food grows.
 - **Escalation:** from turn ~25, a beetle crawls out of a spawn hole every 6 turns.
   Escalation spawns and summons are *minions*: not required to clear the room.
+  Minions that appear after turn 40 are *meagre* (small and pale): they don't feed you.
+- **Peace:** once only minions are left, they die and the room is won. It stops:
+  no food grows, no hunger, no breath, no reinforcements. Leave, don't farm.
 - There is always ≥1 food on the board (2 from Act 2).
 - **Flesh cap:** you carry at most 8 / 10 / 12 flesh (per act) out of a room.
 
@@ -189,7 +190,7 @@ Each item has an **active** (play from hand, consumes) and/or a **passive**
 | 3 | Glowworm | Lines again. | Spits light along 4 tiles. |
 | 3 | Rival snake | Can it coil *you*? | Plays by your rules; bite its body to cut it. |
 | 3 | Brood Grub | Will you coil it? | Slow. Any kill but a crush bursts it into two Grublings, which don't feed you. |
-| 3 | **The Ouroboros** (boss) | | Never still; lunges 2 tiles and severs; spiny hide; swallows husks. |
+| 3 | **The Ouroboros** (boss) | | Never still; lunges 2 tiles and severs; swallows husks. |
 
 Enemy HP scales +1 per act (non-bosses).
 

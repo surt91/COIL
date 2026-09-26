@@ -1,7 +1,7 @@
 import { coiledEnemies, occupiedCoils, touchCount } from '../core/coil';
 import { ENEMIES, ITEMS } from '../core/registry';
 import { coilWithin } from '../core/hints';
-import { riposteTile } from '../core/fight';
+import { bossExposed, riposteTile } from '../core/fight';
 import * as ops from '../core/ops';
 import type { Fight } from '../core/types';
 
@@ -26,8 +26,8 @@ const TIPS: { id: string; when(f: Fight): boolean; text: string; urgent?: boolea
   { id: 'sever-lunge', when: (f) => f.enemies.some((e) => e.intent.t === 'strike' && !!e.intent.sever), text: '✂ Sever: whatever lies on the red tile after your move is cut — everything behind it falls off.' },
   { id: 'ring', when: (f) => f.snake.segs.some((x) => x.item && ITEMS.get(x.item)?.ringCrush) && occupiedCoils(f).length > 0, text: 'Ring items only boost coils their own segment touches — wrap prey with that part of you.' },
   { id: 'grub', urgent: true, when: (f) => f.enemies.some((e) => e.kind === 'grub'), text: 'Brood Grub: bitten, it bursts into two. Crush it in a coil instead.' },
-  { id: 'riposte', urgent: true, when: (f) => f.enemies.some((e) => !!riposteTile(e)), text: 'Riposte: never bite a boss twice from the same tile. Wrap or coil it to expose it.' },
-  { id: 'hide', when: (f) => f.enemies.some((e) => !!ENEMIES.get(e.kind)?.spikyHide && !!e.body?.some((b) => Math.abs(b.x - f.snake.body[0].x) + Math.abs(b.y - f.snake.body[0].y) === 1)), text: 'Spiny hide: biting its body costs you a segment — unless your body presses in around its head first.' },
+  { id: 'riposte', urgent: true, when: (f) => f.enemies.some((e) => !!riposteTile(e)), text: 'Riposte: a boss strikes back where you bit it from — bite, then move on. Wrap or coil it and it can’t.' },
+  { id: 'exposed', urgent: true, when: (f) => f.enemies.some((e) => !!ENEMIES.get(e.kind)?.boss && bossExposed(f, e)), text: 'Exposed! In your wrap or coil a boss is like any prey: bites +1, knocked back, no riposte.' },
   { id: 'gorge', when: (f) => f.husks.length > 0 && f.enemies.some((e) => !!ENEMIES.get(e.kind)?.eatsHusks), text: 'It swallows your severed pieces to regrow — but not while it is still swallowing its last bite. Race it.' },
   { id: 'spiky', when: (f) => f.enemies.some((e) => e.kind === 'hedgehog'), text: 'Spines: biting a hedgehog costs you a segment. Coil it instead.' },
   { id: 'coil', urgent: true, when: (f) => coiledEnemies(f).size > 0, text: 'Coiled! It can’t act, and takes the violet number every turn. Tighter coils crush harder.' },

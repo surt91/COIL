@@ -831,3 +831,59 @@ des Tages Entscheidungen machen, nicht bloß Zahlen:
 - **Scarecrow Skin** (Charm): Solange eine Hülle herumliegt, kommt kein
   Nachschub. Gegen die Ouroboros ist das eine Zwickmühle, denn dieselben Hüllen,
   die die Käfer fernhalten, füttern sie.
+
+## 2026-09-26 — Das Streichkonzert
+
+Der Auftraggeber fragte: polieren oder etwas Großes probieren? Ich habe mir die
+Regeln angesehen und keins von beiden gewählt. Die letzten dreißig Commits waren
+lauter lokale Reparaturen, jede für sich richtig. Zusammen lasen sie sich aber
+wie eine Liste von Ausnahmen: Riposte, Entblößt, Riss-Deckel, Stachelhaut außer
+bei 4+ Feldern um den Kopf, ein nackter Kopf zahlt die Stachelhaut mit Atem,
+Brut stirbt mit dem Boss, Brut der Königin nach Zug 40 macht nicht satt …
+Polieren hätte die Ausnahmen mitpoliert. Also ein Experiment auf einem Branch:
+**Regeln streichen, ohne dass die alten Exploits zurückkommen.**
+
+Die Debatte war diesmal wirklich eine. Die Spielerpsychologin wollte eine
+einheitliche Stachelsteuer für alle Bosse ("violett heißt offen, alles andere
+sträubt sich", der Igel lehrt das schon in Akt 1). Der Systems-Designer hielt
+dagegen: Den Mungo bekommt man kaum je in eine Umarmung, eine Steuer wäre bei
+ihm pure Zermürbung. Außerdem sei die Riposte die physische Form von "ein Biss
+ist Stillstehen", und die Stachelhaut flicke genau das Loch, dass Bisse in den
+Körper die Riposte nie auslösten. Recht hatte er. Die Psychologin hatte recht
+mit der doppelten Definition von "entblößt".
+
+Was jetzt gilt:
+- **Eine Boss-Regel.** Umwickelt (eine Schlange: am Kopf) oder in irgendeinem
+  deiner Coils ist ein Boss entblößt und wie jede Beute. Außerhalb davon löst
+  *jeder* Biss, den er überlebt, die Riposte aus, auch der in den Körper. Die
+  Stachelhaut ist weg, samt 4-Felder-Ausnahme und Atem-Klausel.
+- **Umwickeln funktioniert für alle gleich.** Auch Rivalen-Schlangen kann man
+  jetzt am Kopf umwickeln und drücken.
+- **Frieden:** Wenn nur noch Minions übrig sind, sterben sie, und der Raum steht
+  still. Das ersetzt "Brut stirbt mit dem Boss".
+- **Späte Minions sind mager:** Nach Zug 40 macht nichts, was nachkommt, mehr
+  satt, auch die Nachschub-Käfer nicht. Das schließt nebenbei eine Farm, die
+  der Systems-Designer gefunden hatte: einen Gegner am Leben lassen und alle
+  6 Züge einen Käfer essen. Magere Tiere sind jetzt klein und knochenbleich.
+  Vorher sah man es ihnen nicht an, und das fühlte sich wie ein Bug an.
+
+Die Überraschung kam bei der Zahl. Mit einem Riss von 1 Segment pro Biss
+außerhalb der Umarmung (5 innerhalb) fiel die Siegquote von 57 % auf 42 %: 20
+statt 6 Tode beim Endboss. Also habe ich den Riss durchgemessen, 120 Runs pro
+Variante:
+- 1: 42 %
+- 2: 47 %, 14 Endboss-Tode
+- 3: 55 %, 4 Tode
+- 5: 58 %, 1 Tod
+Der Wert innerhalb der Umarmung war dem Bot völlig egal (3, 5 oder unbegrenzt
+gaben dieselben Zahlen), weil er den Kopf der Ouroboros praktisch nie umwickelt.
+Eine zweite Zahl, die niemand spürt, ist eine Ausnahme zu viel. Es bleibt eine:
+**Ein Biss reißt höchstens 3 Segmente von einer Boss-Schlange.** "Unbegrenzt"
+wäre für einen Menschen eine Falle gewesen: den Kopf umwickeln, direkt dahinter
+beißen, und der Endboss wäre in einem Zug tot.
+
+Nebenfund: `runsim --seed 1/2/3` misst fast dieselben Runs (`seed0 + i`).
+Unabhängige Stichproben brauchen `--seed 1 / 1001 / 2001`.
+
+Bilanz: 55 % Siege (vorher 57 %), Crush-Anteil 42 %, DESIGN.md um vier
+Ausnahmen kürzer, keine neue Regel dazu.
