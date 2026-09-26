@@ -232,8 +232,14 @@ describe('body is the deck', () => {
     // A far-away enemy keeps the room uncleared (hunger stands still in cleared rooms).
     let f = createFight({ rows: open(12, 8), genome: [], flesh: 0, seed: 1, place: ['tortoise'], snake: { body: [P(2, 3), P(1, 3)], items: [null], dir: R }, opts: { minFood: 0, hungerEvery: 3 } });
     for (const e of f.enemies) { e.pos = P(10, 6); e.intent = { t: 'wait' }; }
+    f.opts.hungerEvery = 3; // below the floor on purpose: quicker to test
     for (let i = 0; i < 3; i++) f = step(f, { t: 'move', dir: i < 2 ? R : D });
     expect(f.snake.segs.length).toBe(0);
+  });
+
+  test('however charms stack, hunger comes at most every HUNGER_MIN turns', () => {
+    const f = createFight({ rows: open(12, 8), genome: [], flesh: 0, seed: 1, charms: ['mongoose-tooth', 'queen-jelly'], snake: { body: [P(2, 3), P(1, 3)], items: [null], dir: R }, opts: { minFood: 0, hungerEvery: 7 } });
+    expect(f.opts.hungerEvery).toBe(6);
   });
 
   test('a bare head has BREATH turns per fight, and eating does not refill them', () => {

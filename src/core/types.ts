@@ -126,6 +126,10 @@ export interface FightOpts {
   escalateFrom: number;
   escalateEvery: number;
   minFood: number;
+  /** Molt 'Picky': only food resets hunger (kills still feed you). */
+  picky?: boolean;
+  /** Molt 'Regrowth': outside your embrace a boss regains 1 HP every this many turns (0: never). */
+  bossRegen?: number;
 }
 
 export type Action =
@@ -159,4 +163,5 @@ export type GameEvent =
   | { t: 'steal'; enemy: number; at: Pos; item: ItemId }
   | { t: 'burrow'; enemy: number; at: Pos }
   | { t: 'emerge'; enemy: number; at: Pos }
-  | { t: 'msg'; text: string };
+  | { t: 'msg'; text: string }
+  | { t: 'enemyHeal'; enemy: number; at: Pos; amount: number };

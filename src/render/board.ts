@@ -327,6 +327,12 @@ export class BoardRenderer {
       case 'msg':
         this.float(f.snake.body[0], e.text, e.text === 'riposte!' ? PAL.danger : '#fff');
         break;
+      case 'enemyHeal': {
+        // Regrowth: in the boss's own earth tone, lightened (not red: nothing hits you).
+        const en = f.enemies.find((x) => x.id === e.enemy);
+        this.float(e.at, `+${e.amount}`, lighten(ENEMIES.get(en?.kind ?? '')?.color ?? '#d9d2c3', 0.3));
+        break;
+      }
     }
   }
 

@@ -140,7 +140,7 @@ export function createFight(spec: RoomSpec): Fight {
     }
   }
   f.charms = [...(spec.charms ?? [])];
-  f.opts.hungerEvery += charmSum(f.charms, 'hungerBonus');
+  f.opts.hungerEvery = Math.max(HUNGER_MIN, f.opts.hungerEvery + charmSum(f.charms, 'hungerBonus'));
   for (const c of f.charms) CHARMS.get(c)?.fightStart?.(f);
   for (const e of f.enemies) e.intent = think(f, e);
   ensureFood(f);
@@ -298,7 +298,7 @@ function bite(f: Fight, e: Enemy, dir: Dir, extraBite: number): boolean {
     const wi = ops.webAt(f, at);
     if (wi >= 0) f.webs.splice(wi, 1);
     ops.moveHeadTo(f, at, dir);
-    f.hunger = 0;
+    if (!f.opts.picky) f.hunger = 0;
     ops.emit(f, { t: 'eat', at, what: 'enemy' });
     return true;
   }
@@ -311,7 +311,8 @@ function bite(f: Fight, e: Enemy, dir: Dir, extraBite: number): boolean {
     e.pos = back;
     e.intent = { t: 'wait' };
     e.mem.interrupted = 1;
-  } else {
+  } else if (e.intent.t !== 'wait' && e.intent.t !== 'move') {
+    // Why the attack still comes (only said when one is coming: floats pile up fast around a boss).
     ops.emit(f, { t: 'msg', text: d.boss && !exposed ? 'unstoppable' : d.heavy ? 'too heavy to budge' : noInterrupt ? 'not interrupted' : 'pinned — not interrupted' });
   }
   if (d.boss && !exposed && e.hp > 0) armRiposte(f, e);
@@ -731,6 +732,9 @@ function neighborsRing(p: Pos): Pos[] {
 /** A long fight stops feeding you: minions (brood, reinforcements) appearing after this turn are meagre. */
 export const LATE_MINION = 40;
 
+/** However charms and molts stack, you starve at most every this many turns. */
+export const HUNGER_MIN = 6;
+
 /** Bare-head turns allowed per fight (see upkeep). */
 export const BREATH = 6;
 
@@ -780,6 +784,16 @@ function upkeep(f: Fight) {
     loseBreath(f);
     if (f.status !== 'play') return;
   }
+
+  // Molt 'Regrowth': a boss you don't hold heals, so chipping at it from outside stops paying.
+  const regen = f.opts.bossRegen ?? 0;
+  if (regen > 0 && (f.turn + 1) % regen === 0)
+    for (const e of f.enemies)
+      if (enemyDef(e.kind).boss && e.hp > 0 && e.hp < e.maxHp && !e.held && !bossExposed(f, e)) {
+        e.hp++;
+        if (e.body) e.mem.pending = (e.mem.pending ?? 0) + 1;
+        ops.emit(f, { t: 'enemyHeal', enemy: e.id, at: { ...e.pos }, amount: 1 });
+      }
 
   // Reinforcements (spawnIn below says when). Not while you are a bare head: your last
   // breaths are a chance to recover, not a countdown to a swarm.

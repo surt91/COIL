@@ -212,7 +212,7 @@ export function damageEnemy(f: Fight, e: Enemy, dmg: number, cause: string): boo
     if (cause === 'crush') {
       // You swallow what you crush — the coil's kill feeds like a killing bite.
       if (!isMeagre(e)) addSeg(f, null, 'tail');
-      f.hunger = 0;
+      if (!f.opts.picky) f.hunger = 0;
       emit(f, { t: 'eat', at: { ...e.pos }, what: 'enemy' });
     }
     if (e.carry) {

@@ -33,6 +33,8 @@ const TIPS: { id: string; when(f: Fight): boolean; text: string; urgent?: boolea
   { id: 'coil', urgent: true, when: (f) => coiledEnemies(f).size > 0, text: 'Coiled! It can’t act, and takes the violet number every turn. Tighter coils crush harder.' },
   { id: 'wrap', when: (f) => f.enemies.some((e) => !e.under && touchCount(f, e) >= 2), text: 'Violet arcs count your tiles touching it. All arcs lit: squeezed every turn.' },
   { id: 'breath', urgent: true, when: (f) => f.snake.segs.length === 0 && !f.cleared && f.status === 'play', text: 'Last breaths: nothing left behind your head. Eat before the pips run out — they never come back this fight.' },
+  { id: 'picky', when: (f) => !!f.opts.picky && f.opts.hungerEvery - f.hunger <= 3 && f.status === 'play', text: 'Picky: only food stills your hunger here. Kills still grow you.' },
+  { id: 'regrowth', when: (f) => (f.opts.bossRegen ?? 0) > 0 && f.enemies.some((e) => !!ENEMIES.get(e.kind)?.boss && e.hp < e.maxHp), text: 'Regrowth: outside your wrap or coil, a boss heals every 4 turns.' },
   { id: 'hunger', when: (f) => f.opts.hungerEvery - f.hunger <= 3 && f.status === 'play', text: 'Hungry: when the meter runs out, you lose your tail. Eat something.' },
   { id: 'web', when: (f) => f.webs.length > 0 || f.enemies.some((e) => e.intent.t === 'web'), text: 'Webs cost you a move — but they are walls for your coils.' },
   { id: 'cleared', when: (f) => f.cleared && f.status === 'play', text: 'Cleared! Flesh carries over — grab food on the way out.' },

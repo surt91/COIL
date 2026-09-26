@@ -91,7 +91,7 @@ Every decision — play a card, eat, fight, coil, buy — spends the same thing.
   and (c) has area ≤ 12. Diagonal gaps count as sealed (enemies move orthogonally).
 - Crush damage by tightness: area 1 → 3/turn, 2–3 → 2, 4–8 → 1, 9–12 → *held* only.
 - An enemy crushed to death is swallowed like a bite kill: +1 flesh, hunger resets.
-- Coiled enemies are *held*: they cannot move, but they can still attack the ring.
+- Coiled enemies are *held*: they can neither move nor attack.
 - Bosses are only held by tight coils (Mongoose ≤3 tiles, Queen ≤8, Ouroboros ≤6).
 - **One boss rule — only your embrace opens a boss.** A boss that is wrapped
   (a snake: at its head) or inside *any* coil of yours (held or not) is
@@ -124,7 +124,8 @@ bite is a move into an occupied tile.
 
 ### Pressure (anti-stall)
 
-- **Hunger:** every 12 turns without eating, lose the tail segment.
+- **Hunger:** every 12 turns without eating, lose the tail segment. However charms and
+  events stack, never more often than every 6 turns.
 - **Escalation:** from turn ~25, a beetle crawls out of a spawn hole every 6 turns.
   Escalation spawns and summons are *minions*: not required to clear the room.
   Minions that appear after turn 40 are *meagre* (small and pale): they don't feed you.
@@ -208,7 +209,11 @@ Bask (rest), Event, Boss (+boss charm).
   Boss charms are strong with a drawback.
 - **Species**: Garden Snake, Viper (poison bites), Python (huge coils, no
   interrupts), Ouroboros (feeds on husks, double tuck) — unlocked by milestones.
-- **Molts**: 6 cumulative ascension levels, one unlocked per victory.
+- **Molts**: 6 cumulative ascension levels, one unlocked per victory. They test
+  skilled play too, not just attrition (measured against a coil-planning bot):
+  Picky (only food stills hunger), Tougher Garden, Hungrier (every 10 turns),
+  Restless (earlier, faster reinforcements), Apex (bosses +50 % HP), Regrowth
+  (a boss outside your embrace heals 1 HP every 4 turns).
 - **Daily run**: one attempt per day on a date-derived seed.
 
 ## Readability & feel

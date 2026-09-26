@@ -523,3 +523,37 @@ describe('breath and dodge items', () => {
     expect(g.snake.segs.length).toBe(n);
   });
 });
+
+describe('molts', () => {
+  test('Picky: a kill grows you but only food stills your hunger', () => {
+    const run = (picky: boolean) => {
+      const f = fight([P(2, 2), P(1, 2)], [null]);
+      f.opts.picky = picky;
+      f.hunger = 5;
+      enemy(f, 'hedgehog', P(9, 7)); // keeps the room uncleared
+      const b = enemy(f, 'beetle', P(3, 2));
+      b.hp = 1;
+      return step(f, { t: 'move', dir: R });
+    };
+    expect(run(false).hunger).toBe(1);
+    const g = run(true);
+    expect(g.hunger).toBe(6);
+    expect(g.snake.segs.length).toBe(2); // still swallowed
+  });
+
+  test('Regrowth: a boss outside your embrace heals, one inside it does not', () => {
+    const f = fight([P(2, 2), P(1, 2)], [null], [], 14, 9);
+    f.opts.bossRegen = 1;
+    const m = enemy(f, 'mongoose', P(11, 7));
+    m.hp = 5;
+    const g = step(f, { t: 'move', dir: R });
+    expect(g.enemies.find((e) => e.id === m.id)!.hp).toBeGreaterThan(5);
+    const h = fight(RING, new Array(7).fill(null));
+    h.opts.bossRegen = 1;
+    const m2 = enemy(h, 'mongoose', P(3, 3));
+    m2.hp = 12;
+    const k = step(h, { t: 'move', dir: U });
+    expect(k.enemies.find((e) => e.id === m2.id)!.hp).toBeLessThan(12); // crushed, not healed
+    expect(k.events.some((e) => e.t === 'enemyHeal')).toBe(false);
+  });
+});

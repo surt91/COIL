@@ -47,14 +47,19 @@ Explain the reasoning when doing so.
   - `npm test` (Vitest): rule tests, fuzzing over all encounters/events,
     invariants. Must stay green.
   - Bots (`src/bot`, `npm run sim`, `npx tsx scripts/runsim.ts --runs 40`):
-    balance and degenerate dynamics. The `lookahead2` bot is the baseline;
-    target roughly 45–60 % full-run wins at molt/depth 0, deaths concentrated
-    at bosses, ≥25 % of kills by crush. Re-measure after balance-relevant changes
-    (variance at 40 runs is about ±8 %).
+    balance and degenerate dynamics. A skill ladder: `greedy` ≈ beginner,
+    `lookahead2` ≈ average player (baseline), `expert` ≈ experienced (plans
+    coils, 3-move beam search, ~2.5× slower). Targets at molt 0: lookahead2
+    45–60 % full-run wins, expert ~85–90 %; at molt 6: expert 30–40 %, falling
+    monotonically. Deaths concentrated at bosses, ≥25 % of kills by crush.
+    Re-measure after balance-relevant changes (±8 % at 40 runs; `--seed` runs
+    seed0+i, so use disjoint seeds like 1 / 1001 / 2001).
+    `scripts/bench.ts` replays captured fight starts (`gen` once → /tmp) for any policy: the
+    quick way to compare bots or fight-level changes on identical fights.
   - Browser playtests: subagents driving Playwright
     (`chromium.launch({ executablePath: '/usr/bin/chromium' })`) and *looking*
     at screenshots, for everything perception-related. `scripts/shot.mjs` takes
-    quick screenshots; `?fight=<layout>&enemies=a,b&act=N&seed=N` starts a debug fight.
+    quick screenshots; `?fight=<layout>&enemies=a,b&act=N&seed=N&molt=N` starts a debug fight.
 - **Devlog:** append noteworthy decisions, dead ends, surprises and numbers to
   `notes/devlog.md` (German, material for a later blog post).
 - **Git:** commit in coherent steps with the attribution trailer. Pushing to

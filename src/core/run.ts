@@ -6,7 +6,7 @@ import { ENCOUNTERS, Pool } from '../content/encounters';
 import { EVENTS } from '../content/events';
 import { FIRST_COIL, LAYOUTS } from '../content/layouts';
 import { SPECIES } from '../content/species';
-import { createFight, randomEmpty, think } from './fight';
+import { HUNGER_MIN, createFight, randomEmpty, think } from './fight';
 import { addSeg, spawnEnemy } from './ops';
 import { manhattan } from './geom';
 import { CHARMS, ITEMS, charmSum, enemyDef } from './registry';
@@ -52,12 +52,12 @@ export interface RunStats {
 /** Ascension-style difficulty levels ("Depths"), cumulative. */
 export const MOLTS = [
   'Base game',
-  'Hungrier: you starve every 9 turns instead of 12.',
+  'Picky: only food stills your hunger (kills still grow you).',
   'Tougher Garden: Act 1 enemies have +1 HP (hedgehogs excepted: they cost you per bite).',
-  'Lean: you can carry 2 less flesh between rooms.',
-  'Crowded: normal fights and elites bring an extra beetle.',
-  'Thin skin: you start with 1 flesh.',
-  'Apex: bosses have 30% more HP.',
+  'Hungrier: you starve every 10 turns instead of 12.',
+  'Restless: reinforcements come sooner and more often.',
+  'Apex: bosses have 50% more HP.',
+  'Regrowth: a boss outside your wrap or coil heals 1 HP every 4 turns.',
 ];
 
 export interface NextFight {
@@ -150,7 +150,7 @@ export function moveGenome(prev: RunState, from: number, to: number): RunState {
   run.genome.splice(to, 0, it);
   return run;
 }
-export const fleshCap = (run: RunState) => Math.max(2, capFor(run.act) - (run.molt >= 3 ? 2 : 0) + charmSum(run.charms, 'fleshCapBonus'));
+export const fleshCap = (run: RunState) => Math.max(2, capFor(run.act) + charmSum(run.charms, 'fleshCapBonus'));
 export const ACT_NAMES = ['The Garden', 'The Roots', 'The Deep'];
 
 const clone = <T>(x: T): T => structuredClone(x);
@@ -166,7 +166,7 @@ export function createRun(seed: number, molt = 0, daily?: string, speciesId = 'g
     rng,
     act: 0,
     genome: [...sp.genome],
-    flesh: molt >= 5 ? 1 : sp.flesh,
+    flesh: sp.flesh,
     species: sp.id,
     charms: [sp.charm],
     map: [],
@@ -267,11 +267,16 @@ export function reachable(run: RunState): number[] {
 
 // ---------------------------------------------------------------- nodes
 
-function fightOpts(pool: Pool, row: number, molt: number): Partial<FightOpts> {
-  const hunger = molt >= 1 ? { hungerEvery: 9 } : {};
-  if (pool === 'boss') return { escalateFrom: 20, escalateEvery: 8, ...hunger };
-  if (pool === 'elite') return { escalateFrom: 30, escalateEvery: 6, ...hunger };
-  return { escalateFrom: 30 - row, escalateEvery: 6, ...hunger };
+export function fightOpts(pool: Pool, row: number, molt: number): Partial<FightOpts> {
+  const [from, every] = pool === 'boss' ? [20, 8] : pool === 'elite' ? [30, 6] : [30 - row, 6];
+  const restless = molt >= 4;
+  return {
+    escalateFrom: restless ? from - 6 : from,
+    escalateEvery: restless ? every - 1 : every,
+    picky: molt >= 1,
+    ...(molt >= 3 ? { hungerEvery: 10 } : {}),
+    bossRegen: molt >= 6 ? 4 : 0,
+  };
 }
 
 export function startFight(run: RunState, nodeId: number, pool: Pool): RunState {
@@ -296,7 +301,7 @@ export function startFight(run: RunState, nodeId: number, pool: Pool): RunState 
     flesh: run.flesh,
     seed: int(run.rng, 0, 2 ** 31),
     charms: run.charms,
-    place: run.molt >= 4 && (pool === 'normal' || pool === 'elite') ? [...enc.enemies, 'beetle'] : enc.enemies,
+    place: enc.enemies,
     opts: { ...fightOpts(pool, node.row, run.molt), minFood: run.act >= 1 || pool === 'boss' ? 2 : 1 },
   });
   // Event modifiers for this fight.
@@ -304,7 +309,7 @@ export function startFight(run: RunState, nodeId: number, pool: Pool): RunState 
   run.nextFight = undefined;
   if (nf) {
     for (const it of nf.tempItems ?? []) addSeg(fight, it, 'neck', true);
-    if (nf.hungerEvery) fight.opts.hungerEvery = nf.hungerEvery;
+    if (nf.hungerEvery) fight.opts.hungerEvery = Math.max(HUNGER_MIN, nf.hungerEvery);
     if (nf.shield) fight.shield = (fight.shield ?? 0) + nf.shield;
     for (let i = 0; i < -(nf.fleshDelta ?? 0); i++) {
       const k = fight.snake.segs.map((x) => !x.item).lastIndexOf(true);
@@ -324,7 +329,7 @@ export function startFight(run: RunState, nodeId: number, pool: Pool): RunState 
     const boss = enemyDef(e.kind).boss;
     // Garden elites are the regulars in numbers: +1 HP so they cost like elites.
     const actBonus = (pool === 'elite' ? [1, 1, 3] : [0, 1, 3])[Math.min(run.act, 2)];
-    const bonus = boss ? (run.molt >= 6 ? Math.round(e.hp * 0.3) : 0) + (run.bossBonus ?? 0) : e.hp >= 2 ? actBonus + (run.molt >= 2 && run.act === 0 && !enemyDef(e.kind).spiky ? 1 : 0) : 0;
+    const bonus = boss ? (run.molt >= 5 ? Math.round(e.hp * 0.5) : 0) + (run.bossBonus ?? 0) : e.hp >= 2 ? actBonus + (run.molt >= 2 && run.act === 0 && !enemyDef(e.kind).spiky ? 1 : 0) : 0;
     e.hp += bonus;
     e.maxHp += bonus;
   }

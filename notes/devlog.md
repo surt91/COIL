@@ -887,3 +887,77 @@ Unabhängige Stichproben brauchen `--seed 1 / 1001 / 2001`.
 
 Bilanz: 55 % Siege (vorher 57 %), Crush-Anteil 42 %, DESIGN.md um vier
 Ausnahmen kürzer, keine neue Regel dazu.
+
+## 2026-09-26 — Ein Bot, der Coils plant, und Molts, die ihn spüren
+
+Der Auftraggeber fragte, ob ich das Spiel nicht mit einem zu einfachen Bot eiche.
+Er hatte recht, und das ließ sich messen. `greedy` schaut einen Zug voraus,
+`lookahead2` zwei. Mehr unterscheidet die beiden nicht, und doch lagen dazwischen
+45 Prozentpunkte: 10 % gegen 55 % gewonnene Runs. Wenn die Kurve so steil ist,
+gewinnt ein Spieler, der Coils plant, fast immer.
+
+Also habe ich ihn gebaut. Der `expert` hat drei Dinge, die lookahead2 fehlen:
+- **Coil-Gefühl:** Er bewertet, wie viel Bewegungsraum ein Gegner in drei
+  Schritten noch hat. Weniger Raum heißt: ein Coil ist nah.
+- **Umwickeln und Entblößen** zählen bei ihm als Ziele.
+- **Tiefere Suche:** Er schaut einen dritten Zug voraus, aber nur auf den zwei
+  vielversprechendsten Ästen (Beam-Suche).
+
+Zum Vergleichen gibt es jetzt `scripts/bench.ts`. Es friert 820 Kampfanfänge
+aus echten Runs ein, über alle Akte, samt Bossen. Jeder Bot spielt dieselben
+Kämpfe, in 20 Sekunden. Ergebnis pro Kampf:
+- greedy 88,3 %
+- lookahead2 96,2 %
+- expert 99,3 %
+
+Der Unterschied sieht klein aus, aber ein Run hat 16 Kämpfe:
+0,962¹⁶ ≈ 54 %, 0,993¹⁶ ≈ 89 %. Im ganzen Run gewinnt der Expert 88 %, und
+53 % seiner Kills sind Crushes.
+
+Das ist für ein Roguelike an sich richtig: Gute Spieler gewinnen die
+Grundstufe fast immer, dafür gibt es die Molts. Nur bissen die Molts bei ihm
+nicht. Auf Molt 6 gewann er noch 63 %, lookahead2 18 %. Der Balance-Analyst hat
+jede Molt einzeln an- und ausgeschaltet. Fast alles war Zermürbung, und ein
+Coil-Spieler holt sich Fleisch gratis zurück:
+- "Thin skin" (mit 1 Fleisch starten): 0 Punkte.
+- "Lean" (Tragelimit −2): 0.
+- "Crowded" (ein Käfer mehr): half ihm eher, weil jeder Käfer eine Mahlzeit
+  für den Coil ist.
+- Nur "Hungrier" traf ihn wirklich.
+
+Der Systems-Designer wollte Molts, die Können verlangen, statt nur Zahlen zu
+verschlechtern. Die Daten sagten, welche davon wirken. Die neue Leiter:
+
+| Molt | Regel | expert | lookahead2 |
+|---|---|---|---|
+| 0 | – | 88 % | 56,5 % |
+| 1 | Picky: Nur Futter stillt den Hunger, Kills nicht | 85,5 % | 47,5 % |
+| 2 | Tougher Garden | 76,5 % | 44 % |
+| 3 | Hungrier: Hunger alle 10 Züge | 70,5 % | 30 % |
+| 4 | Restless: Nachschub früher und öfter | 69 % | 25,5 % |
+| 5 | Apex: Bosse +50 % HP | 63 % | 18 % |
+| 6 | Regrowth: Ein Boss außerhalb deiner Umarmung heilt alle 4 Züge | 40,5 % | 7,5 % |
+
+Regrowth ist die Molt, die mir am besten gefällt. Sie macht die Boss-Regel von
+heute Morgen zur Prüfung: Wer nur von außen knabbert, verliert das Rennen.
+
+Ein Irrweg dazwischen: **Thrash** (eingerollte Beute beißt weiter in den Ring).
+Das war eine schöne Idee, und die Messung ergab exakt dieselben Zahlen wie
+ohne, auf die Nachkommastelle. Gezählt: 23 Thrash-Absichten in 71 Kämpfen. Die
+Coils des Experten sind so eng, dass die Beute stirbt, bevor sie zuschlagen
+kann. Eine Regel, die niemand spürt, fliegt raus. Das war heute schließlich das
+Thema.
+
+Nebenbei:
+- Hunger kommt nie öfter als alle 6 Züge. Mongoose Tooth, Royal Jelly und
+  Hungrier zusammen hatten Hunger alle 2 Züge ergeben.
+- Der Playtest der neuen Boss-Regeln fand:
+  - Der Dev-Server lief nicht mehr, weil die Bot-Parameter `process.env` im
+    Browser lasen.
+  - Der Mungo parkte am Bau und wartete auf Segmente, die er dort gar nicht
+    angreifen durfte. Jetzt laufen Gegner nur zu dem, was sie beißen können.
+  - Um den Kopf der Ouroboros fehlten die Wickel-Bögen. Deshalb sah Umwickeln
+    nach Glück aus.
+  - "Exposed" versprach einen Rückstoß, den es in der Umarmung fast nie gibt,
+    denn wohin soll er ausweichen? Der Text sagt jetzt ehrlich: +1 Schaden,
+    keine Riposte.

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { initAudio, isMuted, setMuted, startAmbient, stinger, uiClick } from '../audio/audio';
 import { LAYOUTS } from '../content/layouts';
 import { createFight } from '../core/fight';
-import { MOLTS, RunState, createRun, fleshCap, finishFight, recordEvents, updateFight } from '../core/run';
+import { MOLTS, RunState, createRun, fightOpts, fleshCap, finishFight, recordEvents, updateFight } from '../core/run';
 import { seedFromString } from '../core/rng';
 import { loadProfile, loadRun, markSpeciesSeen, recordRun, saveRun, todayKey, unlock } from '../save/storage';
 import { Codex } from './Codex';
@@ -46,11 +46,13 @@ export function App() {
       // ?genome=a,b,c and ?flesh=N set the run itself, so the sidebar shows what you fight with.
       if (params.has('genome')) r.genome = params.get('genome')!.split(',').filter(Boolean);
       if (params.has('flesh')) r.flesh = Number(params.get('flesh'));
+      if (params.has('molt')) r.molt = Number(params.get('molt'));
       const layout = LAYOUTS.find((l) => l.id === params.get('fight')) ?? LAYOUTS[0];
       r.at = r.map.find((n) => n.row === 0)!.id;
       r.screen = {
         t: 'fight', node: r.at, encounter: 'debug', layout: layout.id,
-        fight: createFight({ rows: layout.rows, genome: r.genome, flesh: r.flesh, seed: Number(params.get('seed') ?? 1), place: (params.get('enemies') ?? 'beetle').split(',').filter(Boolean) }),
+        // ?molt=N applies that molt's fight rules (Picky, Hungrier, Restless, Regrowth).
+        fight: createFight({ rows: layout.rows, genome: r.genome, flesh: r.flesh, seed: Number(params.get('seed') ?? 1), place: (params.get('enemies') ?? 'beetle').split(',').filter(Boolean), opts: fightOpts(layout.boss ? 'boss' : 'normal', 0, r.molt) }),
       };
       setRun(r);
     } else if (params.has('seed')) {
