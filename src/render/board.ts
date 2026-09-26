@@ -444,10 +444,8 @@ export class BoardRenderer {
             ctx.beginPath();
             ctx.ellipse(X + T / 2, Y + T / 2, T * 0.26, T * 0.18, 0, 0, Math.PI * 2);
             ctx.fill();
-            // A beetle climbs out after your next move: the holes stir (earth tones, not damage red).
-            const stir = spawnIn(f) === 1;
-            ctx.strokeStyle = stir ? `rgba(217, 130, 43, ${0.6 + 0.4 * Math.sin(now / 90)})` : 'rgba(141, 110, 99, 0.6)';
-            ctx.lineWidth = stir ? 3 : 1.5;
+            ctx.strokeStyle = 'rgba(141, 110, 99, 0.6)';
+            ctx.lineWidth = 1.5;
             ctx.stroke();
           }
           if (t === Tile.Exit || t === Tile.Burrow) {
@@ -456,6 +454,13 @@ export class BoardRenderer {
             ctx.beginPath();
             ctx.ellipse(X + T / 2, Y + T / 2, T * 0.38, T * 0.3, 0, 0, Math.PI * 2);
             ctx.fill();
+            // A reinforcement hole about to spit out a beetle (after your next move): it stirs,
+            // in earth tones (not damage red).
+            if (t === Tile.Burrow && spawnIn(f) === 1 && f.spawns.some((q) => q.x === x && q.y === y)) {
+              ctx.strokeStyle = `rgba(217, 130, 43, ${0.6 + 0.4 * Math.sin(now / 90)})`;
+              ctx.lineWidth = 3;
+              ctx.stroke();
+            }
             if (t === Tile.Exit) {
               if (open) {
                 const g = ctx.createRadialGradient(X + T / 2, Y + T / 2, 0, X + T / 2, Y + T / 2, T * 1.3);
