@@ -304,7 +304,7 @@ export function RewardScreen({ run, setRun, screen }: { run: RunState; setRun: S
           {!screen.charmTaken && <div class="choices">{screen.charms.map((c, i) => <CharmCard id={c} onClick={() => { stinger('reward'); setRun(takeCharm(run, i)); }} />)}</div>}
         </>
       )}
-      {!screen.itemTaken && <button class="btn" onClick={() => { uiClick(); setRun(takeReward(run, null)); }}>Skip the item — digest it instead (+{screen.skipFlesh} flesh)</button>}
+      {!screen.itemTaken && <button class="btn" onClick={() => { uiClick(); setRun(takeReward(run, null)); }}>Skip the item — digest it instead (+{screen.skipFlesh} flesh){capNote(run, screen.skipFlesh) && <span class="choice-warn">{capNote(run, screen.skipFlesh)}</span>}</button>}
       {screen.itemTaken && !screen.charmTaken && <button class="btn" onClick={() => { uiClick(); setRun(toMap(run)); }}>Leave the charm</button>}
       <GenomePanel run={run} setRun={setRun} />
     </div>
@@ -425,6 +425,14 @@ function mentionedItems(label: string) {
   return uniq.filter((d) => !uniq.some((o) => o !== d && o.name.includes(d.name)));
 }
 
+/** Flesh above the carry cap is wasted: say so on the option, before it is chosen. */
+function capNote(run: RunState, gain: number): string | null {
+  const room = Math.max(0, fleshCap(run) - run.flesh);
+  if (gain <= room) return null;
+  return room === 0 ? `You're full (${run.flesh}/${fleshCap(run)}): the flesh would be wasted.` : `You're at ${run.flesh}/${fleshCap(run)}: only +${room} would stay.`;
+}
+const fleshGain = (label: string) => Math.max(0, ...[...label.matchAll(/(?:\+|gain )(\d+) flesh/g)].map((m) => Number(m[1])));
+
 export function EventScreen({ run, setRun, screen }: { run: RunState; setRun: SetRun; screen: Extract<Screen, { t: 'event' }> }) {
   const ev = EVENTS.find((e) => e.id === screen.id)!;
   return (
@@ -438,6 +446,7 @@ export function EventScreen({ run, setRun, screen }: { run: RunState; setRun: Se
             return (
               <button class="btn choice" disabled={!ok} onClick={() => { uiClick(); setRun(eventChoice(run, i)); }}>
                 {c.label}
+                {capNote(run, fleshGain(c.label)) && <span class="choice-warn">{capNote(run, fleshGain(c.label))}</span>}
                 {mentionedItems(c.label).map((d) => (
                   <span class="choice-item"><GlyphIcon glyph={d.glyph} color={d.color} size={18} /> <b>{d.name}</b>: {[d.activeText, d.passiveText && `While carried: ${d.passiveText}`].filter(Boolean).join(' ')}</span>
                 ))}
