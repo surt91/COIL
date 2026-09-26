@@ -225,7 +225,7 @@ defineEnemy({
   hp: 7,
   glyph: 'rival',
   color: '#9aa35f',
-  text: 'Another snake, playing by your rules: it never stands still, and bites by lunging into the red tile. Its length is its health. Bite into its body to cut it in two — the severed part becomes husks you can eat. It eats food to regrow.',
+  text: 'Another snake, playing by your rules: it never stands still, and bites by lunging into the red tile. Its length is its health. Bite into its body to cut it in two — every other severed piece becomes a husk you can eat. It eats food to regrow.',
   snake: true,
   think: (f, e) => snakeThink(f, e, { sever: false, hunt: 'body' }),
 });

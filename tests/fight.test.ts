@@ -173,14 +173,14 @@ describe('coils', () => {
 });
 
 describe('enemy snakes', () => {
-  test('biting a rival snake body cuts it and drops husks', () => {
+  test('biting a rival snake body cuts it; every other severed piece is a husk', () => {
     let f = fight(open(12, 8), [P(3, 4), P(2, 4), P(1, 4)], null, R);
     f.enemies.push({ id: 99, kind: 'rival', pos: P(4, 2), body: [P(4, 3), P(4, 4), P(4, 5), P(5, 5)], hp: 5, maxHp: 5, intent: { t: 'wait' }, poison: 0, held: false, mem: {} });
     f = step(f, { t: 'move', dir: R });
     const r = f.enemies.find((e) => e.id === 99)!;
     expect(r.hp).toBe(2);
     expect(r.body!.length).toBeLessThanOrEqual(1);
-    expect(f.husks.length).toBe(3);
+    expect(f.husks.length).toBe(2); // 3 pieces cut: 1st and 3rd stay
   });
 
   test('a rival snake ring around your head constricts you', () => {

@@ -303,7 +303,8 @@ export function cutEnemy(f: Fight, e: Enemy, k: number, cause: string): boolean 
   if (boss) k = Math.max(k, e.body.length - BOSS_SEVER_MAX);
   const cut = e.body.splice(k);
   // A boss's severed length crumbles to dust (no free meal); lesser snakes leave husks.
-  if (!boss) for (const pos of cut) f.husks.push({ pos, item: null, ttl: 4 });
+  // Lesser snakes leave every other piece as a husk (the rest crumbles): a meal, not a buffet.
+  if (!boss) cut.forEach((pos, i) => { if (i % 2 === 0) f.husks.push({ pos, item: null, ttl: 4 }); });
   const n = cut.length + (boss ? 0 : e.mem.pending ?? 0);
   if (!boss) e.mem.pending = 0;
   return damageEnemy(f, e, n, cause);
