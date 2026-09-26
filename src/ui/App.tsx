@@ -43,11 +43,14 @@ export function App() {
       const r = createRun(Number(params.get('seed') ?? 1));
       r.act = Number(params.get('act') ?? 0);
       if (params.get('species')) r.species = params.get('species')!;
+      // ?genome=a,b,c and ?flesh=N set the run itself, so the sidebar shows what you fight with.
+      if (params.has('genome')) r.genome = params.get('genome')!.split(',').filter(Boolean);
+      if (params.has('flesh')) r.flesh = Number(params.get('flesh'));
       const layout = LAYOUTS.find((l) => l.id === params.get('fight')) ?? LAYOUTS[0];
       r.at = r.map.find((n) => n.row === 0)!.id;
       r.screen = {
         t: 'fight', node: r.at, encounter: 'debug', layout: layout.id,
-        fight: createFight({ rows: layout.rows, genome: params.has('genome') ? params.get('genome')!.split(',').filter(Boolean) : r.genome, flesh: Number(params.get('flesh') ?? r.flesh), seed: Number(params.get('seed') ?? 1), place: (params.get('enemies') ?? 'beetle').split(',').filter(Boolean) }),
+        fight: createFight({ rows: layout.rows, genome: r.genome, flesh: r.flesh, seed: Number(params.get('seed') ?? 1), place: (params.get('enemies') ?? 'beetle').split(',').filter(Boolean) }),
       };
       setRun(r);
     } else if (params.has('seed')) {
