@@ -348,8 +348,9 @@ export class BoardRenderer {
     this.drawStrikes(f, now);
     const bodyPts = this.snakePoints(f, p);
     this.drawEnemies(f, p, now);
-    this.drawPreview(f, now);
+    this.drawPreview(now);
     this.drawSnake(f, bodyPts, now);
+    this.drawPreviewLosses(f);
     this.drawLocks(f, bodyPts, now);
     this.drawRipostes(f, now);
     this.drawTargeting(f, now);
@@ -1149,7 +1150,7 @@ export class BoardRenderer {
   }
 
   /** Ghost of the hovered move: resulting body, lost segments and new coils. */
-  private drawPreview(f: Fight, now: number) {
+  private drawPreview(now: number) {
     const g = this.preview;
     if (!g) return;
     const ctx = this.ctx, T = this.T;
@@ -1182,13 +1183,31 @@ export class BoardRenderer {
     ctx.beginPath();
     ctx.arc(this.cx(h.x), this.cy(h.y), T * 0.34, 0, Math.PI * 2);
     ctx.stroke();
-    // Segments that will be lost this turn (compare uids).
+    // What the new coils will crush: the table from the rules, read off the board.
+    for (const [e, c] of coiledEnemies(g)) this.crushBadge(e.pos, coilDamage(g, c), true);
+    if (g.status === 'dead') {
+      ctx.fillStyle = PAL.danger;
+      ctx.font = `bold ${Math.round(T * 0.35)}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText('DEATH', this.cx(h.x), this.cy(h.y) - T * 0.5);
+    }
+  }
+
+  /** Segments the previewed move loses, drawn over the snake (a sever far down your body must be seen). */
+  private drawPreviewLosses(f: Fight) {
+    const g = this.preview;
+    if (!g) return;
+    const ctx = this.ctx, T = this.T;
     const keep = new Set(g.snake.segs.map((s) => s.uid));
     const lost = f.snake.segs.filter((s, k) => !keep.has(s.uid) && k + 1 < f.snake.body.length);
     for (const s of lost) {
       const pos = ops.segPos(f, s.uid);
       if (!pos) continue;
       const X = this.cx(pos.x), Y = this.cy(pos.y);
+      ctx.fillStyle = 'rgba(13, 19, 33, 0.55)';
+      ctx.beginPath();
+      ctx.arc(X, Y, T * 0.36, 0, Math.PI * 2);
+      ctx.fill();
       ctx.strokeStyle = PAL.danger;
       ctx.lineWidth = 3;
       ctx.beginPath();
@@ -1197,14 +1216,6 @@ export class BoardRenderer {
       ctx.moveTo(X + T * 0.2, Y - T * 0.2);
       ctx.lineTo(X - T * 0.2, Y + T * 0.2);
       ctx.stroke();
-    }
-    // What the new coils will crush: the table from the rules, read off the board.
-    for (const [e, c] of coiledEnemies(g)) this.crushBadge(e.pos, coilDamage(g, c), true);
-    if (g.status === 'dead') {
-      ctx.fillStyle = PAL.danger;
-      ctx.font = `bold ${Math.round(T * 0.35)}px system-ui, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.fillText('DEATH', this.cx(h.x), this.cy(h.y) - T * 0.5);
     }
   }
 

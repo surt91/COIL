@@ -586,6 +586,15 @@ function MoveHint({ f, dir, preview, spent, card }: { f: Fight; dir: Dir | null;
       lines.push('The boss marks this tile: move off it next turn');
     const fizzles = preview.events.filter((e) => e.t === 'fizzle').length;
     if (fizzles) lines.push(`${fizzles} attack${fizzles > 1 ? 's' : ''} will miss`);
+    // What you take off them this turn (a snake's cut, a crush, poison), per enemy.
+    const dealt = new Map<string, number>();
+    for (const ev of preview.events) {
+      if (ev.t !== 'enemyHurt' || ev.cause === 'gnaw') continue;
+      const en = f.enemies.find((x) => x.id === ev.enemy);
+      const name = en ? (ENEMIES.get(en.kind)?.name ?? en.kind) : '?';
+      dealt.set(name, (dealt.get(name) ?? 0) + ev.dmg);
+    }
+    if (dealt.size) lines.push(`Deal: ${[...dealt].map(([n, d]) => `${n} −${d}`).join(', ')}`);
     const kills = preview.events.filter((e) => e.t === 'enemyDie').length;
     if (kills) lines.push(`${kills} kill${kills > 1 ? 's' : ''}`);
     const coils = occupiedCoils(preview);
